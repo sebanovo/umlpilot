@@ -1,0 +1,197 @@
+spring:
+  application:
+    name: umlpilot_api
+  
+  # Configuración de la base de datos PostgreSQL con variables de entorno
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:umlpilot_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # Configuración de JPA
+  jpa:
+    database: POSTGRESQL
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    hibernate:
+      ddl-auto: update  # Opciones: none, validate, update, create, create-drop
+    open-in-view: false
+  
+  # Configuración de multipart para subida de archivos
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  
+  # Configuración de mail (COMENTADA - no necesaria por ahora)
+  # mail:
+  #   host: smtp.gmail.com
+  #   port: 587
+  #   username: tu_email@gmail.com
+  #   password: tu_contraseña
+  #   properties:
+  #     mail:
+  #       smtp:
+  #         auth: true
+  #         starttls:
+  #           enable: true
+
+# Configuración del servidor
+server:
+  port: ${SERVER_PORT:8080}
+
+# Configuración de logging
+logging:
+  level:
+    root: INFO
+    com.umlpilot: DEBUG  # Cambiado de com.financesystem a com.umlpilot
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Configuración de Actuator (monitoreo)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Configuración de Swagger/OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# ============================================================
+# CONFIGURACIONES DE LA APLICACIÓN
+# ============================================================
+
+app:
+  # Configuración de JWT (autenticación)
+  security:
+    jwt:
+      secret: ${JWT_SECRET:4a2d6b9f8e7c1a5d3f2b4c6e8a0d9f1b3c5e7a9d2f4b6c8e0a1d3f5b7c9e2a4}
+      access-expiration-ms: ${JWT_ACCESS_EXPIRATION:900000}  # 15 minutos
+      refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 días
+  
+  # Configuración del superadmin para bootstrapping inicial
+  bootstrap:
+    superadmin:
+      email: ${SUPERADMIN_EMAIL:superadmin@umlpilot.local}
+      password: ${SUPERADMIN_PASSWORD:SuperAdmin123!}
+      first-name: ${SUPERADMIN_FIRST_NAME:Platform}
+      last-name: ${SUPERADMIN_LAST_NAME:Admin}
+    sample-data:
+      enabled: ${SAMPLE_DATA_ENABLED:false}
+  
+  # Configuración de correo (COMENTADA - no necesaria por ahora)
+  # mail:
+  #   from: no-reply@umlpilot.local
+  #   public-base-url: ${API_BASE_URL:http://localhost:8080}
+  
+  # Configuración de notificaciones (COMENTADA - no necesaria por ahora)
+  # notifications:
+  #   password-reset:
+  #     expiration-minutes: ${PASSWORD_RESET_EXPIRATION_MINUTES:30}
+  #     reset-url-base: ${PASSWORD_RESET_URL_BASE:http://localhost:4200/reset-password}
+  #     frontend-url-base: ${FRONTEND_URL_BASE:http://localhost:4200}
+  #     reset-url-path: /reset-password
+  #   account-activation:
+  #     expiration-minutes: ${EMAIL_VERIFICATION_EXPIRATION_MINUTES:1440}
+  #     frontend-url-base: ${FRONTEND_URL_BASE:http://localhost:4200}
+  #     activation-url-path: /verify-email
+  #   push:
+  #     enabled: ${NOTIFICATIONS_PUSH_ENABLED:false}
+  #     provider: FIREBASE
+  #     firebase:
+  #       credentials-path: ${FIREBASE_CREDENTIALS_PATH:classpath:firebase/service-account.example.json}
+  #       type: ${FIREBASE_TYPE:service_account}
+  #       project-id: ${FIREBASE_PROJECT_ID:umlpilot-dev}
+  
+  # Configuración de reconocimiento facial (COMENTADA - no necesaria por ahora)
+  # auth:
+  #   face-recognition:
+  #     enabled: ${FACEPP_ENABLED:false}
+  #     api-key: ${FACEPP_API_KEY:}
+  #     api-secret: ${FACEPP_API_SECRET:}
+  #     base-url: https://api-us.faceplusplus.com/facepp/v3
+  #     confidence-threshold: 80.0
+  #     timeout-ms: 15000
+  
+  # Configuración de almacenamiento
+  storage:
+    profile-photos:
+      root-dir: ${PROFILE_PHOTO_STORAGE_ROOT_DIR:uploads/profile-photos}
+  
+  # Configuración de facturación con Stripe (COMENTADA - no necesaria por ahora)
+  # billing:
+  #   stripe:
+  #     secret-key: ${STRIPE_SECRET_KEY:}
+  #     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  #     frontend-url-base: ${FRONTEND_URL_BASE:http://localhost:4200}
+  #     success-url: /billing/success?session_id={CHECKOUT_SESSION_ID}
+  #     cancel-url: /billing/cancel
+  #     customer-portal-return-url: /settings/billing
+
+  # Configuración de tenancy (COMENTADA - no necesaria por ahora)
+  # tenancy:
+  #   header-name: ${TENANT_HEADER_NAME:X-Tenant-Slug}
+  #   public-schema: ${PUBLIC_SCHEMA:public}
+  #   tenant-schema-prefix: tenant_
+  #   public-paths:
+  #     - /swagger-ui.html
+  #     - /swagger-ui/**
+  #     - /api-docs
+  #     - /api-docs/**
+  #     - /actuator/health
+  #     - /actuator/info
+  #     - /api/public/**
+  #     - /assets/**
+  #     - /logo.png
+  #   global-paths:
+  #     - /api/platform/**
+
+# Configuración de reports (COMENTADA - no necesaria por ahora)
+# reports:
+#   schema: reporting
+#   ai:
+#     mode: ${REPORTS_AI_MODE:mock}
+#     base-url: ${REPORTS_AI_BASE_URL:http://reports-ai:8000}
+#     timeout-ms: ${REPORTS_AI_TIMEOUT_MS:15000}
+#     rate-limit-per-minute: ${REPORTS_AI_RATE_LIMIT:20}
+#     audio-max-bytes: ${REPORTS_AI_AUDIO_MAX_BYTES:10485760}
+#   sql:
+#     max-rows: ${AI_SQL_MAX_ROWS:500}
+#     statement-timeout-ms: ${AI_SQL_TIMEOUT_MS:5000}
+#   snapshot:
+#     max-rows: ${REPORT_SNAPSHOT_MAX_ROWS:500}
+#     max-bytes: ${REPORT_SNAPSHOT_MAX_BYTES:5242880}
+#   export:
+#     max-rows: ${REPORT_EXPORT_MAX_ROWS:10000}
+#     storage-path: ${REPORT_EXPORT_STORAGE_PATH:/app/generated-reports}
+
+# Configuración de billing (COMENTADA - no necesaria por ahora)
+# finance:
+#   billing:
+#     checkout-reconciliation-ms: ${CHECKOUT_RECONCILIATION_MS:60000}

@@ -1,0 +1,561 @@
+@startuml Diagrama de Clases - UML Collaborative Designer (Estructura de Árbol)
+
+!theme plain
+
+' ===== CLASES PRINCIPALES =====
+
+class Proyecto {
+  - idProyecto: String
+  - nombre: String
+  - descripcion: String
+  - estado: String
+  - fechaCreacion: Date
+  - fechaActualizacion: Date
+  - idCreador: String
+  --
+  + crearProyecto()
+  + actualizarProyecto()
+  + eliminarProyecto()
+  + compartirProyecto()
+  + obtenerColaboradores()
+}
+
+class Usuario {
+  - idUsuario: String
+  - nombreUsuario: String
+  - correo: String
+  - contrasenaHash: String
+  - nombreCompleto: String
+  - avatarUrl: String
+  - idiomaPreferido: String
+  - tema: String
+  - estaActivo: boolean
+  - fechaRegistro: Date
+  - ultimoAcceso: Date
+  --
+  + registrar()
+  + iniciarSesion()
+  + recuperarContrasena()
+  + actualizarPerfil()
+}
+
+class Colaborador {
+  - idProyecto: String
+  - idUsuario: String
+  - rol: String
+  - permisos: JSON
+  - fechaInvitacion: Date
+  - fechaAceptacion: Date
+  - estadoInvitacion: String
+  --
+  + aceptarInvitacion()
+  + rechazarInvitacion()
+  + cambiarRol()
+}
+
+' ===== ELEMENTOS UML PARA DIAGRAMA DE CLASES =====
+
+abstract class Elemento {
+  - idElemento: String
+  - nombre: String
+  - visibilidad: String
+  - estereotipo: String
+  - posicionX: int
+  - posicionY: int
+  - ancho: int
+  - alto: int
+  - propiedades: JSON
+  - idCreador: String
+  - fechaCreacion: Date
+  - fechaActualizacion: Date
+  --
+  + agregarElemento()
+  + editarElemento()
+  + eliminarElemento()
+  + moverElemento()
+  + obtenerHijos()
+  + obtenerPadre()
+}
+
+class Paquete {
+  - namespace: String
+  - descripcion: String
+  --
+  + agregarElemento()
+  + eliminarElemento()
+  + obtenerElementos()
+  + crearSubPaquete()
+}
+
+class Clase {
+  - esAbstracta: boolean
+  - esFinal: boolean
+  - nombreBase: String
+  - esActiva: boolean
+  --
+  + agregarAtributo()
+  + agregarMetodo()
+  + agregarClaseInterna()
+  + obtenerAtributos()
+  + obtenerMetodos()
+  + obtenerClasesInternas()
+}
+
+class Interfaz {
+  - version: String
+  --
+  + agregarMetodo()
+  + extenderInterfaz()
+  + obtenerMetodosAbstractos()
+}
+
+class Enumeracion {
+  - tipoBase: String
+  --
+  + agregarLiteral()
+  + obtenerLiterales()
+  + obtenerValorPorLiteral()
+}
+
+class DataType {
+  - tipoDatoPrimitivo: String
+  - esInmutable: boolean
+  --
+  + validarValor()
+  + obtenerTipoBase()
+}
+
+class PrimitiveType {
+  - tipo: String
+  - tamanio: int
+  - rangoMin: String
+  - rangoMax: String
+  --
+  + validarRango()
+  + obtenerTamanioBytes()
+}
+
+class Note {
+  - texto: String
+  - colorFondo: String
+  - colorTexto: String
+  - borderStyle: String
+  --
+  + editarTexto()
+  + cambiarColor()
+  + adjuntarAElemento()
+}
+
+class Modelo {
+  - descripcion: String
+  - version: String
+  --
+  + validarModelo()
+  + exportarXMI()
+  + importarXMI()
+}
+
+' ===== ESTRUCTURA INTERNA DE ELEMENTOS =====
+
+class Atributo {
+  - idAtributo: String
+  - nombre: String
+  - tipoDato: String
+  - visibilidad: String
+  - valorPorDefecto: String
+  - esEstatico: boolean
+  - esFinal: boolean
+  - esTransitorio: boolean
+  - esVolatile: boolean
+  - multiplicidad: String
+  - orden: int
+  - propiedades: JSON
+  --
+  + validarTipo()
+  + obtenerTipoCompleto()
+  + esColeccion()
+}
+
+class Metodo {
+  - idMetodo: String
+  - nombre: String
+  - tipoRetorno: String
+  - visibilidad: String
+  - esEstatico: boolean
+  - esAbstracto: boolean
+  - esFinal: boolean
+  - esConstructor: boolean
+  - esSincronizado: boolean
+  - esNative: boolean
+  - cuerpo: String
+  - orden: int
+  - propiedades: JSON
+  --
+  + agregarParametro()
+  + validarRetorno()
+  + generarFirma()
+  + obtenerParametros()
+}
+
+class Parametro {
+  - idParametro: String
+  - nombre: String
+  - tipoDato: String
+  - orden: int
+  - esVarargs: boolean
+  - esFinal: boolean
+  - valorPorDefecto: String
+  --
+  + validarTipo()
+}
+
+class Literal {
+  - idLiteral: String
+  - nombre: String
+  - valor: String
+  - orden: int
+  --
+  + obtenerValor()
+}
+
+' ===== RELACIONES UML =====
+
+class Relacion {
+  - idRelacion: String
+  - tipoRelacion: String
+  - nombre: String
+  - direccion: String
+  - propiedades: JSON
+  --
+  + establecerMultiplicidad()
+  + validarRelacion()
+  + obtenerOrigen()
+  + obtenerDestino()
+}
+
+class Multiplicidad {
+  - idMultiplicidad: String
+  - extremo: String
+  - min: int
+  - max: int
+  - esOrdenada: boolean
+  - esUnica: boolean
+  --
+  + validarRango()
+  + obtenerTexto()
+}
+
+class Diagrama {
+  - idDiagrama: String
+  - nombre: String
+  - tipo: String
+  - descripcion: String
+  - canvasData: JSON
+  - version: int
+  - estaBloqueado: boolean
+  - idUsuarioBloqueo: String
+  - fechaCreacion: Date
+  - fechaActualizacion: Date
+  --
+  + crearDiagrama()
+  + cargarDiagrama()
+  + guardarDiagrama()
+  + bloquearDiagrama()
+  + desbloquearDiagrama()
+  + obtenerElementosRaiz()
+  + exportarXMI()
+  + importarXMI()
+}
+
+' ===== HISTORIAL Y AUDITORIA =====
+
+class HistorialCambio {
+  - idCambio: String
+  - idDiagrama: String
+  - idUsuario: String
+  - accion: String
+  - idObjetoAfectado: String
+  - tipoObjeto: String
+  - datosAntes: JSON
+  - datosDespues: JSON
+  - fechaCambio: Date
+  --
+  + registrarCambio()
+  + obtenerHistorial()
+  + revertirCambio()
+}
+
+' ===== IA =====
+
+class ComandoIA {
+  - idComando: String
+  - idUsuario: String
+  - idDiagrama: String
+  - tipoComando: String
+  - comandoOriginal: String
+  - comandoInterpretado: JSON
+  - accionEjecutada: JSON
+  - exito: boolean
+  - mensajeError: String
+  - tiempoProcesamiento: int
+  - fechaEjecucion: Date
+  --
+  + interpretarComando()
+  + ejecutarComando()
+  + validarComando()
+}
+
+class GeneracionCodigo {
+  - idGeneracion: String
+  - idDiagrama: String
+  - idUsuario: String
+  - lenguaje: String
+  - configuracion: JSON
+  - archivoZipUrl: String
+  - tamanioZip: long
+  - estado: String
+  - mensajeError: String
+  - fechaSolicitud: Date
+  - fechaCompletado: Date
+  --
+  + generarCodigo()
+  + descargarZip()
+  + validarDiagrama()
+  + generarEntities()
+  + generarRepositories()
+  + generarServices()
+  + generarControllers()
+  + generarDTOs()
+}
+
+class ExportacionXMI {
+  - idExportacion: String
+  - idDiagrama: String
+  - idUsuario: String
+  - versionXMI: String
+  - archivoUrl: String
+  - tamanio: long
+  - fechaExportacion: Date
+  --
+  + exportarModelo()
+  + generarXMI()
+}
+
+class ImportacionXMI {
+  - idImportacion: String
+  - idProyecto: String
+  - idUsuario: String
+  - nombreArchivo: String
+  - tamanio: long
+  - estado: String
+  - mensajeError: String
+  - fechaImportacion: Date
+  --
+  + importarModelo()
+  + parsearXMI()
+}
+
+class ConversacionIA {
+  - idConversacion: String
+  - idUsuario: String
+  - idDiagrama: String
+  - tipo: String
+  - fechaInicio: Date
+  - fechaFin: Date
+  --
+  + iniciarConversacion()
+  + finalizarConversacion()
+  + agregarMensaje()
+  + obtenerMensajes()
+}
+
+class MensajeIA {
+  - idMensaje: String
+  - idConversacion: String
+  - remitente: String
+  - mensaje: String
+  - metadata: JSON
+  - fechaEnvio: Date
+  --
+  + enviarMensaje()
+}
+
+' ===== RELACIONES DE HERENCIA (Elementos UML) =====
+
+Elemento <|-- Paquete
+Elemento <|-- Clase
+Elemento <|-- Interfaz
+Elemento <|-- Enumeracion
+Elemento <|-- DataType
+Elemento <|-- PrimitiveType
+Elemento <|-- Note
+
+' ===== RELACIONES DE COMPOSICIÓN (CORREGIDO) =====
+' TODOS los elementos pueden tener atributos y métodos
+' NOTA: Como Elemento es abstracto, la relación se hereda a todos sus hijos
+
+Elemento "1" --o "0..*" Atributo : "contiene"
+Elemento "1" --o "0..*" Metodo : "contiene"
+
+' Relaciones específicas adicionales
+Enumeracion "1" --o "0..*" Literal : "contiene"
+Metodo "1" --o "0..*" Parametro : "recibe"
+
+' ===== RELACIONES ESTRUCTURALES =====
+
+Elemento "0..1" --o "0..*" Elemento : "contiene / es padre de"
+
+Proyecto "1" --o "0..*" Diagrama : "contiene"
+Proyecto "1" --o "0..*" Elemento : "contiene elementos raíz"
+Proyecto "1" --o "0..*" Colaborador : "tiene"
+Usuario "1" --o "0..*" Colaborador : "participa como"
+Usuario "1" --o "0..*" Proyecto : "crea"
+
+Diagrama "1" --o "0..*" Elemento : "contiene"
+Diagrama "1" --o "0..*" Relacion : "contiene"
+
+' ===== RELACIONES DE DIAGRAMA =====
+
+Relacion "1" --o "0..2" Multiplicidad : "configura"
+Elemento "1" --o "0..*" Relacion : "origen"
+Elemento "1" --o "0..*" Relacion : "destino"
+
+' ===== RELACIONES DE AUDITORIA =====
+
+Diagrama "1" --o "0..*" HistorialCambio : "registra"
+Usuario "1" --o "0..*" HistorialCambio : "realiza"
+
+' ===== RELACIONES DE IA =====
+
+Usuario "1" --o "0..*" ComandoIA : "ejecuta"
+Diagrama "1" --o "0..*" ComandoIA : "recibe"
+
+Diagrama "1" --o "0..*" GeneracionCodigo : "genera"
+Usuario "1" --o "0..*" GeneracionCodigo : "solicita"
+
+Diagrama "1" --o "0..*" ExportacionXMI : "exporta"
+Usuario "1" --o "0..*" ExportacionXMI : "realiza"
+
+Proyecto "1" --o "0..*" ImportacionXMI : "importa"
+Usuario "1" --o "0..*" ImportacionXMI : "realiza"
+
+Usuario "1" --o "0..*" ConversacionIA : "mantiene"
+Diagrama "1" --o "0..*" ConversacionIA : "asocia"
+ConversacionIA "1" --o "0..*" MensajeIA : "contiene"
+
+' ===== NOTAS =====
+
+note left of Elemento
+  **Estructura de Árbol**
+  -----------------------------------
+  Los elementos se organizan 
+  jerárquicamente como en 
+  Enterprise Architect.
+  
+  Un elemento puede contener 
+  otros elementos (relación 
+  recursiva "contiene").
+  
+  Esto permite:
+  - Paquetes anidados
+  - Clases internas
+  - Estructura de proyecto
+  - Explorador de proyectos
+end note
+
+note left of Paquete
+  **Contenedor Jerárquico**
+  -----------------------------------
+  Los paquetes pueden contener:
+  - Subpaquetes
+  - Clases
+  - Interfaces
+  - Enumeraciones
+  - DataTypes
+  - Diagramas
+  
+  Representa el namespace
+  en el modelo UML.
+end note
+
+note right of DataType
+  **DataType UML**
+  -----------------------------------
+  Define un tipo de dato estructurado
+  que no tiene identidad propia.
+  
+  Ejemplos en Java:
+  - LocalDate
+  - BigDecimal
+  - Address (Value Object)
+  
+  Se representa con la palabra
+  clave <<datatype>>
+end note
+
+note right of PrimitiveType
+  **PrimitiveType UML**
+  -----------------------------------
+  Define un tipo de dato atómico
+  proporcionado por el lenguaje.
+  
+  Ejemplos:
+  - int, boolean, float, char
+  - Integer, Boolean (Wrapper)
+  - String (en algunos casos)
+  
+  Se representa con la palabra
+  clave <<primitive>>
+end note
+
+note right of Note
+  **Note UML**
+  -----------------------------------
+  Elemento de documentación
+  que puede adjuntarse a
+  cualquier otro elemento.
+  
+  Propiedades:
+  - Comentarios
+  - Explicaciones
+  - Restricciones
+  - Etiquetas de navegación
+end note
+
+note right of Literal
+  **Literal UML**
+  -----------------------------------
+  Representa un valor constante
+  dentro de una Enumeración.
+  
+  Ejemplo:
+  enum EstadoCivil {
+    SOLTERO, CASADO, DIVORCIADO
+  }
+end note
+
+note right of Modelo
+  **Modelo UML**
+  -----------------------------------
+  Representa el modelo completo
+  del sistema.
+  
+  Contiene todos los elementos
+  y diagramas del proyecto.
+end note
+
+note right of GeneracionCodigo
+  **Generación SpringBoot**
+  -----------------------------------
+  Genera código con:
+  1. Entity (@Entity)
+  2. Repository (@Repository)
+  3. Service (@Service)
+  4. Controller (@RestController)
+  5. DTOs
+  6. Estructura de paquetes
+  7. Dependencias (pom.xml)
+  8. application.properties
+end note
+
+@enduml

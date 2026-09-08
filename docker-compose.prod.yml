@@ -1,0 +1,90 @@
+services:
+  umlpilot-db:
+    image: postgres:16
+
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_HOST_PORT}:5432"
+    volumes:
+      - umlpilot_db_data:/var/lib/postgresql/data
+    networks:
+      - umlpilot-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: umlpilot_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - umlpilot-net
+
+  umlpilot-api:
+    build:
+      context: ./umlpilot_api
+      dockerfile: Dockerfile.dev
+
+    restart: unless-stopped
+    depends_on:
+      umlpilot-db:
+        condition: service_healthy
+      reports-ai:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      PG_DUMP_PATH: /usr/lib/postgresql/16/bin/pg_dump
+      PG_RESTORE_PATH: /usr/lib/postgresql/16/bin/pg_restore
+      PSQL_PATH: /usr/lib/postgresql/16/bin/psql
+    ports:
+      - "${BACKEND_PORT}:8080"
+    volumes:
+      - ./umlpilot_api:/app
+      - maven_cache:/root/.m2
+      - ./backups:/storage/backups
+    working_dir: /app
+    networks:
+      - umlpilot-net
+
+  umlpilot-web:
+    build:
+      context: ./umlpilot_web
+      dockerfile: Dockerfile.dev
+
+    restart: unless-stopped
+    depends_on:
+      - umlpilot-api
+    environment:
+      # enables file watching via polling (for live reload)
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "${FRONTEND_PORT}:4200"
+    volumes:
+      - ./umlpilot_web:/app
+      - node_modules:/app/node_modules
+    working_dir: /app
+    networks:
+      - umlpilot-net
+
+volumes:
+  umlpilot_db_data:
+  maven_cache:
+  node_modules:
+
+networks:
+  umlpilot-net:
+    # custom network name (avoid auto-generated compose name)
+    name: umlpilot-system_finance-net
+    driver: bridge
