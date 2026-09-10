@@ -18,18 +18,20 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
   const [newMethodName, setNewMethodName] = useState('')
   const [newMethodReturn, setNewMethodReturn] = useState('void')
 
-  if (!element) return <div style={{ width: 280, background: '#f9f9f9', borderLeft: '1px solid #ddd', padding: '1rem', fontSize: 13, color: '#999' }}>Selecciona un elemento</div>
+  if (!element) return <div className="w-72 bg-gray-50 border-l border-gray-200 p-4 text-sm text-gray-400">Selecciona un elemento</div>
 
   return (
-    <div style={{ width: 280, background: '#f9f9f9', borderLeft: '1px solid #ddd', padding: '1rem', fontSize: 13, overflowY: 'auto' }}>
-      <h3 style={{ margin: '0 0 0.5rem 0' }}>Propiedades</h3>
-      <div style={{ marginBottom: '0.5rem' }}>
-        <label>Nombre</label>
-        <input value={element.name} onChange={(e) => onUpdate({ name: e.target.value })} style={{ width: '100%', padding: '4px', boxSizing: 'border-box' }} />
+    <div className="w-72 bg-gray-50 border-l border-gray-200 p-4 text-sm overflow-y-auto">
+      <h3 className="font-semibold text-gray-900 mb-3">Propiedades</h3>
+      <div className="mb-3">
+        <label className="block text-xs font-medium text-gray-600 mb-1">Nombre</label>
+        <input value={element.name} onChange={(e) => onUpdate({ name: e.target.value })}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-gray-900 text-xs focus:border-blue-500 outline-none" />
       </div>
-      <div style={{ marginBottom: '0.5rem' }}>
-        <label>Visibilidad</label>
-        <select value={element.visibility} onChange={(e) => onUpdate({ visibility: e.target.value })} style={{ width: '100%', padding: '4px' }}>
+      <div className="mb-3">
+        <label className="block text-xs font-medium text-gray-600 mb-1">Visibilidad</label>
+        <select value={element.visibility} onChange={(e) => onUpdate({ visibility: e.target.value })}
+          className="w-full rounded border border-gray-300 px-2 py-1 text-gray-900 text-xs">
           <option value="public">+</option>
           <option value="private">-</option>
           <option value="protected">#</option>
@@ -37,30 +39,36 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
         </select>
       </div>
 
-      <h4>Atributos</h4>
+      <h4 className="font-medium text-gray-700 mt-4 mb-2">Atributos</h4>
       {attributes.map((a) => (
-        <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid #eee' }}>
-          <span>{a.name}: {a.dataType}</span>
-          <button onClick={() => onDeleteAttribute(a.id)} style={{ border: 'none', color: 'red', cursor: 'pointer', background: 'none', fontSize: 11 }}>×</button>
+        <div key={a.id} className="flex justify-between items-center py-1 border-b border-gray-200">
+          <span className="text-xs text-gray-700">{a.name}: {a.dataType}</span>
+          <button onClick={() => onDeleteAttribute(a.id)} className="text-red-500 hover:text-red-700 text-xs cursor-pointer">&times;</button>
         </div>
       ))}
-      <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-        <input placeholder="nombre" value={newAttrName} onChange={(e) => setNewAttrName(e.target.value)} style={{ flex: 1, padding: '3px', fontSize: 11 }} />
-        <input placeholder="tipo" value={newAttrType} onChange={(e) => setNewAttrType(e.target.value)} style={{ flex: 1, padding: '3px', fontSize: 11 }} />
-        <button onClick={() => { if (newAttrName) { onAddAttribute(newAttrName, newAttrType); setNewAttrName(''); setNewAttrType('String') } }} style={{ padding: '3px 6px', fontSize: 11 }}>+</button>
+      <div className="flex gap-1 mt-2">
+        <input placeholder="nombre" value={newAttrName} onChange={(e) => setNewAttrName(e.target.value)}
+          className="flex-1 rounded border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
+        <input placeholder="tipo" value={newAttrType} onChange={(e) => setNewAttrType(e.target.value)}
+          className="flex-1 rounded border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
+        <button onClick={() => { if (newAttrName) { onAddAttribute(newAttrName, newAttrType); setNewAttrName(''); setNewAttrType('String') } }}
+          className="rounded bg-blue-600 px-1.5 py-0.5 text-white text-[11px] cursor-pointer">+</button>
       </div>
 
-      <h4>Métodos</h4>
+      <h4 className="font-medium text-gray-700 mt-4 mb-2">Métodos</h4>
       {methods.map((m) => (
-        <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid #eee' }}>
-          <span>{m.name}(): {m.returnType}</span>
-          <button onClick={() => onDeleteMethod(m.id)} style={{ border: 'none', color: 'red', cursor: 'pointer', background: 'none', fontSize: 11 }}>×</button>
+        <div key={m.id} className="flex justify-between items-center py-1 border-b border-gray-200">
+          <span className="text-xs text-gray-700">{m.name}(): {m.returnType}</span>
+          <button onClick={() => onDeleteMethod(m.id)} className="text-red-500 hover:text-red-700 text-xs cursor-pointer">&times;</button>
         </div>
       ))}
-      <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-        <input placeholder="nombre" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)} style={{ flex: 1, padding: '3px', fontSize: 11 }} />
-        <input placeholder="retorno" value={newMethodReturn} onChange={(e) => setNewMethodReturn(e.target.value)} style={{ flex: 1, padding: '3px', fontSize: 11 }} />
-        <button onClick={() => { if (newMethodName) { onAddMethod(newMethodName, newMethodReturn); setNewMethodName(''); setNewMethodReturn('void') } }} style={{ padding: '3px 6px', fontSize: 11 }}>+</button>
+      <div className="flex gap-1 mt-2">
+        <input placeholder="nombre" value={newMethodName} onChange={(e) => setNewMethodName(e.target.value)}
+          className="flex-1 rounded border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
+        <input placeholder="retorno" value={newMethodReturn} onChange={(e) => setNewMethodReturn(e.target.value)}
+          className="flex-1 rounded border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
+        <button onClick={() => { if (newMethodName) { onAddMethod(newMethodName, newMethodReturn); setNewMethodName(''); setNewMethodReturn('void') } }}
+          className="rounded bg-blue-600 px-1.5 py-0.5 text-white text-[11px] cursor-pointer">+</button>
       </div>
     </div>
   )

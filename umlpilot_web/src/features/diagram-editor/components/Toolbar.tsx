@@ -34,17 +34,19 @@ export function Toolbar({ onAddElement, onAddRelationship }: ToolbarProps) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: '8px', padding: '8px', background: '#f5f5f5', borderBottom: '1px solid #ddd', flexWrap: 'wrap' }}>
-      <span style={{ fontWeight: 'bold', fontSize: 12, alignSelf: 'center' }}>Elementos:</span>
+    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs flex-wrap">
+      <span className="font-semibold text-gray-600">Elementos:</span>
       {elementTypes.map((et) => (
-        <button key={et.type} onClick={() => handleClick(et.type, false)} style={{ padding: '4px 8px', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', background: 'white', fontSize: 12 }}>
+        <button key={et.type} onClick={() => handleClick(et.type, false)}
+          className="rounded-md border border-gray-300 bg-white px-2 py-1 hover:bg-gray-100 cursor-pointer transition-colors">
           {et.icon} {et.label}
         </button>
       ))}
-      <span style={{ borderLeft: '1px solid #ccc', margin: '0 4px' }} />
-      <span style={{ fontWeight: 'bold', fontSize: 12, alignSelf: 'center' }}>Relaciones:</span>
+      <span className="w-px h-4 bg-gray-300 mx-1" />
+      <span className="font-semibold text-gray-600">Relaciones:</span>
       {relationshipTypes.map((rt) => (
-        <button key={rt.type} onClick={() => handleClick(rt.type, true)} style={{ padding: '4px 8px', border: `1px solid ${activeTool === rt.type ? '#0066cc' : '#ccc'}`, borderRadius: '4px', cursor: 'pointer', background: activeTool === rt.type ? '#e6f0ff' : 'white', fontSize: 12 }}>
+        <button key={rt.type} onClick={() => handleClick(rt.type, true)}
+          className={`rounded-md border px-2 py-1 cursor-pointer transition-colors ${activeTool === rt.type ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 bg-white hover:bg-gray-100'}`}>
           {rt.icon} {rt.label}
         </button>
       ))}

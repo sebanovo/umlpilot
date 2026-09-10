@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { projectsApi, type Project } from '../shared/api/client'
 import { useAuth } from '../features/auth/useAuth'
 
 export function DashboardPage() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -30,71 +30,51 @@ export function DashboardPage() {
     }
   }
 
-  if (loading) return <p style={{ padding: '2rem' }}>Cargando proyectos...</p>
-
   return (
-    <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 2rem', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>Mis Proyectos</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowCreate(true)}
-            style={{ padding: '0.5rem 1rem', background: '#0066cc', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
+    <div className="mx-auto max-w-4xl px-8 py-8 font-sans">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mis Proyectos</h1>
+          {user && <p className="text-sm text-gray-500 mt-1">{user.firstName} {user.lastName}</p>}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowCreate(true)}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors cursor-pointer">
             + Nuevo Proyecto
           </button>
-          <button
-            onClick={() => { logout(); navigate('/login') }}
-            style={{ padding: '0.5rem 1rem', background: '#cc0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-          >
+          <button onClick={() => { logout(); navigate('/login') }}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors cursor-pointer">
             Cerrar sesión
           </button>
         </div>
       </div>
 
       {showCreate && (
-        <form onSubmit={handleCreate} style={{ background: '#f5f5f5', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
-          <h3>Crear Proyecto</h3>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              placeholder="Nombre del proyecto"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
-            />
+        <form onSubmit={handleCreate} className="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Crear Proyecto</h3>
+          <input type="text" placeholder="Nombre del proyecto" value={name} onChange={(e) => setName(e.target.value)} required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 mb-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none" />
+          <textarea placeholder="Descripción (opcional)" value={description} onChange={(e) => setDescription(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 mb-4 min-h-16 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none" />
+          <div className="flex gap-2">
+            <button type="submit" className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 cursor-pointer">Crear</button>
+            <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg bg-gray-400 px-4 py-2 text-sm font-medium text-white hover:bg-gray-500 cursor-pointer">Cancelar</button>
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <textarea
-              placeholder="Descripción (opcional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box', minHeight: '60px' }}
-            />
-          </div>
-          <button type="submit" style={{ padding: '0.5rem 1rem', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '0.5rem' }}>
-            Crear
-          </button>
-          <button type="button" onClick={() => setShowCreate(false)} style={{ padding: '0.5rem 1rem', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            Cancelar
-          </button>
         </form>
       )}
 
-      {projects.length === 0 ? (
-        <p>No tienes proyectos. Crea uno para empezar.</p>
+      {loading ? (
+        <p className="text-gray-500">Cargando proyectos...</p>
+      ) : projects.length === 0 ? (
+        <p className="text-gray-500">No tienes proyectos. Crea uno para empezar.</p>
       ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <div className="grid gap-3">
           {projects.map((project) => (
-            <Link
-              key={project.id}
-              to={`/projects/${project.id}`}
-              style={{ display: 'block', padding: '1.5rem', background: '#f5f5f5', borderRadius: '8px', textDecoration: 'none', color: 'inherit' }}
-            >
-              <h3 style={{ margin: '0 0 0.5rem 0' }}>{project.name}</h3>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#666' }}>{project.description || 'Sin descripción'}</p>
-              <small style={{ color: '#999' }}>Creado: {new Date(project.createdAt).toLocaleDateString()}</small>
+            <Link key={project.id} to={`/projects/${project.id}`}
+              className="block rounded-xl bg-gray-50 border border-gray-200 p-5 hover:border-blue-300 hover:shadow-sm transition-all">
+              <h3 className="font-semibold text-gray-900 mb-1">{project.name}</h3>
+              <p className="text-sm text-gray-500 mb-2">{project.description || 'Sin descripción'}</p>
+              <small className="text-xs text-gray-400">Creado: {new Date(project.createdAt).toLocaleDateString()}</small>
             </Link>
           ))}
         </div>

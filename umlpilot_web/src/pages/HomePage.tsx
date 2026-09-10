@@ -4,14 +4,12 @@ export function HomePage() {
   const { user, logout } = useAuth()
 
   return (
-    <div style={{ maxWidth: '600px', margin: '4rem auto', padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>{import.meta.env.VITE_APP_NAME}</h1>
-      <p>Hola, <strong>{user?.firstName} {user?.lastName}</strong> ({user?.email})</p>
-      <p>Rol: <strong>{user?.role}</strong></p>
-      <button
-        onClick={logout}
-        style={{ padding: '0.5rem 1rem', background: '#cc0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-      >
+    <div className="mx-auto max-w-lg mt-16 p-8 font-sans">
+      <h1 className="text-2xl font-bold text-gray-900 mb-4">{import.meta.env.VITE_APP_NAME}</h1>
+      <p className="text-gray-700 mb-2">Hola, <strong>{user?.firstName} {user?.lastName}</strong> ({user?.email})</p>
+      <p className="text-gray-500 mb-6">Rol: <strong>{user?.role}</strong></p>
+      <button onClick={logout}
+        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors cursor-pointer">
         Cerrar sesión
       </button>
     </div>
