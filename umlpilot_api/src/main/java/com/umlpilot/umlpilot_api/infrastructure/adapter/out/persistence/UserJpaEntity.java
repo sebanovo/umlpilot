@@ -9,7 +9,7 @@ public class UserJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "user_id")
+    @Column(name = "user_id", updatable = false, nullable = false)
     private String id;
 
     @Column(nullable = false, unique = true)
@@ -40,9 +40,6 @@ public class UserJpaEntity {
     protected void onUpdate() { this.updatedAt = LocalDateTime.now(); }
 
     public UserJpaEntity() {}
-    public UserJpaEntity(String id, String email, String password, String firstName, String lastName, com.umlpilot.umlpilot_api.domain.model.Role role, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id; this.email = email; this.password = password; this.firstName = firstName; this.lastName = lastName; this.role = role; this.createdAt = createdAt; this.updatedAt = updatedAt;
-    }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

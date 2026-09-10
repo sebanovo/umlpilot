@@ -9,6 +9,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SuperadminBootstrapService {
@@ -36,6 +37,7 @@ public class SuperadminBootstrapService {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @Transactional
     public void bootstrapSuperadmin() {
         if (userRepository.existsByEmail(superadminEmail)) {
             log.info("Superadmin ya existe: {}", superadminEmail);

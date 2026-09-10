@@ -80,3 +80,40 @@ export const diagramsApi = {
   unlock: (projectId: string, id: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${id}/unlock`, { method: 'POST' }) as Promise<Diagram>,
 }
+
+export interface UmlElementApi {
+  id: string; diagramId: string; name: string; visibility: string; stereotype?: string; elementType: string; positionX: number; positionY: number; width: number; height: number
+}
+export interface UmlAttributeApi { id: string; elementId: string; name: string; dataType: string; visibility: string; defaultValue?: string; isStatic: boolean; isFinal: boolean; orderIndex: number }
+export interface UmlMethodApi { id: string; elementId: string; name: string; returnType: string; visibility: string; isStatic: boolean; isAbstract: boolean; isFinal: boolean; isConstructor: boolean; orderIndex: number; parameters: { id: string; methodId: string; name: string; dataType: string; orderIndex: number }[] }
+export interface UmlRelationshipApi { id: string; diagramId: string; sourceElementId: string; targetElementId: string; relationshipType: string; name?: string; direction: string }
+
+export const elementsApi = {
+  list: (projectId: string, diagramId: string) => authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements`) as Promise<UmlElementApi[]>,
+  create: (projectId: string, diagramId: string, data: { name: string; elementType: string; positionX?: number; positionY?: number }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlElementApi>,
+  update: (projectId: string, diagramId: string, elementId: string, data: Record<string, unknown>) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<UmlElementApi>,
+  delete: (projectId: string, diagramId: string, elementId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}`, { method: 'DELETE' }),
+  getAttributes: (projectId: string, diagramId: string, elementId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}/attributes`) as Promise<UmlAttributeApi[]>,
+  addAttribute: (projectId: string, diagramId: string, elementId: string, data: { name: string; dataType: string; visibility?: string; orderIndex?: number }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}/attributes`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlAttributeApi>,
+  deleteAttribute: (projectId: string, diagramId: string, attributeId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/attributes/${attributeId}`, { method: 'DELETE' }),
+  getMethods: (projectId: string, diagramId: string, elementId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}/methods`) as Promise<UmlMethodApi[]>,
+  addMethod: (projectId: string, diagramId: string, elementId: string, data: { name: string; returnType: string; visibility?: string; orderIndex?: number }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}/methods`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlMethodApi>,
+  deleteMethod: (projectId: string, diagramId: string, methodId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/methods/${methodId}`, { method: 'DELETE' }),
+}
+
+export const relationshipsApi = {
+  list: (projectId: string, diagramId: string) => authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships`) as Promise<UmlRelationshipApi[]>,
+  create: (projectId: string, diagramId: string, data: { sourceElementId: string; targetElementId: string; relationshipType: string }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlRelationshipApi>,
+  delete: (projectId: string, diagramId: string, relationshipId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'DELETE' }),
+}

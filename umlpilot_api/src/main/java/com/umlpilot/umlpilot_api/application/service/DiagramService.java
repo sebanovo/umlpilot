@@ -27,8 +27,8 @@ public class DiagramService {
     }
 
     @Transactional
-    public DiagramResult createDiagram(CreateDiagramCommand command) {
-        projectRepository.findByIdAndUserId(command.projectId(), /* userId needed */ null)
+    public DiagramResult createDiagram(CreateDiagramCommand command, String userId) {
+        projectRepository.findByIdAndUserId(command.projectId(), userId)
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
 
         Diagram diagram = Diagram.create(command.projectId(), command.name(), command.type());

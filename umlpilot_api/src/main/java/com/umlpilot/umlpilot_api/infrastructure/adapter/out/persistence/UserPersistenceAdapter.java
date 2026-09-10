@@ -17,11 +17,21 @@ public class UserPersistenceAdapter implements UserRepository {
 
     @Override
     public User save(User user) {
-        UserJpaEntity entity = new UserJpaEntity(
-                user.getId().value(), user.getEmail(), user.getPassword(),
-                user.getFirstName(), user.getLastName(), user.getRole(),
-                user.getCreatedAt(), user.getUpdatedAt()
-        );
+        Optional<UserJpaEntity> existing = jpaRepository.findByEmail(user.getEmail());
+
+        UserJpaEntity entity;
+        if (existing.isPresent()) {
+            entity = existing.get();
+        } else {
+            entity = new UserJpaEntity();
+        }
+
+        entity.setEmail(user.getEmail());
+        entity.setPassword(user.getPassword());
+        entity.setFirstName(user.getFirstName());
+        entity.setLastName(user.getLastName());
+        entity.setRole(user.getRole());
+
         UserJpaEntity saved = jpaRepository.save(entity);
         return toDomain(saved);
     }

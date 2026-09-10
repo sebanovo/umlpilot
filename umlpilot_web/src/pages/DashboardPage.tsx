@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { projectsApi, type Project } from '../shared/api/client'
+import { useAuth } from '../features/auth/useAuth'
 
 export function DashboardPage() {
+  const { logout } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -34,12 +36,20 @@ export function DashboardPage() {
     <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 2rem', fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1>Mis Proyectos</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          style={{ padding: '0.5rem 1rem', background: '#0066cc', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          + Nuevo Proyecto
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{ padding: '0.5rem 1rem', background: '#0066cc', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            + Nuevo Proyecto
+          </button>
+          <button
+            onClick={() => { logout(); navigate('/login') }}
+            style={{ padding: '0.5rem 1rem', background: '#cc0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
       {showCreate && (
