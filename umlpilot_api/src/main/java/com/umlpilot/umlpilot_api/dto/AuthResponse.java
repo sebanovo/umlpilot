@@ -6,5 +6,5 @@ public record AuthResponse(
         String tokenType,
         UserDto user
 ) {
-    public record UserDto(Long id, String email, String firstName, String lastName, String role) {}
+    public record UserDto(String id, String email, String firstName, String lastName, String role) {}
 }
