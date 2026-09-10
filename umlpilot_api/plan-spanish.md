@@ -10,14 +10,12 @@ Desarrollo de una aplicación web de modelado UML colaborativo, similar a **Ente
   - Generación automática de código backend (SpringBoot).
   - Normalización, mapeo y optimización de modelos de datos.
   - Edición y creación de diagramas mediante comandos de voz y texto.
-- Ofrecer una **aplicación móvil** (Flutter) para consumo del backend generado, con capacidad de operar sin conexión a internet (IA local en el dispositivo).
 
 ## 3. Innovaciones Clave
 1. **IA Generativa**: Generación de código backend completo a partir de diagramas de clases.
 2. **IA Asistida**: Asistente virtual para guiar al usuario en el uso de los endpoints generados.
-3. **IA Local (Offline)**: Capacidad de ejecutar modelos de IA en el dispositivo móvil sin necesidad de conexión a internet.
-4. **Diseño Colaborativo en Tiempo Real**: Edición simultánea de diagramas por múltiples usuarios.
-5. **IA Mediante Voz**: Comandos de voz para editar diagramas y controlar la interfaz.
+3. **Diseño Colaborativo en Tiempo Real**: Edición simultánea de diagramas por múltiples usuarios.
+4. **IA Mediante Voz**: Comandos de voz para editar diagramas y controlar la interfaz.
 
 ## 4. Alcance Funcional
 
@@ -40,6 +38,14 @@ Desarrollo de una aplicación web de modelado UML colaborativo, similar a **Ente
   - Endpoints REST básicos (CRUD).
   - Documentación Swagger/OpenAPI.z
 
+El Backend generado debe estar mínimamente con las 4 capas de SpringBoot:
+`4 capas de SpringBoot:`
+- Modelo (Capa de Datos @Entity)
+- Repositorio (Capa de Persistencia @Repository)
+- Servicio (Capa de Negocio @Service)
+- Controlador (Capa de presentación @RestController)
+- Capa Extra (DTO)
+
 ### 4.3. Asistente IA para Backend
 - Guía interactiva para entender y probar los endpoints generados.
 - Sugerencias de pruebas con **Postman**.
@@ -49,11 +55,6 @@ Desarrollo de una aplicación web de modelado UML colaborativo, similar a **Ente
 - **Exportar** modelos a formato **XMI** (compatible con Enterprise Architect).
 - **Importar** modelos desde XMI (futuro).
 
-### 4.5. Aplicación Móvil (Flutter)
-- **Frontend dinámico**: Se adapta al backend generado.
-- **Funcionamiento offline**: IA local para procesamiento de datos sin internet.
-- **Consumo de API**: Conexión al backend generado (SpringBoot).
-
 ## 5. Stack Tecnológico
 
 | Componente               | Tecnología                        |
@@ -62,7 +63,6 @@ Desarrollo de una aplicación web de modelado UML colaborativo, similar a **Ente
 | Frontend Web             | A definir (React, Angular, Vue)   |
 | Base de Datos            | PostgreSQL                        |
 | Backend Generado         | SpringBoot                        |
-| Frontend Móvil           | Flutter                           |
 | Comunicación Tiempo Real | WebSockets / Socket.io            |
 | IA                       | Modelos locales y en la nube      |
 
@@ -73,30 +73,7 @@ Desarrollo de una aplicación web de modelado UML colaborativo, similar a **Ente
 - **Seguridad**: Autenticación y autorización de usuarios.
 - **Offline**: Funcionalidad básica en la app móvil sin conexión.
 
-## 7. Entregables
-
-### 7.1. Documentación
-- Manual de usuario.
-- Guía de instalación y despliegue.
-- Diagramas de arquitectura y base de datos.
-- Especificación de la API generada.
-
-### 7.2. Software
-- Código fuente del sistema principal.
-- Código fuente del backend generado (ejemplo).
-- Código fuente de la aplicación móvil.
-- Scripts de base de datos.
-
-### 7.3. Demostración
-- Video demostrativo (máx. 5 min).
-- Presentación de las innovaciones implementadas.
-## 9. Consideraciones Finales
+## 7. Consideraciones Finales
 - La herramienta debe ser autónoma y funcional en el entorno del usuario.
 - El código generado debe ser limpio, documentado y seguir buenas prácticas.
 - La IA debe ser un asistente útil, no un reemplazo del diseñador.
-
----
-**Fecha de Entrega:** 23/10/2026  
-**Modalidad:** Grupal (equipos de hasta 4 integrantes)  
-**Forma de Entrega:** Repositorio GitHub con todo el código y documentación.
-
