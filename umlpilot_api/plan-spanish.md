@@ -531,38 +531,7 @@ CREATE INDEX idx_exportacion_diagrama ON exportacion_xmi(id_diagrama);
 CREATE INDEX idx_importacion_proyecto ON importacion_xmi(id_proyecto);
 
 -- ============================================================
--- 11. TRIGGERS PARA ACTUALIZAR FECHAS
--- ============================================================
-
--- Funcion para actualizar fecha_actualizacion
-CREATE OR REPLACE FUNCTION actualizar_fecha_actualizacion()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.fecha_actualizacion = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Triggers para tabla proyecto
-CREATE TRIGGER trigger_proyecto_actualizacion
-    BEFORE UPDATE ON proyecto
-    FOR EACH ROW
-    EXECUTE FUNCTION actualizar_fecha_actualizacion();
-
--- Triggers para tabla elemento
-CREATE TRIGGER trigger_elemento_actualizacion
-    BEFORE UPDATE ON elemento
-    FOR EACH ROW
-    EXECUTE FUNCTION actualizar_fecha_actualizacion();
-
--- Triggers para tabla diagrama
-CREATE TRIGGER trigger_diagrama_actualizacion
-    BEFORE UPDATE ON diagrama
-    FOR EACH ROW
-    EXECUTE FUNCTION actualizar_fecha_actualizacion();
-
--- ============================================================
--- 12. VISTAS UTILES
+-- 11. VISTAS UTILES
 -- ============================================================
 
 -- Vista: elementos_completos (con todos los detalles)
