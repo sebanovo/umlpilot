@@ -14,34 +14,40 @@ export function DiagramEditorPage() {
   const {
     nodes, edges, elements, connected, presenceUsers,
     selectedElement, selectedAttributes, selectedMethods, loading,
-    onNodesChange, onEdgesChange, onConnect, selectElement, createElement,
+    activeRelationship, setActiveRelationship, connectSource, handleNodeClick,
+    onNodesChange, onEdgesChange, onConnect, createElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-gray-50">
+    <div className="h-screen flex items-center justify-center bg-gray-950">
       <div className="text-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-gray-500">Cargando editor...</p>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Cargando editor...</p>
       </div>
     </div>
   )
 
   return (
     <ReactFlowProvider>
-      <div className="h-screen flex flex-col font-sans bg-white">
-        <header className="flex items-center justify-between bg-blue-900 text-white px-4 py-2 text-sm shrink-0">
+      <div className="h-screen flex flex-col font-sans bg-gray-950">
+        <header className="flex items-center justify-between bg-gray-900 border-b border-gray-800 text-gray-100 px-4 py-2 text-sm shrink-0">
           <div className="flex items-center gap-4">
-            <Link to={`/projects/${projectId}`} className="text-blue-300 hover:text-white transition-colors">
+            <Link to={`/projects/${projectId}`} className="text-blue-400 hover:text-blue-300 transition-colors">
               <ArrowLeft className="w-4 h-4" />
             </Link>
             <strong>Editor de Diagrama</strong>
-            <span className="text-blue-300 text-xs">{elements.length} elemento{elements.length !== 1 ? 's' : ''}</span>
+            <span className="text-gray-400 text-xs">{elements.length} elemento{elements.length !== 1 ? 's' : ''}</span>
+            {activeRelationship && (
+              <span className="text-xs text-blue-300 bg-blue-950/60 border border-blue-800 rounded-full px-2 py-0.5">
+                {connectSource ? 'Ahora haz clic en la clase destino' : 'Haz clic en la clase origen'}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4">
             {/* Presence */}
             {presenceUsers.length > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-blue-200">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
                 <Users className="w-3.5 h-3.5" />
                 {presenceUsers.length} en línea
               </div>
@@ -60,16 +66,17 @@ export function DiagramEditorPage() {
                 </>
               )}
             </div>
-            <span className="text-blue-200 text-xs">{user?.firstName}</span>
+            <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
-        <Toolbar onAddElement={createElement} onAddRelationship={() => {}} />
+        <Toolbar onAddElement={createElement} activeRelationship={activeRelationship} onSelectRelationship={setActiveRelationship} />
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1">
             <DiagramCanvas
               nodes={nodes} edges={edges}
               onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-              onNodeClick={selectElement} onConnect={onConnect}
+              onNodeClick={handleNodeClick} onConnect={onConnect}
+              connectSourceId={connectSource}
             />
           </div>
           <PropertiesPanel

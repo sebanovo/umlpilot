@@ -5,6 +5,16 @@ import { elementsApi, relationshipsApi } from '../../../shared/api/client'
 import type { UmlElementApi, UmlAttributeApi, UmlMethodApi, UmlRelationshipApi } from '../../../shared/api/client'
 import { useWebSocket } from '../../../shared/lib/useWebSocket'
 
+const EDGE_TYPES = new Set([
+  'association', 'association_class', 'generalization', 'realization',
+  'dependency', 'aggregation', 'composition', 'template_binding',
+])
+
+function edgeTypeFor(relType?: string | null): string {
+  const t = (relType || 'association').toLowerCase()
+  return EDGE_TYPES.has(t) ? t : 'association'
+}
+
 interface UseDiagramStateProps {
   projectId: string
   diagramId: string
@@ -31,12 +41,21 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
 
   const pendingChanges = useRef<Map<string, Record<string, unknown>>>(new Map())
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastMoveBroadcast = useRef<Map<string, number>>(new Map())
+
+  const [activeRelationship, setActiveRelationship] = useState<string | null>(null)
+  const [connectSource, setConnectSource] = useState<string | null>(null)
 
   // Get current user ID from localStorage
   const userId = JSON.parse(localStorage.getItem('user') || '{}')?.id || ''
 
   // Connect WebSocket
   const { connected, presenceUsers, remoteChanges, broadcastElementChange, clearRemoteChanges } = useWebSocket(diagramId, userId)
+
+  // Reset pending connection when the tool changes
+  useEffect(() => {
+    setConnectSource(null)
+  }, [activeRelationship, diagramId])
 
   // Load initial data
   useEffect(() => {
@@ -67,9 +86,8 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
           id: rel.id,
           source: rel.sourceElementId,
           target: rel.targetElementId,
-          type: rel.relationshipType === 'generalization' ? 'generalization' : rel.relationshipType === 'dependency' || rel.relationshipType === 'realization' ? 'dependency' : 'association',
-          label: rel.name || '',
-          animated: rel.relationshipType === 'dependency',
+          type: edgeTypeFor(rel.relationshipType),
+          data: { relationshipType: rel.relationshipType, name: rel.name || '' },
         }))
 
         setState(prev => ({
@@ -79,24 +97,67 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     }).catch(() => setState(prev => ({ ...prev, loading: false })))
   }, [projectId, diagramId])
 
+  // Rebuild nodes/edges from server (used when a remote change arrives)
+  const rebuildDiagram = useCallback(async () => {
+    const [els, rels] = await Promise.all([
+      elementsApi.list(projectId, diagramId),
+      relationshipsApi.list(projectId, diagramId),
+    ])
+    const attrMap: Record<string, UmlAttributeApi[]> = {}
+    const methMap: Record<string, UmlMethodApi[]> = {}
+
+    await Promise.all(els.map(async (el: UmlElementApi) => {
+      const [attrs, meths] = await Promise.all([
+        elementsApi.getAttributes(projectId, diagramId, el.id),
+        elementsApi.getMethods(projectId, diagramId, el.id),
+      ])
+      attrMap[el.id] = attrs
+      methMap[el.id] = meths
+    }))
+
+    const nodes: Node[] = els.map((el: UmlElementApi) => ({
+      id: el.id,
+      type: el.elementType === 'enumeration' ? 'enumeration' : el.elementType === 'interface' ? 'interface' : 'class',
+      position: { x: el.positionX, y: el.positionY },
+      data: { name: el.name, visibility: el.visibility, stereotype: el.stereotype, attributes: attrMap[el.id] || [], methods: methMap[el.id] || [], literals: [] },
+    }))
+
+    const edges: Edge[] = rels.map((rel: UmlRelationshipApi) => ({
+      id: rel.id,
+      source: rel.sourceElementId,
+      target: rel.targetElementId,
+      type: edgeTypeFor(rel.relationshipType),
+      data: { relationshipType: rel.relationshipType, name: rel.name || '' },
+    }))
+
+    setState(prev => ({
+      ...prev, nodes, edges, elements: els, attributes: attrMap, methods: methMap, relationships: rels,
+      selectedElement: prev.selectedElement ? els.find((e) => e.id === prev.selectedElement!.id) || prev.selectedElement : null,
+    }))
+  }, [projectId, diagramId])
+
   // Handle remote changes from WebSocket
   useEffect(() => {
     if (remoteChanges.length === 0) return
 
     remoteChanges.forEach((change) => {
       switch (change.type) {
-        case 'element_created':
-        case 'element_moved':
-        case 'element_updated': {
-          const data = change.data as Record<string, unknown>
-          if (data?.elementId) {
-            // Refetch element from server
-            elementsApi.getAttributes(projectId, diagramId, data.elementId as string).catch(() => {})
-            // For simplicity, refetch all elements to stay in sync
-            elementsApi.list(projectId, diagramId).then((els) => {
-              setState(prev => ({ ...prev, elements: els }))
-            }).catch(() => {})
+        case 'element_moved': {
+          const d = change.data as { elementId?: string; positionX?: number; positionY?: number }
+          if (d?.elementId && typeof d.positionX === 'number' && typeof d.positionY === 'number') {
+            setState(prev => ({
+              ...prev,
+              nodes: prev.nodes.map((n) => n.id === d.elementId ? { ...n, position: { x: d.positionX as number, y: d.positionY as number } } : n),
+              elements: prev.elements.map((e) => e.id === d.elementId ? { ...e, positionX: d.positionX as number, positionY: d.positionY as number } : e),
+            }))
+          } else {
+            rebuildDiagram().catch(() => {})
           }
+          break
+        }
+        case 'element_created':
+        case 'element_updated': {
+          rebuildDiagram().catch(() => {})
           break
         }
         case 'element_deleted': {
@@ -111,36 +172,16 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
           break
         }
         case 'relationship_created':
-        case 'relationship_updated': {
-          relationshipsApi.list(projectId, diagramId).then((rels) => {
-            const edges: Edge[] = rels.map((rel: UmlRelationshipApi) => ({
-              id: rel.id,
-              source: rel.sourceElementId,
-              target: rel.targetElementId,
-              type: rel.relationshipType === 'generalization' ? 'generalization' : rel.relationshipType === 'dependency' || rel.relationshipType === 'realization' ? 'dependency' : 'association',
-              label: rel.name || '',
-              animated: rel.relationshipType === 'dependency',
-            }))
-            setState(prev => ({ ...prev, edges, relationships: rels }))
-          }).catch(() => {})
-          break
-        }
+        case 'relationship_updated':
         case 'relationship_deleted': {
-          const data = change.data as Record<string, unknown>
-          if (data?.relationshipId) {
-            setState(prev => ({
-              ...prev,
-              edges: prev.edges.filter((e) => e.id !== data.relationshipId),
-              relationships: prev.relationships.filter((r) => r.id !== data.relationshipId),
-            }))
-          }
+          rebuildDiagram().catch(() => {})
           break
         }
       }
     })
 
     clearRemoteChanges()
-  }, [remoteChanges, projectId, diagramId, clearRemoteChanges])
+  }, [remoteChanges, rebuildDiagram, clearRemoteChanges])
 
   // Debounced sync to server + broadcast via WebSocket
   const syncToServer = useCallback(() => {
@@ -160,19 +201,36 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
 
     changes.forEach((change) => {
       if (change.type === 'position' && change.position && change.id) {
-        pendingChanges.current.set(change.id as string, {
-          ...(pendingChanges.current.get(change.id as string) || {}),
+        const id = change.id as string
+        pendingChanges.current.set(id, {
+          ...(pendingChanges.current.get(id) || {}),
           positionX: change.position.x,
           positionY: change.position.y,
         })
         syncToServer()
+        const now = Date.now()
+        if (now - (lastMoveBroadcast.current.get(id) || 0) >= 80) {
+          lastMoveBroadcast.current.set(id, now)
+          broadcastElementChange('element_moved', id, { positionX: change.position.x, positionY: change.position.y })
+        }
+      }
+      if (change.type === 'remove' && change.id && !String(change.id).startsWith('temp-')) {
+        elementsApi.delete(projectId, diagramId, change.id as string).catch(() => {})
+        broadcastElementChange('element_deleted', change.id as string)
       }
     })
-  }, [syncToServer])
+  }, [syncToServer, projectId, diagramId, broadcastElementChange])
 
   const onEdgesChange: OnEdgesChange = useCallback((changes) => {
     setState(prev => ({ ...prev, edges: applyEdgeChanges(changes, prev.edges) }))
-  }, [])
+
+    changes.forEach((change) => {
+      if (change.type === 'remove' && change.id && !String(change.id).startsWith('edge-')) {
+        relationshipsApi.delete(projectId, diagramId, change.id as string).catch(() => {})
+        broadcastElementChange('relationship_deleted', change.id as string, { relationshipId: change.id as string })
+      }
+    })
+  }, [projectId, diagramId, broadcastElementChange])
 
   // Create element — optimistic + broadcast
   const createElement = useCallback(async (type: string) => {
@@ -202,21 +260,27 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     }
   }, [projectId, diagramId, state.elements.length, broadcastElementChange])
 
-  // Connect elements — optimistic + broadcast
-  const onConnect = useCallback(async (params: { source: string; target: string }) => {
-    if (!params.source || !params.target) return
+  // Create relationship — optimistic + broadcast
+  const createRelationship = useCallback(async (sourceId: string, targetId: string, relationshipType: string) => {
+    if (!sourceId || !targetId || sourceId === targetId) return
 
     const tempId = `edge-${Date.now()}`
-    const newEdge: Edge = { id: tempId, source: params.source, target: params.target, type: 'association' }
+    const newEdge: Edge = {
+      id: tempId, source: sourceId, target: targetId,
+      type: edgeTypeFor(relationshipType),
+      data: { relationshipType, name: '' },
+    }
     setState(prev => ({ ...prev, edges: [...prev.edges, newEdge] }))
 
     try {
       const rel = await relationshipsApi.create(projectId, diagramId, {
-        sourceElementId: params.source, targetElementId: params.target, relationshipType: 'association',
+        sourceElementId: sourceId, targetElementId: targetId, relationshipType,
       })
       setState(prev => ({
         ...prev,
-        edges: prev.edges.map((e) => e.id === tempId ? { ...e, id: rel.id } : e),
+        edges: prev.edges.map((e) => e.id === tempId
+          ? { ...e, id: rel.id, type: edgeTypeFor(rel.relationshipType), data: { relationshipType: rel.relationshipType, name: rel.name || '' } }
+          : e),
         relationships: [...prev.relationships, rel],
       }))
       broadcastElementChange('relationship_created', rel.id)
@@ -224,6 +288,11 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       setState(prev => ({ ...prev, edges: prev.edges.filter((e) => e.id !== tempId) }))
     }
   }, [projectId, diagramId, broadcastElementChange])
+
+  // Connect via drag between handles
+  const onConnect = useCallback((params: { source: string; target: string }) => {
+    createRelationship(params.source, params.target, activeRelationship || 'association')
+  }, [createRelationship, activeRelationship])
 
   // Select element
   const selectElement = useCallback(async (elementId: string) => {
@@ -236,6 +305,22 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     ])
     setState(prev => ({ ...prev, selectedElement: el, selectedAttributes: attrs, selectedMethods: meths }))
   }, [state.elements, projectId, diagramId])
+
+  // Node click: when a relationship tool is active, pick source then target
+  const handleNodeClick = useCallback((elementId: string) => {
+    if (activeRelationship) {
+      if (!connectSource) {
+        setConnectSource(elementId)
+      } else if (connectSource === elementId) {
+        setConnectSource(null)
+      } else {
+        createRelationship(connectSource, elementId, activeRelationship)
+        setConnectSource(null)
+      }
+    } else {
+      selectElement(elementId)
+    }
+  }, [activeRelationship, connectSource, createRelationship, selectElement])
 
   // Update element — optimistic + broadcast
   const updateElement = useCallback(async (data: Partial<UmlElementApi>) => {
@@ -328,6 +413,10 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     ...state,
     connected,
     presenceUsers,
+    activeRelationship,
+    setActiveRelationship,
+    connectSource,
+    handleNodeClick,
     onNodesChange,
     onEdgesChange,
     onConnect,

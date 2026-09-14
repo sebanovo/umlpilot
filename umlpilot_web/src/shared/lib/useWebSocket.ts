@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Client, type IMessage } from '@stomp/stompjs'
+import { v4 as uuidv4 } from 'uuid'
+
+const CLIENT_ID = uuidv4()
 
 interface PresenceMessage {
   userId: string
@@ -50,7 +53,8 @@ export function useWebSocket(diagramId: string, userId: string) {
         client.subscribe(`/topic/diagram/${diagramId}/changes`, (message: IMessage) => {
           try {
             const body = JSON.parse(message.body) as DiagramUpdateMessage
-            if (body.userId !== userId) {
+            const senderClientId = (body.data as { clientId?: string } | undefined)?.clientId
+            if (senderClientId !== CLIENT_ID) {
               setRemoteChanges((prev) => [...prev, body])
             }
           } catch { /* ignore */ }
@@ -86,11 +90,11 @@ export function useWebSocket(diagramId: string, userId: string) {
   }, [])
 
   const broadcastElementChange = useCallback((type: string, elementId: string, data?: Record<string, unknown>) => {
-    publish('/app/diagram/update', { diagramId, type, data: { elementId, ...data } })
+    publish('/app/diagram/update', { diagramId, type, data: { elementId, clientId: CLIENT_ID, ...data } })
   }, [publish, diagramId])
 
   const broadcastCursor = useCallback((x: number, y: number) => {
-    publish('/app/diagram/update', { diagramId, type: 'user_cursor', data: { x, y } })
+    publish('/app/diagram/update', { diagramId, type: 'user_cursor', data: { x, y, clientId: CLIENT_ID } })
   }, [publish, diagramId])
 
   const clearRemoteChanges = useCallback(() => {

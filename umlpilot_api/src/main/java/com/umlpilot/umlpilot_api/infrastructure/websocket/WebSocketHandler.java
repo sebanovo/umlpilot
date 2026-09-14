@@ -1,43 +1,50 @@
 package com.umlpilot.umlpilot_api.infrastructure.websocket;
 
+import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
 import com.umlpilot.umlpilot_api.infrastructure.security.JwtService;
 import org.springframework.context.ApplicationListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
+@Controller
 public class WebSocketHandler implements ApplicationListener<SessionDisconnectEvent> {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final Map<String, Set<String>> diagramRooms = new ConcurrentHashMap<>();
     private final Map<String, String> sessionUserMap = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionDiagramMap = new ConcurrentHashMap<>();
 
-    public WebSocketHandler(JwtService jwtService, SimpMessagingTemplate messagingTemplate) {
+    public WebSocketHandler(JwtService jwtService, UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
     }
 
     private String extractUserId(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        String email = null;
         if (principal != null) {
-            return principal.getName();
-        }
-        String token = headerAccessor.getFirstNativeHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-            if (jwtService.isTokenValid(token)) {
-                return jwtService.extractEmail(token);
+            email = principal.getName();
+        } else {
+            String token = headerAccessor.getFirstNativeHeader("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                if (jwtService.isTokenValid(token)) {
+                    email = jwtService.extractEmail(token);
+                }
             }
         }
-        return null;
+        if (email == null) return null;
+        return userRepository.findByEmail(email).map(u -> u.getId().value()).orElse(email);
     }
 
     @MessageMapping("/joinDiagram")
@@ -47,12 +54,14 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
 
         String diagramId = message.diagramId();
         diagramRooms.computeIfAbsent(diagramId, k -> ConcurrentHashMap.newKeySet()).add(userId);
-        sessionUserMap.put(userId, diagramId);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("userId", userId);
-        response.put("users", new ArrayList<>(diagramRooms.get(diagramId)));
-        messagingTemplate.convertAndSend("/topic/diagram/" + diagramId + "/presence", (Object) response);
+        String sessionId = headerAccessor.getSessionId();
+        if (sessionId != null) {
+            sessionUserMap.put(sessionId, userId);
+            sessionDiagramMap.put(sessionId, diagramId);
+        }
+
+        broadcastPresence(diagramId, userId);
     }
 
     @MessageMapping("/leaveDiagram")
@@ -62,10 +71,7 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
 
         String diagramId = message.diagramId();
         removeFromRoom(userId, diagramId);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("userId", userId);
-        messagingTemplate.convertAndSend("/topic/diagram/" + diagramId + "/presence", (Object) response);
+        broadcastPresence(diagramId, userId);
     }
 
     @MessageMapping("/diagram/update")
@@ -80,15 +86,22 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
         messagingTemplate.convertAndSend("/topic/diagram/" + message.diagramId() + "/changes", (Object) response);
     }
 
+    private void broadcastPresence(String diagramId, String userId) {
+        Set<String> users = diagramRooms.getOrDefault(diagramId, Collections.emptySet());
+        Map<String, Object> response = new HashMap<>();
+        response.put("userId", userId);
+        response.put("users", new ArrayList<>(users));
+        messagingTemplate.convertAndSend("/topic/diagram/" + diagramId + "/presence", (Object) response);
+    }
+
     @Override
     public void onApplicationEvent(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
         String userId = sessionUserMap.remove(sessionId);
-        if (userId != null) {
-            String diagramId = findDiagramForUser(userId);
-            if (diagramId != null) {
-                removeFromRoom(userId, diagramId);
-            }
+        String diagramId = sessionDiagramMap.remove(sessionId);
+        if (userId != null && diagramId != null) {
+            removeFromRoom(userId, diagramId);
+            broadcastPresence(diagramId, userId);
         }
     }
 
@@ -100,15 +113,6 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
                 diagramRooms.remove(diagramId);
             }
         }
-    }
-
-    private String findDiagramForUser(String userId) {
-        for (Map.Entry<String, Set<String>> entry : diagramRooms.entrySet()) {
-            if (entry.getValue().contains(userId)) {
-                return entry.getKey();
-            }
-        }
-        return null;
     }
 
     public record JoinDiagramMessage(String diagramId) {}

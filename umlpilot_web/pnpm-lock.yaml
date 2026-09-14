@@ -71,6 +71,9 @@ dependencies:
   sockjs-client:
     specifier: ^1.6.1
     version: 1.6.1
+  uuid:
+    specifier: ^11.0.0
+    version: 11.1.1
 
 devDependencies:
   '@eslint/js':
@@ -3082,6 +3085,11 @@ packages:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     dependencies:
       react: 19.2.8
+    dev: false
+
+  /uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
+    hasBin: true
     dev: false
 
   /vite@8.2.2(@types/node@24.13.3):

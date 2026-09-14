@@ -10,7 +10,7 @@ import { DiagramEditorPage } from './pages/DiagramEditorPage'
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
 
-  if (isLoading) return <p style={{ padding: '2rem' }}>Cargando...</p>
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-400">Cargando...</div>
   if (!isAuthenticated) return <Navigate to="/login" replace />
 
   return <>{children}</>
