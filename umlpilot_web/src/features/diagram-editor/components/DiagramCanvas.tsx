@@ -13,6 +13,8 @@ interface DiagramCanvasProps {
   onEdgesChange: OnEdgesChange
   onNodeClick: (elementId: string) => void
   onConnect: (params: { source: string; target: string }) => void
+  onEdgeClick?: (event: unknown, edge: Edge) => void
+  onPaneClick?: () => void
   connectSourceId?: string | null
 }
 
@@ -33,7 +35,7 @@ const edgeTypes: EdgeTypes = {
   composition: CompositionEdge as any,
 }
 
-export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, connectSourceId }: DiagramCanvasProps) {
+export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, onEdgeClick, onPaneClick, connectSourceId }: DiagramCanvasProps) {
   const handleNodeClick = useCallback((_: unknown, node: Node) => { onNodeClick(node.id) }, [onNodeClick])
 
   const styledNodes = useMemo(
@@ -51,6 +53,8 @@ export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNo
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

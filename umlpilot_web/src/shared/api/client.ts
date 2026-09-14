@@ -116,6 +116,16 @@ export interface UmlAttributeApi { id: string; elementId: string; name: string; 
 export interface UmlMethodApi { id: string; elementId: string; name: string; returnType: string; visibility: string; isStatic: boolean; isAbstract: boolean; isFinal: boolean; isConstructor: boolean; orderIndex: number; parameters: { id: string; methodId: string; name: string; dataType: string; orderIndex: number }[] }
 export interface UmlRelationshipApi { id: string; diagramId: string; sourceElementId: string; targetElementId: string; relationshipType: string; name?: string; direction: string }
 
+export interface MultiplicityApi {
+  id: string
+  relationshipId: string
+  end: string
+  min: number | null
+  max: number | null
+  isOrdered: boolean
+  isUnique: boolean
+}
+
 export const elementsApi = {
   list: (projectId: string, diagramId: string) => authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements`) as Promise<UmlElementApi[]>,
   create: (projectId: string, diagramId: string, data: { name: string; elementType: string; positionX?: number; positionY?: number }) =>
@@ -142,6 +152,12 @@ export const relationshipsApi = {
   list: (projectId: string, diagramId: string) => authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships`) as Promise<UmlRelationshipApi[]>,
   create: (projectId: string, diagramId: string, data: { sourceElementId: string; targetElementId: string; relationshipType: string }) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlRelationshipApi>,
+  update: (projectId: string, diagramId: string, relationshipId: string, data: { name?: string; type?: string; direction?: string }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<UmlRelationshipApi>,
   delete: (projectId: string, diagramId: string, relationshipId: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'DELETE' }),
+  getMultiplicities: (projectId: string, diagramId: string, relationshipId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}/multiplicities`) as Promise<MultiplicityApi[]>,
+  updateMultiplicity: (projectId: string, diagramId: string, multiplicityId: string, data: { min?: number; max?: number }) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/multiplicities/${multiplicityId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<MultiplicityApi>,
 }

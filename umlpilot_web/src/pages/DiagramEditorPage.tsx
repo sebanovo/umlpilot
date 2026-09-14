@@ -5,6 +5,7 @@ import { useDiagramState } from '../features/diagram-editor/hooks/useDiagramStat
 import { DiagramCanvas } from '../features/diagram-editor/components/DiagramCanvas'
 import { Toolbar } from '../features/diagram-editor/components/Toolbar'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
+import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
 import { Wifi, WifiOff, Users, ArrowLeft } from 'lucide-react'
 
 export function DiagramEditorPage() {
@@ -15,6 +16,8 @@ export function DiagramEditorPage() {
     nodes, edges, elements, connected, presenceUsers,
     selectedElement, selectedAttributes, selectedMethods, loading,
     activeRelationship, setActiveRelationship, connectSource, handleNodeClick,
+    selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
+    updateRelationshipName, updateMultiplicity,
     onNodesChange, onEdgesChange, onConnect, createElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
@@ -76,16 +79,26 @@ export function DiagramEditorPage() {
               nodes={nodes} edges={edges}
               onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
               onNodeClick={handleNodeClick} onConnect={onConnect}
+              onEdgeClick={onEdgeClick} onPaneClick={clearRelationshipSelection}
               connectSourceId={connectSource}
             />
           </div>
-          <PropertiesPanel
-            element={selectedElement ? { ...selectedElement, elementType: selectedElement.elementType as 'class' | 'interface' | 'enumeration' | 'note' } : null}
-            attributes={selectedAttributes.map((a) => ({ ...a }))}
-            methods={selectedMethods.map((m) => ({ ...m }))}
-            onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
-            onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
-          />
+          {selectedRelationship ? (
+            <RelationshipPanel
+              relationship={selectedRelationship}
+              multiplicities={relationshipMultiplicities}
+              onUpdateName={updateRelationshipName}
+              onUpdateMultiplicity={updateMultiplicity}
+            />
+          ) : (
+            <PropertiesPanel
+              element={selectedElement ? { ...selectedElement, elementType: selectedElement.elementType as 'class' | 'interface' | 'enumeration' | 'note' } : null}
+              attributes={selectedAttributes.map((a) => ({ ...a }))}
+              methods={selectedMethods.map((m) => ({ ...m }))}
+              onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
+              onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
+            />
+          )}
         </div>
       </div>
     </ReactFlowProvider>
