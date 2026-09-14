@@ -56,6 +56,7 @@ export function Toolbar({ onAddElement, activeRelationship, onSelectRelationship
           </button>
         )
       })}
+      <span className="ml-auto text-[11px] text-gray-500">Selecciona una relación y pulsa × o Supr para eliminarla</span>
     </div>
   )
 }
