@@ -18,7 +18,7 @@ export function DiagramEditorPage() {
     activeRelationship, setActiveRelationship, connectSource, handleNodeClick,
     selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
     updateRelationshipName, updateMultiplicity,
-    onNodesChange, onEdgesChange, onConnect, createElement,
+    onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
@@ -97,6 +97,7 @@ export function DiagramEditorPage() {
               methods={selectedMethods.map((m) => ({ ...m }))}
               onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
               onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
+              onDelete={selectedElement ? () => deleteElement(selectedElement.id) : undefined}
             />
           )}
         </div>

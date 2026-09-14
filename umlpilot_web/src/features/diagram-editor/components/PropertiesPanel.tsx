@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { UmlElement, UmlAttribute, UmlMethod } from '../types/uml'
-import { Plus, X, ChevronDown, ChevronRight, Eye, EyeOff, Hash, AtSign, Pencil, Check } from 'lucide-react'
+import { Plus, X, ChevronDown, ChevronRight, Eye, EyeOff, Hash, AtSign, Pencil, Check, Trash2 } from 'lucide-react'
 
 interface PropertiesPanelProps {
   element: UmlElement | null
@@ -11,6 +11,7 @@ interface PropertiesPanelProps {
   onAddMethod: (name: string, returnType: string) => void
   onDeleteAttribute: (id: string) => void
   onDeleteMethod: (id: string) => void
+  onDelete?: () => void
 }
 
 const visOptions = [
@@ -20,7 +21,7 @@ const visOptions = [
   { value: 'package', label: '~ Paquete', icon: AtSign },
 ]
 
-export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddAttribute, onAddMethod, onDeleteAttribute, onDeleteMethod }: PropertiesPanelProps) {
+export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddAttribute, onAddMethod, onDeleteAttribute, onDeleteMethod, onDelete }: PropertiesPanelProps) {
   const [newAttrName, setNewAttrName] = useState('')
   const [newAttrType, setNewAttrType] = useState('String')
   const [newMethodName, setNewMethodName] = useState('')
@@ -183,6 +184,15 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
             </div>
           )}
         </div>
+
+        {onDelete && (
+          <div className="border-t border-gray-800 pt-3">
+            <button onClick={onDelete}
+              className="w-full flex items-center justify-center gap-1.5 rounded-md border border-red-900 bg-red-950/40 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-950 transition-colors cursor-pointer">
+              <Trash2 className="w-3.5 h-3.5" /> Eliminar elemento
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

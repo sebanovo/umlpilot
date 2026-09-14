@@ -214,7 +214,6 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     try {
       await elementsApi.delete(projectId, diagramId, elementId)
       broadcastElementChange('element_deleted', elementId, { elementId })
-      rebuildDiagram().catch(() => {})
     } catch {
       rebuildDiagram().catch(() => {})
     }
@@ -599,6 +598,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     onConnect,
     selectElement,
     createElement,
+    deleteElement,
     updateElement,
     addAttribute,
     deleteAttribute,

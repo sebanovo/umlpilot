@@ -88,6 +88,23 @@ springdoc:
 # ============================================================
 
 app:
+  # Configuración de IA (OpenRouter + Gemini con fallback automático)
+  ai:
+    # Orden de proveedores. Cuando uno se agota (tokens/cuota), se pasa al siguiente
+    provider-order: ${AI_PROVIDER_ORDER:openrouter,gemini}
+    openrouter:
+      # Listas separadas por comas
+      api-keys: ${OPENROUTER_API_KEYS:}
+      models: ${OPENROUTER_MODELS:}
+      quota-cooldown-seconds: ${AI_QUOTA_COOLDOWN_SECONDS:300}
+      error-cooldown-seconds: ${AI_ERROR_COOLDOWN_SECONDS:30}
+    gemini:
+      # Listas separadas por comas
+      api-keys: ${GEMINI_API_KEYS:}
+      models: ${GEMINI_MODELS:}
+      quota-cooldown-seconds: ${AI_QUOTA_COOLDOWN_SECONDS:300}
+      error-cooldown-seconds: ${AI_ERROR_COOLDOWN_SECONDS:30}
+
   # Configuración de JWT (autenticación)
   security:
     jwt:

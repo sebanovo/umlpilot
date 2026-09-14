@@ -4,6 +4,7 @@ import '@xyflow/react/dist/style.css'
 import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
 import { EnumNode } from './EnumNode'
+import { NoteNode } from './NoteNode'
 import { AssociationEdge, AssociationClassEdge, GeneralizationEdge, RealizationEdge, DependencyEdge, TemplateBindingEdge, AggregationEdge, CompositionEdge } from './UmlEdges'
 
 interface DiagramCanvasProps {
@@ -22,6 +23,7 @@ const nodeTypes: NodeTypes = {
   class: ClassNode as any,
   interface: InterfaceNode as any,
   enumeration: EnumNode as any,
+  note: NoteNode as any,
 }
 
 const edgeTypes: EdgeTypes = {
@@ -63,6 +65,7 @@ export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNo
         snapToGrid
         snapGrid={[15, 15]}
         deleteKeyCode="Delete"
+        zoomOnDoubleClick={false}
       >
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#374151" />
         <Controls />
