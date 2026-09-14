@@ -5,6 +5,7 @@ import com.umlpilot.umlpilot_api.application.dto.DiagramResult;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.Diagram;
 import com.umlpilot.umlpilot_api.domain.model.DiagramId;
+import com.umlpilot.umlpilot_api.domain.model.ProjectId;
 import com.umlpilot.umlpilot_api.domain.repository.CollaboratorRepository;
 import com.umlpilot.umlpilot_api.domain.repository.DiagramRepository;
 import com.umlpilot.umlpilot_api.domain.repository.ProjectRepository;
@@ -38,8 +39,8 @@ public class DiagramService {
     }
 
     @Transactional(readOnly = true)
-    public List<DiagramResult> getDiagrams(String projectId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
+    public List<DiagramResult> getDiagrams(String projectId) {
+        projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
 
         return diagramRepository.findByProjectId(projectId).stream()
@@ -48,8 +49,8 @@ public class DiagramService {
     }
 
     @Transactional(readOnly = true)
-    public DiagramResult getDiagram(String projectId, String diagramId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
+    public DiagramResult getDiagram(String projectId, String diagramId) {
+        projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
 
         Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))

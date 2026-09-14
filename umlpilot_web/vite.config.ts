@@ -9,13 +9,19 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: '..',
     plugins: [react(), tailwindcss()],
+    define: {
+      global: 'globalThis',
+    },
     server: {
       port: 5173,
       proxy: {
         '/api': {
           target: env.VITE_API_URL,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+        '/ws': {
+          target: env.VITE_API_URL?.replace('http', 'ws'),
+          ws: true,
         },
       },
     },

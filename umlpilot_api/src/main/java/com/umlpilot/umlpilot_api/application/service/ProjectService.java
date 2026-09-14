@@ -44,10 +44,19 @@ public class ProjectService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ProjectResult getProject(String projectId, String userId) {
-        Project project = projectRepository.findByIdAndUserId(projectId, userId)
+        Project project = projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+
+        if (userId != null && !userId.equals(project.getCreatorId().value())) {
+            collaboratorRepository.findAcceptedCollaborator(projectId, userId)
+                    .orElseGet(() -> {
+                        Collaborator newCollab = Collaborator.createAccepted(projectId, userId, "viewer");
+                        return collaboratorRepository.save(newCollab);
+                    });
+        }
+
         return toResult(project);
     }
 

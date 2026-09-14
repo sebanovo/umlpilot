@@ -1,6 +1,26 @@
-const API_URL = import.meta.env.VITE_API_URL
+const API_URL = ''
 
-async function authFetch(path: string, options: RequestInit = {}) {
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refreshToken')
+  if (!refreshToken) return null
+
+  try {
+    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    localStorage.setItem('accessToken', data.accessToken)
+    localStorage.setItem('refreshToken', data.refreshToken)
+    return data.accessToken
+  } catch {
+    return null
+  }
+}
+
+async function authFetch(path: string, options: RequestInit = {}, isRetry = false): Promise<unknown> {
   const token = localStorage.getItem('accessToken')
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -10,6 +30,14 @@ async function authFetch(path: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`
   }
   const res = await fetch(`${API_URL}${path}`, { ...options, headers })
+
+  if ((res.status === 401 || res.status === 403) && !isRetry) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return authFetch(path, options, true)
+    }
+  }
+
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error(data.error || `Error ${res.status}`)

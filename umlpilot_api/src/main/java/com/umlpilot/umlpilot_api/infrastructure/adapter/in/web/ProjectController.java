@@ -30,7 +30,7 @@ public class ProjectController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String id) {
-        try { return ResponseEntity.ok(toResponse(projectService.getProject(id, SecurityUtils.getCurrentUserId()))); }
+        try {             return ResponseEntity.ok(toResponse(projectService.getProject(id, SecurityUtils.getCurrentUserId()))); }
         catch (DomainException e) { return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage())); }
     }
 

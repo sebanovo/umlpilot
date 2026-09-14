@@ -1,82 +1,97 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Client, type IMessage } from '@stomp/stompjs'
 
-interface WebSocketMessage {
-  type?: string
-  userId?: string
+interface PresenceMessage {
+  userId: string
   users?: string[]
-  data?: unknown
-  elementId?: string
-  position?: { x: number; y: number }
 }
 
-const WS_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8080'
+interface DiagramUpdateMessage {
+  userId: string
+  type: string
+  data?: Record<string, unknown>
+}
 
 export function useWebSocket(diagramId: string, userId: string) {
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clientRef = useRef<Client | null>(null)
   const [connected, setConnected] = useState(false)
   const [presenceUsers, setPresenceUsers] = useState<string[]>([])
-  const [remoteChanges, setRemoteChanges] = useState<WebSocketMessage[]>([])
+  const [remoteChanges, setRemoteChanges] = useState<DiagramUpdateMessage[]>([])
 
   useEffect(() => {
     if (!diagramId || !userId) return
-    let cancelled = false
 
-    function connect() {
-      if (cancelled) return
-      const token = localStorage.getItem('accessToken')
-      const ws = new WebSocket(`${WS_URL}/ws?token=${token}`)
+    const token = localStorage.getItem('accessToken')
 
-      ws.onopen = () => {
-        if (cancelled) return
+    const client = new Client({
+      brokerURL: `ws://${window.location.host}/ws`,
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      reconnectDelay: 3000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+
+      onConnect: () => {
         setConnected(true)
-        ws.send(JSON.stringify({ destination: '/app/joinDiagram', body: { diagramId } }))
-      }
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data) as WebSocketMessage
-          if (msg.type) {
-            setRemoteChanges(prev => [...prev, msg])
-          }
-          if (msg.users) {
-            setPresenceUsers(msg.users.filter((u) => u !== userId))
-          }
-        } catch { /* ignore */ }
-      }
+        client.publish({
+          destination: '/app/joinDiagram',
+          body: JSON.stringify({ diagramId }),
+        })
 
-      ws.onclose = () => {
-        if (cancelled) return
+        client.subscribe(`/topic/diagram/${diagramId}/presence`, (message: IMessage) => {
+          try {
+            const body = JSON.parse(message.body) as PresenceMessage
+            if (body.users) {
+              setPresenceUsers(body.users.filter((u) => u !== userId))
+            }
+          } catch { /* ignore */ }
+        })
+
+        client.subscribe(`/topic/diagram/${diagramId}/changes`, (message: IMessage) => {
+          try {
+            const body = JSON.parse(message.body) as DiagramUpdateMessage
+            if (body.userId !== userId) {
+              setRemoteChanges((prev) => [...prev, body])
+            }
+          } catch { /* ignore */ }
+        })
+      },
+
+      onDisconnect: () => {
         setConnected(false)
-        reconnectTimeoutRef.current = setTimeout(() => connect(), 3000)
-      }
+      },
 
-      wsRef.current = ws
-    }
+      onStompError: (frame) => {
+        console.error('STOMP error:', frame.headers['message'])
+        setConnected(false)
+      },
+    })
 
-    connect()
+    client.activate()
+    clientRef.current = client
+
     return () => {
-      cancelled = true
-      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
-      wsRef.current?.close()
+      client.deactivate()
+      clientRef.current = null
     }
   }, [diagramId, userId])
 
-  const sendMessage = useCallback((destination: string, body: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ destination, body }))
+  const publish = useCallback((destination: string, body: Record<string, unknown>) => {
+    if (clientRef.current?.connected) {
+      clientRef.current.publish({
+        destination,
+        body: JSON.stringify(body),
+      })
     }
   }, [])
 
   const broadcastElementChange = useCallback((type: string, elementId: string, data?: Record<string, unknown>) => {
-    const body = { diagramId, type, data: { elementId, ...data } }
-    sendMessage('/app/diagram/update', body)
-  }, [sendMessage, diagramId])
+    publish('/app/diagram/update', { diagramId, type, data: { elementId, ...data } })
+  }, [publish, diagramId])
 
   const broadcastCursor = useCallback((x: number, y: number) => {
-    const body = { diagramId, type: 'user_cursor', data: { x, y } }
-    sendMessage('/app/diagram/update', body)
-  }, [sendMessage, diagramId])
+    publish('/app/diagram/update', { diagramId, type: 'user_cursor', data: { x, y } })
+  }, [publish, diagramId])
 
   const clearRemoteChanges = useCallback(() => {
     setRemoteChanges([])
@@ -86,7 +101,7 @@ export function useWebSocket(diagramId: string, userId: string) {
     connected,
     presenceUsers,
     remoteChanges,
-    sendMessage,
+    publish,
     broadcastElementChange,
     broadcastCursor,
     clearRemoteChanges,

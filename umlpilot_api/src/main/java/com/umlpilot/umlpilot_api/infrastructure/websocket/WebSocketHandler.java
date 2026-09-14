@@ -1,8 +1,10 @@
 package com.umlpilot.umlpilot_api.infrastructure.websocket;
 
+import com.umlpilot.umlpilot_api.infrastructure.security.JwtService;
 import org.springframework.context.ApplicationListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -14,20 +16,39 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class WebSocketHandler implements ApplicationListener<SessionDisconnectEvent> {
 
+    private final JwtService jwtService;
     private final SimpMessagingTemplate messagingTemplate;
     private final Map<String, Set<String>> diagramRooms = new ConcurrentHashMap<>();
-    private final Map<String, String> userSessions = new ConcurrentHashMap<>();
+    private final Map<String, String> sessionUserMap = new ConcurrentHashMap<>();
 
-    public WebSocketHandler(SimpMessagingTemplate messagingTemplate) {
+    public WebSocketHandler(JwtService jwtService, SimpMessagingTemplate messagingTemplate) {
+        this.jwtService = jwtService;
         this.messagingTemplate = messagingTemplate;
     }
 
+    private String extractUserId(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        if (principal != null) {
+            return principal.getName();
+        }
+        String token = headerAccessor.getFirstNativeHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+            if (jwtService.isTokenValid(token)) {
+                return jwtService.extractEmail(token);
+            }
+        }
+        return null;
+    }
+
     @MessageMapping("/joinDiagram")
-    public void joinDiagram(@Payload JoinDiagramMessage message, Principal principal) {
-        String userId = principal.getName();
+    public void joinDiagram(@Payload JoinDiagramMessage message, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = extractUserId(principal, headerAccessor);
+        if (userId == null) return;
+
         String diagramId = message.diagramId();
         diagramRooms.computeIfAbsent(diagramId, k -> ConcurrentHashMap.newKeySet()).add(userId);
-        userSessions.put(userId, diagramId);
+        sessionUserMap.put(userId, diagramId);
+
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userId);
         response.put("users", new ArrayList<>(diagramRooms.get(diagramId)));
@@ -35,20 +56,23 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     }
 
     @MessageMapping("/leaveDiagram")
-    public void leaveDiagram(@Payload LeaveDiagramMessage message, Principal principal) {
-        String userId = principal.getName();
+    public void leaveDiagram(@Payload LeaveDiagramMessage message, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = extractUserId(principal, headerAccessor);
+        if (userId == null) return;
+
         String diagramId = message.diagramId();
-        Set<String> users = diagramRooms.get(diagramId);
-        if (users != null) { users.remove(userId); if (users.isEmpty()) diagramRooms.remove(diagramId); }
-        userSessions.remove(userId);
+        removeFromRoom(userId, diagramId);
+
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userId);
         messagingTemplate.convertAndSend("/topic/diagram/" + diagramId + "/presence", (Object) response);
     }
 
     @MessageMapping("/diagram/update")
-    public void diagramUpdate(@Payload DiagramUpdateMessage message, Principal principal) {
-        String userId = principal.getName();
+    public void diagramUpdate(@Payload DiagramUpdateMessage message, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        String userId = extractUserId(principal, headerAccessor);
+        if (userId == null) return;
+
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userId);
         response.put("type", message.type());
@@ -59,15 +83,32 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     @Override
     public void onApplicationEvent(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
-        userSessions.entrySet().removeIf(entry -> {
-            if (entry.getKey().equals(sessionId)) {
-                String diagramId = entry.getValue();
-                Set<String> users = diagramRooms.get(diagramId);
-                if (users != null) { users.remove(sessionId); if (users.isEmpty()) diagramRooms.remove(diagramId); }
-                return true;
+        String userId = sessionUserMap.remove(sessionId);
+        if (userId != null) {
+            String diagramId = findDiagramForUser(userId);
+            if (diagramId != null) {
+                removeFromRoom(userId, diagramId);
             }
-            return false;
-        });
+        }
+    }
+
+    private void removeFromRoom(String userId, String diagramId) {
+        Set<String> users = diagramRooms.get(diagramId);
+        if (users != null) {
+            users.remove(userId);
+            if (users.isEmpty()) {
+                diagramRooms.remove(diagramId);
+            }
+        }
+    }
+
+    private String findDiagramForUser(String userId) {
+        for (Map.Entry<String, Set<String>> entry : diagramRooms.entrySet()) {
+            if (entry.getValue().contains(userId)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     public record JoinDiagramMessage(String diagramId) {}
