@@ -1,9 +1,12 @@
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useInternalNode, type EdgeProps } from '@xyflow/react'
-import type { ReactNode } from 'react'
+import { EdgeLabelRenderer, getBezierPath, useInternalNode, type EdgeProps } from '@xyflow/react'
 
 const EDGE_COLOR = '#9ca3af'
 const EDGE_SELECTED = '#60a5fa'
 const NODE_BG = '#111827'
+
+type Kind =
+  | 'association' | 'association_class' | 'generalization' | 'realization'
+  | 'dependency' | 'aggregation' | 'composition' | 'template_binding'
 
 function relInfo(data: unknown) {
   const d = (data || {}) as { name?: string; sourceMultiplicity?: string; targetMultiplicity?: string; associationClassElementId?: string | null; onDelete?: () => void }
@@ -16,20 +19,45 @@ function relInfo(data: unknown) {
   }
 }
 
+// Direction the line takes leaving the source handle / entering the target handle
+const SOURCE_DIR: Record<string, [number, number]> = {
+  top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0],
+}
+const TARGET_DIR: Record<string, [number, number]> = {
+  top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0],
+}
+
 function edgeGeometry(props: EdgeProps): { path: string; labelX: number; labelY: number } {
   const { source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
 
+  // Recursive relationship: orthogonal loop with extra room
   if (source === target) {
-    const d = 120
+    const d = 170
     const path = `M ${sourceX},${sourceY} L ${sourceX + d},${sourceY} L ${sourceX + d},${targetY} L ${targetX},${targetY}`
     return { path, labelX: sourceX + d, labelY: (sourceY + targetY) / 2 }
   }
 
-  const [path, labelX, labelY] = getSmoothStepPath({
-    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition,
-    borderRadius: 0, offset: 20,
-  })
+  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition })
   return { path, labelX, labelY }
+}
+
+function trianglePath(x: number, y: number, dir: [number, number], len = 14, half = 7): string {
+  const [dx, dy] = dir
+  const px = -dy, py = dx
+  const bx = x - dx * len, by = y - dy * len
+  return `M ${x},${y} L ${bx + px * half},${by + py * half} L ${bx - px * half},${by - py * half} Z`
+}
+
+function openArrowPath(x: number, y: number, dir: [number, number], len = 12, half = 6): string {
+  const [dx, dy] = dir
+  const px = -dy, py = dx
+  return `M ${x - dx * len + px * half},${y - dy * len + py * half} L ${x},${y} L ${x - dx * len - px * half},${y - dy * len - py * half}`
+}
+
+function diamondPath(x: number, y: number, dir: [number, number], len = 9, half = 5.5): string {
+  const [dx, dy] = dir
+  const px = -dy, py = dx
+  return `M ${x},${y} L ${x + dx * len + px * half},${y + dy * len + py * half} L ${x + dx * len * 2},${y + dy * len * 2} L ${x + dx * len - px * half},${y + dy * len - py * half} Z`
 }
 
 function EdgeMid({ x, y, name, selected, onDelete }: { x: number; y: number; name?: string; selected?: boolean; onDelete?: () => void }) {
@@ -62,65 +90,6 @@ function EndLabel({ x, y, text }: { x: number; y: number; text?: string }) {
   )
 }
 
-interface MarkerPathProps {
-  path: string
-  selected?: boolean
-  dashed?: boolean
-  strokeWidth?: number
-  markerStart?: string
-  markerEnd?: string
-  defs: ReactNode
-}
-
-function MarkerPath({ path, selected, dashed, strokeWidth = 2, markerStart, markerEnd, defs }: MarkerPathProps) {
-  return (
-    <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
-      <defs>{defs}</defs>
-      <path d={path} fill="none" stroke={selected ? EDGE_SELECTED : EDGE_COLOR} strokeWidth={strokeWidth}
-        strokeDasharray={dashed ? '5,5' : undefined} markerStart={markerStart} markerEnd={markerEnd} />
-      <path d={path} fill="none" stroke="transparent" strokeWidth={20} style={{ pointerEvents: 'stroke' }} />
-    </svg>
-  )
-}
-
-function HollowTriangle(id: string) {
-  return (
-    <marker id={`uml-tri-${id}`} viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 0 0 L 12 6 L 0 12 Z" fill={NODE_BG} stroke={EDGE_COLOR} strokeWidth="1" />
-    </marker>
-  )
-}
-
-function OpenArrow(id: string) {
-  return (
-    <marker id={`uml-open-${id}`} viewBox="0 0 12 12" refX="11" refY="6" markerWidth="12" markerHeight="12" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 0 0 L 12 6 L 0 12" fill="none" stroke={EDGE_COLOR} strokeWidth="1.5" />
-    </marker>
-  )
-}
-
-function Diamond(id: string, filled: boolean) {
-  return (
-    <marker id={`uml-dia-${filled ? 'f' : 'h'}-${id}`} viewBox="0 0 16 12" refX="0" refY="6" markerWidth="16" markerHeight="12" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M 0 6 L 8 0 L 16 6 L 8 12 Z" fill={filled ? EDGE_COLOR : NODE_BG} stroke={EDGE_COLOR} strokeWidth="1" />
-    </marker>
-  )
-}
-
-export function AssociationEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <BaseEdge id={id} path={path} style={{ strokeWidth: 2, stroke: selected ? EDGE_SELECTED : EDGE_COLOR }} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
 function AssociationClassConnector({ elementId, midX, midY, selected }: { elementId: string; midX: number; midY: number; selected?: boolean }) {
   const node = useInternalNode(elementId)
   if (!node) return null
@@ -142,103 +111,53 @@ function AssociationClassConnector({ elementId, midX, midY, selected }: { elemen
   )
 }
 
-export function AssociationClassEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
+function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
+  const { selected, data, sourceX, sourceY, targetX, targetY, targetPosition } = props
   const { path, labelX, labelY } = edgeGeometry(props)
   const { name, sourceMultiplicity, targetMultiplicity, associationClassElementId, onDelete } = relInfo(data)
+
+  const stroke = selected ? EDGE_SELECTED : EDGE_COLOR
+  const dashed = kind === 'dependency' || kind === 'realization' || kind === 'template_binding'
+  const thin = kind === 'dependency' || kind === 'template_binding'
+  const targetIn = TARGET_DIR[targetPosition ?? 'top'] ?? [0, -1]
+  const targetOut = SOURCE_DIR[targetPosition ?? 'top'] ?? [0, -1]
+
   return (
     <>
-      <BaseEdge id={id} path={path} style={{ strokeWidth: 2, stroke: selected ? EDGE_SELECTED : EDGE_COLOR }} />
-      {associationClassElementId && (
+      {kind === 'association_class' && associationClassElementId && (
         <AssociationClassConnector elementId={associationClassElementId} midX={labelX} midY={labelY} selected={selected} />
       )}
+      <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+        <path d={path} fill="none" stroke={stroke} strokeWidth={thin ? 1.5 : 2}
+          strokeDasharray={dashed ? '5,5' : undefined} />
+
+        {(kind === 'generalization' || kind === 'realization') && (
+          <path d={trianglePath(targetX, targetY, targetIn)} fill={NODE_BG} stroke={stroke} strokeWidth={1.5} />
+        )}
+
+        {(kind === 'dependency' || kind === 'template_binding') && (
+          <path d={openArrowPath(targetX, targetY, targetIn)} fill="none" stroke={stroke} strokeWidth={1.5} />
+        )}
+
+        {(kind === 'aggregation' || kind === 'composition') && (
+          <path d={diamondPath(targetX, targetY, targetOut)}
+            fill={kind === 'composition' ? stroke : NODE_BG} stroke={stroke} strokeWidth={1.5} />
+        )}
+
+        <path d={path} fill="none" stroke="transparent" strokeWidth={20} style={{ pointerEvents: 'stroke' }} />
+      </svg>
       <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
       <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
+      <EdgeMid x={labelX} y={labelY} name={kind === 'template_binding' ? (name || '«bind»') : name} selected={selected} onDelete={onDelete} />
     </>
   )
 }
 
-export function GeneralizationEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} markerEnd={`url(#uml-tri-${id})`} defs={<HollowTriangle id={id} />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
-export function RealizationEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} dashed markerEnd={`url(#uml-tri-${id})`} defs={<HollowTriangle id={id} />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
-export function DependencyEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} dashed strokeWidth={1.5} markerEnd={`url(#uml-open-${id})`} defs={<OpenArrow id={id} />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
-export function TemplateBindingEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} dashed strokeWidth={1.5} markerEnd={`url(#uml-open-${id})`} defs={<OpenArrow id={id} />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name || '«bind»'} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
-export function AggregationEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} markerStart={`url(#uml-dia-h-${id})`} defs={<Diamond id={id} filled={false} />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
-
-export function CompositionEdge(props: EdgeProps) {
-  const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
-  const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
-  return (
-    <>
-      <MarkerPath path={path} selected={selected} markerStart={`url(#uml-dia-f-${id})`} defs={<Diamond id={id} filled />} />
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
-    </>
-  )
-}
+export function AssociationEdge(props: EdgeProps) { return <UmlEdge kind="association" props={props} /> }
+export function AssociationClassEdge(props: EdgeProps) { return <UmlEdge kind="association_class" props={props} /> }
+export function GeneralizationEdge(props: EdgeProps) { return <UmlEdge kind="generalization" props={props} /> }
+export function RealizationEdge(props: EdgeProps) { return <UmlEdge kind="realization" props={props} /> }
+export function DependencyEdge(props: EdgeProps) { return <UmlEdge kind="dependency" props={props} /> }
+export function TemplateBindingEdge(props: EdgeProps) { return <UmlEdge kind="template_binding" props={props} /> }
+export function AggregationEdge(props: EdgeProps) { return <UmlEdge kind="aggregation" props={props} /> }
+export function CompositionEdge(props: EdgeProps) { return <UmlEdge kind="composition" props={props} /> }

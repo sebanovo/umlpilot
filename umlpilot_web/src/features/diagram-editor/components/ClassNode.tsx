@@ -1,6 +1,5 @@
-import { Handle, Position } from '@xyflow/react'
 import type { UmlAttribute, UmlMethod } from '../types/uml'
-import { NodeActions, useInlineEdit, inlineInputClass } from './NodeControls'
+import { NodeActions, NodeHandles, useInlineEdit, inlineInputClass } from './NodeControls'
 
 interface ClassNodeData {
   name: string
@@ -21,7 +20,7 @@ export function ClassNode({ id, data }: { id: string; data: ClassNodeData }) {
   return (
     <div className="group relative bg-gray-900 border-2 border-gray-500 rounded min-w-45 font-mono text-xs text-gray-100">
       <NodeActions onEdit={onRenameNode ? edit.start : undefined} onDelete={onDeleteNode ? () => onDeleteNode(id) : undefined} />
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-blue-400" />
+      <NodeHandles />
       {stereotype && <div className="text-center italic text-gray-400 px-2 py-0.5 border-b border-gray-700">{`<<${stereotype}>>`}</div>}
       <div className="text-center font-bold px-2 py-1.5 border-b border-gray-500">
         {edit.editing ? (
@@ -45,7 +44,6 @@ export function ClassNode({ id, data }: { id: string; data: ClassNodeData }) {
           <div key={m.id}>{visSymbol[m.visibility] || '+'} {m.name}({m.parameters.map((p) => p.name).join(', ')}): {m.returnType}</div>
         ))}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-blue-400" />
     </div>
   )
 }

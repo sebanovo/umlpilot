@@ -1,5 +1,5 @@
-import { useCallback, useMemo, type MouseEvent } from 'react'
-import { ReactFlow, Background, Controls, MiniMap, ViewportPortal, useReactFlow, type Node, type Edge, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { ReactFlow, Background, Controls, MiniMap, ViewportPortal, useReactFlow, useInternalNode, type Node, type Edge, type Connection, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
@@ -14,12 +14,17 @@ interface DiagramCanvasProps {
   onNodesChange: OnNodesChange
   onEdgesChange: OnEdgesChange
   onNodeClick: (elementId: string) => void
-  onConnect: (params: { source: string; target: string }) => void
+  onConnect: (params: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => void
+  onReconnectRelationship?: (relationshipId: string, connection: { source?: string | null; target?: string | null; sourceHandle?: string | null; targetHandle?: string | null }) => void
   onEdgeClick?: (event: unknown, edge: Edge) => void
   onPaneClick?: () => void
   onCursorMove?: (x: number, y: number) => void
   cursors?: RemoteCursor[]
-  connectSourceId?: string | null
+  activeRelationship?: string | null
+  selectMode?: boolean
+  onCreateRelationship?: (sourceId: string, targetId: string, type: string) => void
+  onActivateRelationship?: (type: string) => void
+  onDropElement?: (type: string, x: number, y: number) => void
 }
 
 const nodeTypes: NodeTypes = {
@@ -54,10 +59,45 @@ function CursorPointer({ cursor }: { cursor: RemoteCursor }) {
   )
 }
 
-export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, onEdgeClick, onPaneClick, onCursorMove, cursors, connectSourceId }: DiagramCanvasProps) {
+function ConnectionPreview({ sourceId, x, y }: { sourceId: string; x: number; y: number }) {
+  const node = useInternalNode(sourceId)
+  if (!node) return null
+  const cx = node.internals.positionAbsolute.x + (node.measured?.width ?? 180) / 2
+  const cy = node.internals.positionAbsolute.y + (node.measured?.height ?? 80) / 2
+  return (
+    <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+      <path d={`M ${cx},${cy} L ${x},${y}`} fill="none" stroke="#60a5fa" strokeWidth={2} strokeDasharray="6,4" />
+      <circle cx={x} cy={y} r={3.5} fill="#60a5fa" />
+    </svg>
+  )
+}
+
+function nodeIdFromTarget(target: EventTarget | null): string | null {
+  const el = target as HTMLElement | null
+  const nodeEl = el?.closest?.('.react-flow__node') as HTMLElement | null
+  return nodeEl?.getAttribute('data-id') ?? null
+}
+
+export function DiagramCanvas({
+  nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, onReconnectRelationship,
+  onEdgeClick, onPaneClick, onCursorMove, cursors,
+  activeRelationship, selectMode, onCreateRelationship, onActivateRelationship, onDropElement,
+}: DiagramCanvasProps) {
   const { screenToFlowPosition } = useReactFlow()
+  const [pendingSource, setPendingSource] = useState<string | null>(null)
+  const [previewCursor, setPreviewCursor] = useState<{ x: number; y: number } | null>(null)
+  const [showHandles, setShowHandles] = useState(false)
+
+  const displayNodes = useMemo(
+    () => nodes.map((n) => ({ ...n, className: showHandles ? 'show-handles' : undefined })),
+    [nodes, showHandles],
+  )
 
   const handleNodeClick = useCallback((_: unknown, node: Node) => { onNodeClick(node.id) }, [onNodeClick])
+
+  const handleReconnect = useCallback((oldEdge: Edge, connection: Connection) => {
+    onReconnectRelationship?.(oldEdge.id, connection)
+  }, [onReconnectRelationship])
 
   const handleMouseMove = useCallback((event: MouseEvent) => {
     if (!onCursorMove) return
@@ -65,17 +105,70 @@ export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNo
     onCursorMove(position.x, position.y)
   }, [onCursorMove, screenToFlowPosition])
 
-  const styledNodes = useMemo(
-    () => connectSourceId
-      ? nodes.map((n) => n.id === connectSourceId ? { ...n, className: 'ring-2 ring-blue-400 rounded' } : n)
-      : nodes,
-    [nodes, connectSourceId],
-  )
+  const handlePointerDown = useCallback((event: ReactPointerEvent) => {
+    if (!activeRelationship || !onCreateRelationship) return
+    const target = event.target as HTMLElement
+    if (target.closest('.react-flow__handle, button, input, textarea, select, .nodrag')) return
+    const id = nodeIdFromTarget(event.target)
+    if (!id) return
+    event.preventDefault()
+    setPendingSource(id)
+    setShowHandles(true)
+    setPreviewCursor(screenToFlowPosition({ x: event.clientX, y: event.clientY }))
+  }, [activeRelationship, onCreateRelationship, screenToFlowPosition])
+
+  useEffect(() => {
+    if (!pendingSource) return
+
+    const onMove = (event: PointerEvent) => {
+      setPreviewCursor(screenToFlowPosition({ x: event.clientX, y: event.clientY }))
+    }
+    const onUp = (event: PointerEvent) => {
+      const el = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null
+      const targetId = el?.closest('.react-flow__node')?.getAttribute('data-id') ?? null
+      if (targetId && activeRelationship && onCreateRelationship) {
+        onCreateRelationship(pendingSource, targetId, activeRelationship)
+      }
+      setPendingSource(null)
+      setPreviewCursor(null)
+      setShowHandles(false)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [pendingSource, activeRelationship, onCreateRelationship, screenToFlowPosition])
+
+  const handleDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const handleDrop = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    const nodeType = event.dataTransfer.getData('application/uml-node')
+    const relType = event.dataTransfer.getData('application/uml-relationship')
+    if (nodeType && onDropElement) {
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+      onDropElement(nodeType, Math.round(position.x), Math.round(position.y))
+    } else if (relType && onActivateRelationship) {
+      onActivateRelationship(relType)
+    }
+  }, [screenToFlowPosition, onDropElement, onActivateRelationship])
 
   return (
-    <div className="w-full h-full bg-gray-950" onMouseMove={handleMouseMove}>
+    <div
+      className={`w-full h-full bg-gray-950 ${activeRelationship ? 'cursor-crosshair' : ''}`}
+      onMouseMove={handleMouseMove}
+      onPointerDown={handlePointerDown}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <ReactFlow
-        nodes={styledNodes}
+        nodes={displayNodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -83,6 +176,12 @@ export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNo
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onConnect={onConnect}
+        onConnectStart={() => setShowHandles(true)}
+        onConnectEnd={() => setShowHandles(false)}
+        onReconnect={handleReconnect}
+        onReconnectStart={() => setShowHandles(true)}
+        onReconnectEnd={() => setShowHandles(false)}
+        edgesReconnectable
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         colorMode="dark"
@@ -91,15 +190,17 @@ export function DiagramCanvas({ nodes, edges, onNodesChange, onEdgesChange, onNo
         snapGrid={[15, 15]}
         deleteKeyCode="Delete"
         zoomOnDoubleClick={false}
+        nodesDraggable={!activeRelationship}
+        panOnDrag={activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true)}
+        selectionOnDrag={!!selectMode}
       >
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#374151" />
         <Controls />
         <MiniMap />
-        {cursors && cursors.length > 0 && (
-          <ViewportPortal>
-            {cursors.map((cursor) => <CursorPointer key={cursor.clientId} cursor={cursor} />)}
-          </ViewportPortal>
-        )}
+        <ViewportPortal>
+          {cursors?.map((cursor) => <CursorPointer key={cursor.clientId} cursor={cursor} />)}
+          {pendingSource && previewCursor && <ConnectionPreview sourceId={pendingSource} x={previewCursor.x} y={previewCursor.y} />}
+        </ViewportPortal>
       </ReactFlow>
     </div>
   )

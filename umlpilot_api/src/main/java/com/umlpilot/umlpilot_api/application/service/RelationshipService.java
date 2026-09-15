@@ -26,7 +26,7 @@ public class RelationshipService {
     public RelationshipResult createRelationship(CreateRelationshipCommand command) {
         elementRepository.findById(ElementId.from(command.sourceElementId())).orElseThrow(() -> new DomainException("Source element not found"));
         elementRepository.findById(ElementId.from(command.targetElementId())).orElseThrow(() -> new DomainException("Target element not found"));
-        Relationship rel = Relationship.create(command.diagramId(), command.sourceElementId(), command.targetElementId(), command.relationshipType(), command.associationClassElementId());
+        Relationship rel = Relationship.create(command.diagramId(), command.sourceElementId(), command.targetElementId(), command.relationshipType(), command.associationClassElementId(), command.sourceHandle(), command.targetHandle());
         Relationship saved = relationshipRepository.save(rel);
 
         Multiplicity.create(saved.getId().value(), "source", 1, 1);
@@ -42,13 +42,17 @@ public class RelationshipService {
     }
 
     @Transactional
-    public RelationshipResult updateRelationship(String relationshipId, String name, String type, String direction, String associationClassElementId) {
+    public RelationshipResult updateRelationship(String relationshipId, String name, String type, String direction, String associationClassElementId, String sourceElementId, String targetElementId, String sourceHandle, String targetHandle) {
         Relationship rel = relationshipRepository.findById(RelationshipId.from(relationshipId))
                 .orElseThrow(() -> new DomainException("Relationship not found"));
         rel.updateName(name);
         rel.updateType(type);
         rel.updateDirection(direction);
         rel.updateAssociationClassElementId(associationClassElementId);
+        rel.updateSourceElementId(sourceElementId);
+        rel.updateTargetElementId(targetElementId);
+        rel.updateSourceHandle(sourceHandle);
+        rel.updateTargetHandle(targetHandle);
         return toResult(relationshipRepository.save(rel));
     }
 
@@ -77,6 +81,6 @@ public class RelationshipService {
     }
 
     private RelationshipResult toResult(Relationship r) {
-        return new RelationshipResult(r.getId().value(), r.getDiagramId().value(), r.getSourceElementId().value(), r.getTargetElementId().value(), r.getRelationshipType(), r.getName(), r.getDirection(), r.getAssociationClassElementId());
+        return new RelationshipResult(r.getId().value(), r.getDiagramId().value(), r.getSourceElementId().value(), r.getTargetElementId().value(), r.getRelationshipType(), r.getName(), r.getDirection(), r.getAssociationClassElementId(), r.getSourceHandle(), r.getTargetHandle());
     }
 }

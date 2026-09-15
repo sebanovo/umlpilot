@@ -17,7 +17,7 @@ public class RelationshipController {
     @PostMapping
     public ResponseEntity<?> create(@PathVariable String diagramId, @RequestBody Map<String, String> body) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(relationshipService.createRelationship(new CreateRelationshipCommand(diagramId, body.get("sourceElementId"), body.get("targetElementId"), body.get("relationshipType"), body.get("associationClassElementId"))));
+            return ResponseEntity.status(HttpStatus.CREATED).body(relationshipService.createRelationship(new CreateRelationshipCommand(diagramId, body.get("sourceElementId"), body.get("targetElementId"), body.get("relationshipType"), body.get("associationClassElementId"), body.get("sourceHandle"), body.get("targetHandle"))));
         } catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
@@ -26,7 +26,7 @@ public class RelationshipController {
 
     @PutMapping("/{relationshipId}")
     public ResponseEntity<?> update(@PathVariable String relationshipId, @RequestBody Map<String, String> body) {
-        try { return ResponseEntity.ok(relationshipService.updateRelationship(relationshipId, body.get("name"), body.get("type"), body.get("direction"), body.get("associationClassElementId"))); }
+        try { return ResponseEntity.ok(relationshipService.updateRelationship(relationshipId, body.get("name"), body.get("type"), body.get("direction"), body.get("associationClassElementId"), body.get("sourceElementId"), body.get("targetElementId"), body.get("sourceHandle"), body.get("targetHandle"))); }
         catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 

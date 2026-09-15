@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import { useAuth } from '../features/auth/useAuth'
@@ -15,12 +16,14 @@ export function DiagramEditorPage() {
   const {
     nodes, edges, elements, connected, presenceUsers,
     selectedElement, selectedAttributes, selectedMethods, loading,
-    activeRelationship, setActiveRelationship, connectSource, handleNodeClick,
+    activeRelationship, setActiveRelationship, createRelationship, reconnectRelationship, handleNodeClick,
     selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
     updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
+
+  const [selectMode, setSelectMode] = useState(false)
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-gray-950">
@@ -43,7 +46,7 @@ export function DiagramEditorPage() {
             <span className="text-gray-400 text-xs">{elements.length} elemento{elements.length !== 1 ? 's' : ''}</span>
             {activeRelationship && (
               <span className="text-xs text-blue-300 bg-blue-950/60 border border-blue-800 rounded-full px-2 py-0.5">
-                {connectSource ? 'Ahora haz clic en la clase destino' : 'Haz clic en la clase origen'}
+                Arrastra de una clase a otra para crear la relación
               </span>
             )}
           </div>
@@ -73,7 +76,13 @@ export function DiagramEditorPage() {
           </div>
         </header>
         <div className="flex flex-1 overflow-hidden">
-          <Toolbox onAddElement={createElement} activeRelationship={activeRelationship} onSelectRelationship={setActiveRelationship} />
+          <Toolbox
+            onAddElement={createElement}
+            activeRelationship={activeRelationship}
+            onSelectRelationship={(type) => { setActiveRelationship(type); if (type) setSelectMode(false) }}
+            selectMode={selectMode}
+            onToggleSelectMode={() => { setSelectMode((v) => !v); setActiveRelationship(null) }}
+          />
           <div className="flex-1">
             <DiagramCanvas
               nodes={nodes} edges={edges}
@@ -81,7 +90,12 @@ export function DiagramEditorPage() {
               onNodeClick={handleNodeClick} onConnect={onConnect}
               onEdgeClick={onEdgeClick} onPaneClick={clearRelationshipSelection}
               onCursorMove={handleCursorMove} cursors={Object.values(remoteCursors)}
-              connectSourceId={connectSource}
+              activeRelationship={activeRelationship}
+              selectMode={selectMode}
+              onCreateRelationship={createRelationship}
+              onReconnectRelationship={reconnectRelationship}
+              onActivateRelationship={setActiveRelationship}
+              onDropElement={createElement}
             />
           </div>
           {selectedRelationship ? (

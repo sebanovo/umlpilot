@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Handle, Position } from '@xyflow/react'
-import { NodeActions } from './NodeControls'
+import { NodeActions, NodeHandles } from './NodeControls'
 
 interface NoteNodeData {
   name?: string
@@ -26,7 +25,7 @@ export function NoteNode({ id, data }: { id: string; data: NoteNodeData }) {
       onDoubleClick={() => { if (onRenameNode) { setValue(name); setEditing(true) } }}
     >
       <NodeActions onEdit={onRenameNode ? () => { setValue(name); setEditing(true) } : undefined} onDelete={onDeleteNode ? () => onDeleteNode(id) : undefined} />
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-blue-400" />
+      <NodeHandles />
       {editing ? (
         <textarea autoFocus value={value} onChange={(e) => setValue(e.target.value)}
           onBlur={commit}
@@ -38,7 +37,6 @@ export function NoteNode({ id, data }: { id: string; data: NoteNodeData }) {
           {name || <span className="text-gray-400 italic">Doble clic para escribir…</span>}
         </div>
       )}
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-blue-400" />
     </div>
   )
 }

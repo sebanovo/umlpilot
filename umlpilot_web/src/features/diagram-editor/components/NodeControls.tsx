@@ -1,5 +1,21 @@
 import { useEffect, useState } from 'react'
+import { Handle, Position } from '@xyflow/react'
 import { Pencil, Trash2 } from 'lucide-react'
+
+export function NodeHandles() {
+  return (
+    <>
+      <Handle id="t-top" type="target" position={Position.Top} className="!w-3 !h-3 !bg-emerald-400" style={{ left: '38%' }} />
+      <Handle id="s-top" type="source" position={Position.Top} className="!w-3 !h-3 !bg-blue-400" style={{ left: '62%' }} />
+      <Handle id="t-bottom" type="target" position={Position.Bottom} className="!w-3 !h-3 !bg-emerald-400" style={{ left: '62%' }} />
+      <Handle id="s-bottom" type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-blue-400" style={{ left: '38%' }} />
+      <Handle id="t-left" type="target" position={Position.Left} className="!w-3 !h-3 !bg-emerald-400" style={{ top: '38%' }} />
+      <Handle id="s-left" type="source" position={Position.Left} className="!w-3 !h-3 !bg-blue-400" style={{ top: '62%' }} />
+      <Handle id="t-right" type="target" position={Position.Right} className="!w-3 !h-3 !bg-emerald-400" style={{ top: '62%' }} />
+      <Handle id="s-right" type="source" position={Position.Right} className="!w-3 !h-3 !bg-blue-400" style={{ top: '38%' }} />
+    </>
+  )
+}
 
 interface NodeActionsProps {
   onEdit?: () => void
