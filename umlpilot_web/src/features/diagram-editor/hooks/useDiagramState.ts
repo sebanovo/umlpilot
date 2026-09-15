@@ -818,6 +818,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     ...state,
     connected,
     presenceUsers,
+    rebuildDiagram,
     activeRelationship,
     setActiveRelationship,
     handleNodeClick,

@@ -7,8 +7,10 @@ import { DiagramCanvas } from '../features/diagram-editor/components/DiagramCanv
 import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
+import { AiChatPanel } from '../features/diagram-editor/components/AiChatPanel'
+import { useAiChat } from '../features/diagram-editor/hooks/useAiChat'
 import { buildXmi } from '../features/diagram-editor/lib/xmi'
-import { Wifi, WifiOff, Users, ArrowLeft, Download } from 'lucide-react'
+import { Wifi, WifiOff, Users, ArrowLeft, Download, Sparkles } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -23,8 +25,11 @@ export function DiagramEditorPage() {
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
     addParameter, deleteParameter,
-    attributes, methods, relationships,
+    attributes, methods, relationships, rebuildDiagram,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
+
+  const [aiOpen, setAiOpen] = useState(false)
+  const aiChat = useAiChat(projectId!, diagramId!, () => { rebuildDiagram().catch(() => {}) })
 
   const [selectMode, setSelectMode] = useState(false)
   const [handTool, setHandTool] = useState(false)
@@ -148,6 +153,11 @@ export function DiagramEditorPage() {
                 </>
               )}
             </div>
+            <button onClick={() => setAiOpen((v) => !v)} title="Asistente IA"
+              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors cursor-pointer ${aiOpen ? 'border-blue-500 bg-blue-950/60 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+              <Sparkles className="w-3.5 h-3.5" />
+              Asistente
+            </button>
             <button onClick={handleExportXmi} title="Exportar a XMI 2.5.1 (UML)"
               className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors cursor-pointer">
               <Download className="w-3.5 h-3.5" />
@@ -187,7 +197,17 @@ export function DiagramEditorPage() {
           </div>
           <div onPointerDown={startResize('panel')} title="Redimensionar"
             className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
-          {selectedRelationship ? (
+          {aiOpen ? (
+            <AiChatPanel
+              messages={aiChat.messages}
+              loading={aiChat.loading}
+              error={aiChat.error}
+              onSend={aiChat.send}
+              onReset={aiChat.reset}
+              onClose={() => setAiOpen(false)}
+              width={panelWidth}
+            />
+          ) : selectedRelationship ? (
             <RelationshipPanel
               relationship={selectedRelationship}
               multiplicities={relationshipMultiplicities}

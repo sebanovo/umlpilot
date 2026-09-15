@@ -166,3 +166,15 @@ export const relationshipsApi = {
   updateMultiplicity: (projectId: string, diagramId: string, multiplicityId: string, data: { min?: number | null; max?: number | null }) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/multiplicities/${multiplicityId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<MultiplicityApi>,
 }
+
+export interface AiChatAction { action: string; entity: string; id: string; result: string }
+export interface AiChatTurn { role: 'user' | 'assistant'; content: string }
+export interface AiChatResult { reply: string; actions: AiChatAction[] }
+
+export const aiChatApi = {
+  chat: (projectId: string, diagramId: string, message: string, history: AiChatTurn[]) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/ai/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    }) as Promise<AiChatResult>,
+}

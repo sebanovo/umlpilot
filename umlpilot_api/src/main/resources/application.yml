@@ -36,6 +36,18 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+  # Spring AI: deshabilita las autoconfiguraciones de OpenAI porque el modelo de chat
+  # del asistente se construye en AiChatConfiguration con las claves de app.ai.openrouter.
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        transcription: none
+        speech: none
   
   # Configuración de mail (COMENTADA - no necesaria por ahora)
   # mail:
@@ -104,6 +116,16 @@ app:
       models: ${GEMINI_MODELS:}
       quota-cooldown-seconds: ${AI_QUOTA_COOLDOWN_SECONDS:300}
       error-cooldown-seconds: ${AI_ERROR_COOLDOWN_SECONDS:30}
+
+    # Asistente de chat con function calling (Spring AI, OpenAI-compatible)
+    # provider: openrouter | gemini (vacío = primero configurado en provider-order)
+    chat:
+      provider: ${AI_CHAT_PROVIDER:}
+      base-url: ${AI_CHAT_BASE_URL:https://openrouter.ai/api/v1}
+      gemini-base-url: ${AI_CHAT_GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      max-tool-calls: ${AI_CHAT_MAX_TOOL_CALLS:12}
+      timeout-seconds: ${AI_CHAT_TIMEOUT_SECONDS:60}
+
 
   # Configuración de JWT (autenticación)
   security:

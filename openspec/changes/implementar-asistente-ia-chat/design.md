@@ -24,10 +24,13 @@ Ver `proposal.md`. Estado actual relevante:
 
 ## Decisions
 
-### 1. Spring AI con modelo OpenAI-compatible apuntando a OpenRouter
-Se añade Spring AI usando el starter de modelo OpenAI configurado con `base-url=https://openrouter.ai/api/v1`, reutilizando las API keys de OpenRouter ya presentes en `app.ai.openrouter`.
-- **Por qué**: `@Tool` y el bucle de tool-calling vienen resueltos; se reutilizan credenciales y la lógica multi-key existente.
-- **Alternativas**: (a) bucle manual sobre `AiOrchestrator` — más código, sin `@Tool`; (b) starter de Google GenAI — cambia de proveedor/credenciales (descartado por el usuario); (c) Spring AI Anthropic — requiere otra key.
+### 1. Spring AI con modelo OpenAI-compatible (OpenRouter o Gemini)
+Se añade Spring AI usando el starter de modelo OpenAI. El proveedor se elige con `app.ai.chat.provider` (`openrouter` o `gemini`); si está vacío, se toma el primero configurado de `app.ai.provider-order`.
+- OpenRouter: `base-url=https://openrouter.ai/api/v1` con las claves de `app.ai.openrouter`.
+- Gemini: se usa el endpoint OpenAI-compatible de Google (`base-url=https://generativelanguage.googleapis.com/v1beta/openai`) con las claves de `app.ai.gemini`, sin añadir un starter adicional.
+- **Por qué**: `@Tool` y el bucle de tool-calling vienen resueltos; un único camino OpenAI-compatible cubre ambos proveedores y reutiliza credenciales existentes.
+- **Rotación automática**: `AiChatProviderRegistry` mantiene un modelo por cada par (proveedor, modelo) configurado y un cooldown por entrada (reutiliza el patrón de `AiOrchestrator`). Si una llamada falla por cuota/créditos (401/402/403/429) se enfría todo el proveedor (`quota-cooldown-seconds`) y se pasa al siguiente; si el error es de modelo no disponible (p. ej. 404) se enfría solo ese modelo y se prueba el siguiente de la lista (`error-cooldown-seconds`). El cursor queda en la entrada que tuvo éxito. Como los créditos de OpenRouter y Gemini son independientes, la rotación cubre ambos sentidos.
+- **Alternativas**: (a) bucle manual sobre `AiOrchestrator` — más código, sin `@Tool`; (b) starter de Google GenAI — añade una segunda integración y duplica la lógica de modelo; (c) Spring AI Anthropic — requiere otra key.
 
 ### 2. Componente de tools con contexto por llamada (`ToolContext`)
 Un bean `UmlTools` (en `infrastructure/ai`) expone métodos anotados con `@Tool` (`createElement`, `listElements`, `updateElement`, `deleteElement`, `addAttribute`, `updateAttribute`, `deleteAttribute`, `listAttributes`, `addMethod`, `updateMethod`, `deleteMethod`, `listMethods`, `createRelationship`, `updateRelationship`, `deleteRelationship`, `listRelationships`, y variantes de multiplicidades).
