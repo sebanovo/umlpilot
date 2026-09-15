@@ -1,4 +1,4 @@
-import { MousePointer2 } from 'lucide-react'
+import { MousePointer2, Hand } from 'lucide-react'
 
 const SPRITE_URL = '/assets/icons-vector-elements.svg'
 
@@ -58,21 +58,34 @@ interface ToolboxProps {
   onSelectRelationship: (type: string | null) => void
   selectMode: boolean
   onToggleSelectMode: () => void
+  handTool: boolean
+  onToggleHandTool: () => void
+  width?: number
 }
 
-export function Toolbox({ onAddElement, activeRelationship, onSelectRelationship, selectMode, onToggleSelectMode }: ToolboxProps) {
+export function Toolbox({ onAddElement, activeRelationship, onSelectRelationship, selectMode, onToggleSelectMode, handTool, onToggleHandTool, width }: ToolboxProps) {
   return (
-    <aside className="w-44 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
-      <div className="p-2 border-b border-gray-800">
+    <aside className="shrink-0 min-h-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto" style={width ? { width } : undefined}>
+      <div className="p-2 border-b border-gray-800 grid grid-cols-2 gap-1">
         <button onClick={onToggleSelectMode}
-          title="Seleccionar varias tablas (marco de selección)"
-          className={`w-full flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-[11px] transition-colors cursor-pointer ${
+          title="Seleccionar varias tablas (V)"
+          className={`flex flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] transition-colors cursor-pointer ${
             selectMode
               ? 'border-blue-500 bg-blue-950 text-blue-300'
               : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:border-gray-600 hover:text-gray-100'
           }`}>
           <MousePointer2 className="w-3.5 h-3.5" />
           Seleccionar
+        </button>
+        <button onClick={onToggleHandTool}
+          title="Mover el lienzo / mano (H)"
+          className={`flex flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] transition-colors cursor-pointer ${
+            handTool
+              ? 'border-blue-500 bg-blue-950 text-blue-300'
+              : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:border-gray-600 hover:text-gray-100'
+          }`}>
+          <Hand className="w-3.5 h-3.5" />
+          Mano
         </button>
       </div>
 

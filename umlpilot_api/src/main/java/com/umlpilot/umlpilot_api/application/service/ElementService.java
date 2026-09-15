@@ -60,30 +60,31 @@ public class ElementService {
     }
 
     @Transactional
-    public AttributeResult addAttribute(String elementId, String name, String dataType, String visibility, Integer orderIndex) {
+    public AttributeResult addAttribute(String elementId, String name, String dataType, String visibility, String alias, String defaultValue, Integer orderIndex) {
         elementRepository.findById(ElementId.from(elementId)).orElseThrow(() -> new DomainException("Element not found"));
-        Attribute attr = Attribute.create(elementId, name, dataType, visibility, orderIndex);
+        Attribute attr = Attribute.create(elementId, name, dataType, visibility, alias, defaultValue, orderIndex);
         Attribute saved = attributeRepository.save(attr);
-        return new AttributeResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getOrderIndex());
+        return new AttributeResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getAlias(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getOrderIndex());
     }
 
     @Transactional(readOnly = true)
     public List<AttributeResult> getAttributes(String elementId) {
         return attributeRepository.findByElementId(elementId).stream()
-                .map(a -> new AttributeResult(a.getId().value(), a.getElementId().value(), a.getName(), a.getDataType(), a.getVisibility(), a.getDefaultValue(), a.getIsStatic(), a.getIsFinal(), a.getOrderIndex()))
+                .map(a -> new AttributeResult(a.getId().value(), a.getElementId().value(), a.getName(), a.getDataType(), a.getVisibility(), a.getAlias(), a.getDefaultValue(), a.getIsStatic(), a.getIsFinal(), a.getOrderIndex()))
                 .toList();
     }
 
     @Transactional
-    public AttributeResult updateAttribute(String attributeId, String name, String dataType, String visibility, String defaultValue) {
+    public AttributeResult updateAttribute(String attributeId, String name, String dataType, String visibility, String alias, String defaultValue) {
         Attribute attr = attributeRepository.findById(AttributeId.from(attributeId))
                 .orElseThrow(() -> new DomainException("Attribute not found"));
         attr.updateName(name);
         attr.updateDataType(dataType);
         attr.updateVisibility(visibility);
+        attr.updateAlias(alias);
         attr.updateDefaultValue(defaultValue);
         Attribute saved = attributeRepository.save(attr);
-        return new AttributeResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getOrderIndex());
+        return new AttributeResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getAlias(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getOrderIndex());
     }
 
     @Transactional
@@ -92,11 +93,11 @@ public class ElementService {
     }
 
     @Transactional
-    public MethodResult addMethod(String elementId, String name, String returnType, String visibility, Integer orderIndex) {
+    public MethodResult addMethod(String elementId, String name, String returnType, String visibility, String alias, String defaultValue, Integer orderIndex) {
         elementRepository.findById(ElementId.from(elementId)).orElseThrow(() -> new DomainException("Element not found"));
-        Method method = Method.create(elementId, name, returnType, visibility, orderIndex);
+        Method method = Method.create(elementId, name, returnType, visibility, alias, defaultValue, orderIndex);
         Method saved = methodRepository.save(method);
-        return new MethodResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getReturnType(), saved.getVisibility(), saved.getIsStatic(), saved.getIsAbstract(), saved.getIsFinal(), saved.getIsConstructor(), saved.getOrderIndex(), List.of());
+        return new MethodResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getReturnType(), saved.getVisibility(), saved.getAlias(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsAbstract(), saved.getIsFinal(), saved.getIsConstructor(), saved.getOrderIndex(), List.of());
     }
 
     @Transactional(readOnly = true)
@@ -106,23 +107,25 @@ public class ElementService {
                     List<ParameterResult> params = parameterRepository.findByMethodId(m.getId().value()).stream()
                             .map(p -> new ParameterResult(p.getId().value(), p.getMethodId().value(), p.getName(), p.getDataType(), p.getOrderIndex(), p.getIsVarargs(), p.getIsFinal(), p.getDefaultValue()))
                             .toList();
-                    return new MethodResult(m.getId().value(), m.getElementId().value(), m.getName(), m.getReturnType(), m.getVisibility(), m.getIsStatic(), m.getIsAbstract(), m.getIsFinal(), m.getIsConstructor(), m.getOrderIndex(), params);
+                    return new MethodResult(m.getId().value(), m.getElementId().value(), m.getName(), m.getReturnType(), m.getVisibility(), m.getAlias(), m.getDefaultValue(), m.getIsStatic(), m.getIsAbstract(), m.getIsFinal(), m.getIsConstructor(), m.getOrderIndex(), params);
                 })
                 .toList();
     }
 
     @Transactional
-    public MethodResult updateMethod(String methodId, String name, String returnType, String visibility) {
+    public MethodResult updateMethod(String methodId, String name, String returnType, String visibility, String alias, String defaultValue) {
         Method method = methodRepository.findById(MethodId.from(methodId))
                 .orElseThrow(() -> new DomainException("Method not found"));
         method.updateName(name);
         method.updateReturnType(returnType);
         method.updateVisibility(visibility);
+        method.updateAlias(alias);
+        method.updateDefaultValue(defaultValue);
         Method saved = methodRepository.save(method);
         List<ParameterResult> params = parameterRepository.findByMethodId(methodId).stream()
                 .map(p -> new ParameterResult(p.getId().value(), p.getMethodId().value(), p.getName(), p.getDataType(), p.getOrderIndex(), p.getIsVarargs(), p.getIsFinal(), p.getDefaultValue()))
                 .toList();
-        return new MethodResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getReturnType(), saved.getVisibility(), saved.getIsStatic(), saved.getIsAbstract(), saved.getIsFinal(), saved.getIsConstructor(), saved.getOrderIndex(), params);
+        return new MethodResult(saved.getId().value(), saved.getElementId().value(), saved.getName(), saved.getReturnType(), saved.getVisibility(), saved.getAlias(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsAbstract(), saved.getIsFinal(), saved.getIsConstructor(), saved.getOrderIndex(), params);
     }
 
     @Transactional

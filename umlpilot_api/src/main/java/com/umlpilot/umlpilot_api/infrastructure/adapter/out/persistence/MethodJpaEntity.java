@@ -10,6 +10,8 @@ public class MethodJpaEntity {
     @Column(nullable = false) private String name;
     @Column(name = "return_type", nullable = false) private String returnType;
     private String visibility;
+    @Column(name = "alias_name") private String alias;
+    @Column(name = "default_value") private String defaultValue;
     @Column(name = "is_static") private Boolean isStatic;
     @Column(name = "is_abstract") private Boolean isAbstract;
     @Column(name = "is_final") private Boolean isFinal;
@@ -30,6 +32,10 @@ public class MethodJpaEntity {
     public void setReturnType(String returnType) { this.returnType = returnType; }
     public String getVisibility() { return visibility; }
     public void setVisibility(String visibility) { this.visibility = visibility; }
+    public String getAlias() { return alias; }
+    public void setAlias(String alias) { this.alias = alias; }
+    public String getDefaultValue() { return defaultValue; }
+    public void setDefaultValue(String defaultValue) { this.defaultValue = defaultValue; }
     public Boolean getIsStatic() { return isStatic; }
     public void setIsStatic(Boolean isStatic) { this.isStatic = isStatic; }
     public Boolean getIsAbstract() { return isAbstract; }

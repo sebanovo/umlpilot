@@ -583,7 +583,6 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
   }, [activeRelationship, selectElement])
 
   const onEdgeClick = useCallback((_event: unknown, edge: Edge) => {
-    setConnectSource(null)
     selectRelationship(edge.id)
   }, [selectRelationship])
 
@@ -647,10 +646,12 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
   }, [state.selectedElement, syncToServer, broadcastElementChange])
 
   // Attribute operations — optimistic + broadcast
-  const addAttribute = useCallback(async (name: string, dataType: string) => {
+  const addAttribute = useCallback(async (data: { name: string; scope: string; type: string; alias: string; initialValue: string }) => {
     if (!state.selectedElement || !projectId || !diagramId) return
+    const name = data.name.trim()
+    if (!name) return
     const tempId = `attr-${Date.now()}`
-    const newAttr: UmlAttributeApi = { id: tempId, elementId: state.selectedElement.id, name, dataType, visibility: 'private', isStatic: false, isFinal: false, orderIndex: state.selectedAttributes.length }
+    const newAttr: UmlAttributeApi = { id: tempId, elementId: state.selectedElement.id, name, dataType: data.type, visibility: data.scope, alias: data.alias, defaultValue: data.initialValue, isStatic: false, isFinal: false, orderIndex: state.selectedAttributes.length }
 
     setState(prev => ({
       ...prev, selectedAttributes: [...prev.selectedAttributes, newAttr],
@@ -659,7 +660,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     }))
 
     try {
-      const saved = await elementsApi.addAttribute(projectId, diagramId, state.selectedElement.id, { name, dataType, visibility: 'private', orderIndex: state.selectedAttributes.length })
+      const saved = await elementsApi.addAttribute(projectId, diagramId, state.selectedElement.id, { name, dataType: data.type, visibility: data.scope, alias: data.alias || undefined, defaultValue: data.initialValue || undefined, orderIndex: state.selectedAttributes.length })
       setState(prev => ({
         ...prev,
         selectedAttributes: prev.selectedAttributes.map((a) => a.id === tempId ? saved : a),
@@ -676,45 +677,77 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
   const deleteAttribute = useCallback(async (attrId: string) => {
     if (!state.selectedElement || !projectId || !diagramId) return
     await elementsApi.deleteAttribute(projectId, diagramId, attrId)
-    setState(prev => ({
-      ...prev, selectedAttributes: prev.selectedAttributes.filter((a) => a.id !== attrId),
-      attributes: { ...prev.attributes, [state.selectedElement!.id]: (prev.attributes[state.selectedElement!.id] || []).map((a) => a).filter((a) => a.id !== attrId) },
-    }))
-    broadcastElementChange('element_updated', state.selectedElement.id)
+    const elementId = state.selectedElement.id
+    setState(prev => {
+      const nextAttrs = (prev.attributes[elementId] || []).filter((a) => a.id !== attrId)
+      return {
+        ...prev,
+        selectedAttributes: prev.selectedAttributes.filter((a) => a.id !== attrId),
+        attributes: { ...prev.attributes, [elementId]: nextAttrs },
+        nodes: prev.nodes.map((n) => n.id === elementId ? { ...n, data: { ...n.data, attributes: nextAttrs } } : n),
+      }
+    })
+    broadcastElementChange('element_updated', elementId)
   }, [state.selectedElement, projectId, diagramId, broadcastElementChange])
 
   // Method operations — optimistic + broadcast
-  const addMethod = useCallback(async (name: string, returnType: string) => {
+  const addMethod = useCallback(async (data: { name: string; scope: string; type: string; alias: string; initialValue: string }) => {
     if (!state.selectedElement || !projectId || !diagramId) return
+    const name = data.name.trim()
+    if (!name) return
+    const elementId = state.selectedElement.id
     const tempId = `meth-${Date.now()}`
-    const newMeth: UmlMethodApi = { id: tempId, elementId: state.selectedElement.id, name, returnType, visibility: 'public', isStatic: false, isAbstract: false, isFinal: false, isConstructor: false, orderIndex: state.selectedMethods.length, parameters: [] }
+    const newMeth: UmlMethodApi = { id: tempId, elementId, name, returnType: data.type, visibility: data.scope, alias: data.alias, defaultValue: data.initialValue, isStatic: false, isAbstract: false, isFinal: false, isConstructor: false, orderIndex: state.selectedMethods.length, parameters: [] }
 
-    setState(prev => ({
-      ...prev, selectedMethods: [...prev.selectedMethods, newMeth],
-      methods: { ...prev.methods, [state.selectedElement!.id]: [...(prev.methods[state.selectedElement!.id] || []), newMeth] },
-    }))
+    setState(prev => {
+      const nextMethods = [...(prev.methods[elementId] || []), newMeth]
+      return {
+        ...prev,
+        selectedMethods: [...prev.selectedMethods, newMeth],
+        methods: { ...prev.methods, [elementId]: nextMethods },
+        nodes: prev.nodes.map((n) => n.id === elementId ? { ...n, data: { ...n.data, methods: nextMethods } } : n),
+      }
+    })
 
     try {
-      const saved = await elementsApi.addMethod(projectId, diagramId, state.selectedElement.id, { name, returnType, visibility: 'public', orderIndex: state.selectedMethods.length })
-      setState(prev => ({
-        ...prev,
-        selectedMethods: prev.selectedMethods.map((m) => m.id === tempId ? saved : m),
-        methods: { ...prev.methods, [state.selectedElement!.id]: (prev.methods[state.selectedElement!.id] || []).map((m) => m.id === tempId ? saved : m) },
-      }))
-      broadcastElementChange('element_updated', state.selectedElement.id)
+      const saved = await elementsApi.addMethod(projectId, diagramId, elementId, { name, returnType: data.type, visibility: data.scope, alias: data.alias || undefined, defaultValue: data.initialValue || undefined, orderIndex: state.selectedMethods.length })
+      setState(prev => {
+        const nextMethods = (prev.methods[elementId] || []).map((m) => m.id === tempId ? saved : m)
+        return {
+          ...prev,
+          selectedMethods: prev.selectedMethods.map((m) => m.id === tempId ? saved : m),
+          methods: { ...prev.methods, [elementId]: nextMethods },
+          nodes: prev.nodes.map((n) => n.id === elementId ? { ...n, data: { ...n.data, methods: nextMethods } } : n),
+        }
+      })
+      broadcastElementChange('element_updated', elementId)
     } catch {
-      setState(prev => ({ ...prev, selectedMethods: prev.selectedMethods.filter((m) => m.id !== tempId) }))
+      setState(prev => {
+        const nextMethods = (prev.methods[elementId] || []).filter((m) => m.id !== tempId)
+        return {
+          ...prev,
+          selectedMethods: prev.selectedMethods.filter((m) => m.id !== tempId),
+          methods: { ...prev.methods, [elementId]: nextMethods },
+          nodes: prev.nodes.map((n) => n.id === elementId ? { ...n, data: { ...n.data, methods: nextMethods } } : n),
+        }
+      })
     }
   }, [state.selectedElement, state.selectedMethods, projectId, diagramId, broadcastElementChange])
 
   const deleteMethod = useCallback(async (methId: string) => {
     if (!state.selectedElement || !projectId || !diagramId) return
     await elementsApi.deleteMethod(projectId, diagramId, methId)
-    setState(prev => ({
-      ...prev, selectedMethods: prev.selectedMethods.filter((m) => m.id !== methId),
-      methods: { ...prev.methods, [state.selectedElement!.id]: (prev.methods[state.selectedElement!.id] || []).filter((m) => m.id !== methId) },
-    }))
-    broadcastElementChange('element_updated', state.selectedElement.id)
+    const elementId = state.selectedElement.id
+    setState(prev => {
+      const nextMethods = (prev.methods[elementId] || []).filter((m) => m.id !== methId)
+      return {
+        ...prev,
+        selectedMethods: prev.selectedMethods.filter((m) => m.id !== methId),
+        methods: { ...prev.methods, [elementId]: nextMethods },
+        nodes: prev.nodes.map((n) => n.id === elementId ? { ...n, data: { ...n.data, methods: nextMethods } } : n),
+      }
+    })
+    broadcastElementChange('element_updated', elementId)
   }, [state.selectedElement, projectId, diagramId, broadcastElementChange])
 
   return {

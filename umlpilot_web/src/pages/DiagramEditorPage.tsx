@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import { useAuth } from '../features/auth/useAuth'
@@ -7,7 +7,8 @@ import { DiagramCanvas } from '../features/diagram-editor/components/DiagramCanv
 import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
-import { Wifi, WifiOff, Users, ArrowLeft } from 'lucide-react'
+import { buildXmi } from '../features/diagram-editor/lib/xmi'
+import { Wifi, WifiOff, Users, ArrowLeft, Download } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -21,9 +22,66 @@ export function DiagramEditorPage() {
     updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
+    attributes, methods, relationships,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
   const [selectMode, setSelectMode] = useState(false)
+  const [handTool, setHandTool] = useState(false)
+  const [toolboxWidth, setToolboxWidth] = useState(176)
+  const [panelWidth, setPanelWidth] = useState(288)
+
+  const startResize = (which: 'toolbox' | 'panel') => (e: ReactPointerEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = which === 'toolbox' ? toolboxWidth : panelWidth
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX
+      const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
+      if (which === 'toolbox') setToolboxWidth(clamp(startWidth + dx, 140, 400))
+      else setPanelWidth(clamp(startWidth - dx, 220, 600))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const handleExportXmi = () => {
+    const xml = buildXmi({
+      modelName: `Diagram_${diagramId}`,
+      elements,
+      attributes,
+      methods,
+      relationships,
+    })
+    const blob = new Blob([xml], { type: 'application/xml' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `diagram_${diagramId}.xmi`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return
+      if (e.key === 'v' || e.key === 'V') {
+        setSelectMode(true); setHandTool(false); setActiveRelationship(null)
+      } else if (e.key === 'h' || e.key === 'H') {
+        setHandTool(true); setSelectMode(false); setActiveRelationship(null)
+      } else if (e.key === 'Escape') {
+        setSelectMode(false); setHandTool(false); setActiveRelationship(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setActiveRelationship])
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-gray-950">
@@ -72,18 +130,28 @@ export function DiagramEditorPage() {
                 </>
               )}
             </div>
+            <button onClick={handleExportXmi} title="Exportar a XMI 2.5.1 (UML)"
+              className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors cursor-pointer">
+              <Download className="w-3.5 h-3.5" />
+              Exportar XMI
+            </button>
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           <Toolbox
             onAddElement={createElement}
             activeRelationship={activeRelationship}
-            onSelectRelationship={(type) => { setActiveRelationship(type); if (type) setSelectMode(false) }}
+            onSelectRelationship={(type) => { setActiveRelationship(type); if (type) { setSelectMode(false); setHandTool(false) } }}
             selectMode={selectMode}
-            onToggleSelectMode={() => { setSelectMode((v) => !v); setActiveRelationship(null) }}
+            onToggleSelectMode={() => { setSelectMode((v) => !v); setHandTool(false); setActiveRelationship(null) }}
+            handTool={handTool}
+            onToggleHandTool={() => { setHandTool((v) => !v); setSelectMode(false); setActiveRelationship(null) }}
+            width={toolboxWidth}
           />
-          <div className="flex-1">
+          <div onPointerDown={startResize('toolbox')} title="Redimensionar"
+            className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
+          <div className="flex-1 min-w-0">
             <DiagramCanvas
               nodes={nodes} edges={edges}
               onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -92,18 +160,22 @@ export function DiagramEditorPage() {
               onCursorMove={handleCursorMove} cursors={Object.values(remoteCursors)}
               activeRelationship={activeRelationship}
               selectMode={selectMode}
+              handTool={handTool}
               onCreateRelationship={createRelationship}
               onReconnectRelationship={reconnectRelationship}
               onActivateRelationship={setActiveRelationship}
               onDropElement={createElement}
             />
           </div>
+          <div onPointerDown={startResize('panel')} title="Redimensionar"
+            className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
           {selectedRelationship ? (
             <RelationshipPanel
               relationship={selectedRelationship}
               multiplicities={relationshipMultiplicities}
               onUpdateName={updateRelationshipName}
               onUpdateMultiplicity={updateMultiplicity}
+              width={panelWidth}
             />
           ) : (
             <PropertiesPanel
@@ -113,6 +185,7 @@ export function DiagramEditorPage() {
               onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
               onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
               onDelete={selectedElement ? () => deleteElement(selectedElement.id) : undefined}
+              width={panelWidth}
             />
           )}
         </div>

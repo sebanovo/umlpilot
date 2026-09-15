@@ -11,6 +11,7 @@ public class AttributeJpaEntity {
     @Column(nullable = false) private String name;
     @Column(name = "data_type", nullable = false) private String dataType;
     private String visibility;
+    @Column(name = "alias_name") private String alias;
     @Column(name = "default_value") private String defaultValue;
     @Column(name = "is_static") private Boolean isStatic;
     @Column(name = "is_final") private Boolean isFinal;
@@ -30,6 +31,8 @@ public class AttributeJpaEntity {
     public void setDataType(String dataType) { this.dataType = dataType; }
     public String getVisibility() { return visibility; }
     public void setVisibility(String visibility) { this.visibility = visibility; }
+    public String getAlias() { return alias; }
+    public void setAlias(String alias) { this.alias = alias; }
     public String getDefaultValue() { return defaultValue; }
     public void setDefaultValue(String defaultValue) { this.defaultValue = defaultValue; }
     public Boolean getIsStatic() { return isStatic; }

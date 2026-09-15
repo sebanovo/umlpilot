@@ -17,6 +17,7 @@ export interface UmlAttribute {
   name: string
   dataType: string
   visibility: string
+  alias?: string
   defaultValue?: string
   isStatic: boolean
   isFinal: boolean
@@ -29,6 +30,8 @@ export interface UmlMethod {
   name: string
   returnType: string
   visibility: string
+  alias?: string
+  defaultValue?: string
   isStatic: boolean
   isAbstract: boolean
   isFinal: boolean

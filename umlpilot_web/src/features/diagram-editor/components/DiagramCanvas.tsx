@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { ReactFlow, Background, Controls, MiniMap, ViewportPortal, useReactFlow, useInternalNode, type Node, type Edge, type Connection, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
+import { ReactFlow, Background, Controls, ViewportPortal, useReactFlow, useInternalNode, type Node, type Edge, type Connection, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
@@ -22,6 +22,7 @@ interface DiagramCanvasProps {
   cursors?: RemoteCursor[]
   activeRelationship?: string | null
   selectMode?: boolean
+  handTool?: boolean
   onCreateRelationship?: (sourceId: string, targetId: string, type: string) => void
   onActivateRelationship?: (type: string) => void
   onDropElement?: (type: string, x: number, y: number) => void
@@ -81,7 +82,7 @@ function nodeIdFromTarget(target: EventTarget | null): string | null {
 export function DiagramCanvas({
   nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, onReconnectRelationship,
   onEdgeClick, onPaneClick, onCursorMove, cursors,
-  activeRelationship, selectMode, onCreateRelationship, onActivateRelationship, onDropElement,
+  activeRelationship, selectMode, handTool, onCreateRelationship, onActivateRelationship, onDropElement,
 }: DiagramCanvasProps) {
   const { screenToFlowPosition } = useReactFlow()
   const [pendingSource, setPendingSource] = useState<string | null>(null)
@@ -161,7 +162,7 @@ export function DiagramCanvas({
 
   return (
     <div
-      className={`w-full h-full bg-gray-950 ${activeRelationship ? 'cursor-crosshair' : ''}`}
+      className={`w-full h-full bg-gray-950 ${handTool ? 'cursor-grab' : activeRelationship ? 'cursor-crosshair' : ''}`}
       onMouseMove={handleMouseMove}
       onPointerDown={handlePointerDown}
       onDragOver={handleDragOver}
@@ -190,13 +191,13 @@ export function DiagramCanvas({
         snapGrid={[15, 15]}
         deleteKeyCode="Delete"
         zoomOnDoubleClick={false}
-        nodesDraggable={!activeRelationship}
-        panOnDrag={activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true)}
-        selectionOnDrag={!!selectMode}
+        nodesDraggable={handTool ? false : !activeRelationship}
+        panOnDrag={handTool ? true : (activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true))}
+        selectionOnDrag={!handTool && !!selectMode}
       >
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#374151" />
         <Controls />
-        <MiniMap />
+        {/* <MiniMap /> */}
         <ViewportPortal>
           {cursors?.map((cursor) => <CursorPointer key={cursor.clientId} cursor={cursor} />)}
           {pendingSource && previewCursor && <ConnectionPreview sourceId={pendingSource} x={previewCursor.x} y={previewCursor.y} />}

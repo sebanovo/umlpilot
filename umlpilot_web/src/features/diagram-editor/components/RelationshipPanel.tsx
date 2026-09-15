@@ -7,6 +7,7 @@ interface RelationshipPanelProps {
   multiplicities: MultiplicityApi[]
   onUpdateName: (name: string) => void
   onUpdateMultiplicity: (multiplicityId: string, min: number, max: number) => void
+  width?: number
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -33,7 +34,7 @@ function multLabel(min: number | null, max: number | null): string {
   return `${min}..${max < 0 ? '*' : max}`
 }
 
-export function RelationshipPanel({ relationship, multiplicities, onUpdateName, onUpdateMultiplicity }: RelationshipPanelProps) {
+export function RelationshipPanel({ relationship, multiplicities, onUpdateName, onUpdateMultiplicity, width }: RelationshipPanelProps) {
   const [name, setName] = useState('')
 
   useEffect(() => {
@@ -67,13 +68,13 @@ export function RelationshipPanel({ relationship, multiplicities, onUpdateName, 
   }
 
   return (
-    <div className="w-72 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden">
+    <div className="shrink-0 min-h-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden" style={width ? { width } : undefined}>
       <div className="px-4 py-3 border-b border-gray-800">
         <h3 className="text-sm font-semibold text-gray-100">Relación</h3>
         <p className="text-xs text-blue-400 mt-0.5">{TYPE_LABELS[relationship.relationshipType] || relationship.relationshipType}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">Nombre / texto</label>
           <div className="flex gap-2">

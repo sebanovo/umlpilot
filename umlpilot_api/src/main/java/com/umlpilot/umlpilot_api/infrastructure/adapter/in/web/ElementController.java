@@ -51,7 +51,7 @@ public class ElementController {
     public ResponseEntity<?> addAttribute(@PathVariable String elementId, @RequestBody Map<String, Object> body) {
         try {
             Integer order = body.get("orderIndex") != null ? ((Number) body.get("orderIndex")).intValue() : 0;
-            return ResponseEntity.status(HttpStatus.CREATED).body(elementService.addAttribute(elementId, (String) body.get("name"), (String) body.get("dataType"), (String) body.get("visibility"), order));
+            return ResponseEntity.status(HttpStatus.CREATED).body(elementService.addAttribute(elementId, (String) body.get("name"), (String) body.get("dataType"), (String) body.get("visibility"), (String) body.get("alias"), (String) body.get("defaultValue"), order));
         } catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
@@ -60,7 +60,7 @@ public class ElementController {
 
     @PutMapping("/attributes/{attributeId}")
     public ResponseEntity<?> updateAttribute(@PathVariable String attributeId, @RequestBody Map<String, String> body) {
-        try { return ResponseEntity.ok(elementService.updateAttribute(attributeId, body.get("name"), body.get("dataType"), body.get("visibility"), body.get("defaultValue"))); }
+        try { return ResponseEntity.ok(elementService.updateAttribute(attributeId, body.get("name"), body.get("dataType"), body.get("visibility"), body.get("alias"), body.get("defaultValue"))); }
         catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
@@ -74,7 +74,7 @@ public class ElementController {
     public ResponseEntity<?> addMethod(@PathVariable String elementId, @RequestBody Map<String, Object> body) {
         try {
             Integer order = body.get("orderIndex") != null ? ((Number) body.get("orderIndex")).intValue() : 0;
-            return ResponseEntity.status(HttpStatus.CREATED).body(elementService.addMethod(elementId, (String) body.get("name"), (String) body.get("returnType"), (String) body.get("visibility"), order));
+            return ResponseEntity.status(HttpStatus.CREATED).body(elementService.addMethod(elementId, (String) body.get("name"), (String) body.get("returnType"), (String) body.get("visibility"), (String) body.get("alias"), (String) body.get("defaultValue"), order));
         } catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
@@ -83,7 +83,7 @@ public class ElementController {
 
     @PutMapping("/methods/{methodId}")
     public ResponseEntity<?> updateMethod(@PathVariable String methodId, @RequestBody Map<String, String> body) {
-        try { return ResponseEntity.ok(elementService.updateMethod(methodId, body.get("name"), body.get("returnType"), body.get("visibility"))); }
+        try { return ResponseEntity.ok(elementService.updateMethod(methodId, body.get("name"), body.get("returnType"), body.get("visibility"), body.get("alias"), body.get("defaultValue"))); }
         catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 

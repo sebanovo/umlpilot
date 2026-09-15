@@ -18,6 +18,7 @@ public class AttributePersistenceAdapter implements AttributeRepository {
         e.setName(attr.getName());
         e.setDataType(attr.getDataType());
         e.setVisibility(attr.getVisibility());
+        e.setAlias(attr.getAlias());
         e.setDefaultValue(attr.getDefaultValue());
         e.setIsStatic(attr.getIsStatic());
         e.setIsFinal(attr.getIsFinal());
@@ -26,9 +27,9 @@ public class AttributePersistenceAdapter implements AttributeRepository {
         e.setMultiplicity(attr.getMultiplicity());
         e.setOrderIndex(attr.getOrderIndex());
         AttributeJpaEntity saved = jpa.save(e);
-        return Attribute.reconstitute(AttributeId.from(saved.getId()), ElementId.from(saved.getElementId()), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getIsTransient(), saved.getIsVolatile(), saved.getMultiplicity(), saved.getOrderIndex());
+        return Attribute.reconstitute(AttributeId.from(saved.getId()), ElementId.from(saved.getElementId()), saved.getName(), saved.getDataType(), saved.getVisibility(), saved.getAlias(), saved.getDefaultValue(), saved.getIsStatic(), saved.getIsFinal(), saved.getIsTransient(), saved.getIsVolatile(), saved.getMultiplicity(), saved.getOrderIndex());
     }
-    @Override public Optional<Attribute> findById(AttributeId id) { return jpa.findById(id.value()).map(e -> Attribute.reconstitute(AttributeId.from(e.getId()), ElementId.from(e.getElementId()), e.getName(), e.getDataType(), e.getVisibility(), e.getDefaultValue(), e.getIsStatic(), e.getIsFinal(), e.getIsTransient(), e.getIsVolatile(), e.getMultiplicity(), e.getOrderIndex())); }
-    @Override public List<Attribute> findByElementId(String elementId) { return jpa.findByElementId(elementId).stream().map(e -> Attribute.reconstitute(AttributeId.from(e.getId()), ElementId.from(e.getElementId()), e.getName(), e.getDataType(), e.getVisibility(), e.getDefaultValue(), e.getIsStatic(), e.getIsFinal(), e.getIsTransient(), e.getIsVolatile(), e.getMultiplicity(), e.getOrderIndex())).toList(); }
+    @Override public Optional<Attribute> findById(AttributeId id) { return jpa.findById(id.value()).map(e -> Attribute.reconstitute(AttributeId.from(e.getId()), ElementId.from(e.getElementId()), e.getName(), e.getDataType(), e.getVisibility(), e.getAlias(), e.getDefaultValue(), e.getIsStatic(), e.getIsFinal(), e.getIsTransient(), e.getIsVolatile(), e.getMultiplicity(), e.getOrderIndex())); }
+    @Override public List<Attribute> findByElementId(String elementId) { return jpa.findByElementId(elementId).stream().map(e -> Attribute.reconstitute(AttributeId.from(e.getId()), ElementId.from(e.getElementId()), e.getName(), e.getDataType(), e.getVisibility(), e.getAlias(), e.getDefaultValue(), e.getIsStatic(), e.getIsFinal(), e.getIsTransient(), e.getIsVolatile(), e.getMultiplicity(), e.getOrderIndex())).toList(); }
     @Override public void delete(AttributeId id) { jpa.deleteById(id.value()); }
 }
