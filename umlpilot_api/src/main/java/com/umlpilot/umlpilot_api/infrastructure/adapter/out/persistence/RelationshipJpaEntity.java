@@ -15,6 +15,7 @@ public class RelationshipJpaEntity {
     private String direction;
     @Column(name = "is_template_binding") private Boolean isTemplateBinding;
     @Column(name = "template_class") private String templateClass;
+    @Column(name = "association_class_element_id") private String associationClassElementId;
     @Column(name = "creation_date", nullable = false, updatable = false) private LocalDateTime createdAt;
     @Column(name = "update_date", nullable = false) private LocalDateTime updatedAt;
 
@@ -40,6 +41,8 @@ public class RelationshipJpaEntity {
     public void setIsTemplateBinding(Boolean isTemplateBinding) { this.isTemplateBinding = isTemplateBinding; }
     public String getTemplateClass() { return templateClass; }
     public void setTemplateClass(String templateClass) { this.templateClass = templateClass; }
+    public String getAssociationClassElementId() { return associationClassElementId; }
+    public void setAssociationClassElementId(String associationClassElementId) { this.associationClassElementId = associationClassElementId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

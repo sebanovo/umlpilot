@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
+import { NodeActions } from './NodeControls'
 
 interface NoteNodeData {
   name?: string
-  onNoteText?: (id: string, text: string) => void
+  onDeleteNode?: (id: string) => void
+  onRenameNode?: (id: string, text: string) => void
 }
 
 export function NoteNode({ id, data }: { id: string; data: NoteNodeData }) {
-  const { name = '', onNoteText } = data
+  const { name = '', onDeleteNode, onRenameNode } = data
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(name)
 
@@ -15,14 +17,15 @@ export function NoteNode({ id, data }: { id: string; data: NoteNodeData }) {
 
   const commit = () => {
     setEditing(false)
-    if (value !== name) onNoteText?.(id, value)
+    if (value !== name) onRenameNode?.(id, value)
   }
 
   return (
     <div
-      className="bg-amber-100 border-2 border-amber-300 rounded shadow-md min-w-[160px] max-w-[260px] text-xs text-gray-900"
-      onDoubleClick={() => { if (onNoteText) { setValue(name); setEditing(true) } }}
+      className="group relative bg-amber-100 border-2 border-amber-300 rounded shadow-md min-w-[160px] max-w-[260px] text-xs text-gray-900"
+      onDoubleClick={() => { if (onRenameNode) { setValue(name); setEditing(true) } }}
     >
+      <NodeActions onEdit={onRenameNode ? () => { setValue(name); setEditing(true) } : undefined} onDelete={onDeleteNode ? () => onDeleteNode(id) : undefined} />
       <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-blue-400" />
       {editing ? (
         <textarea autoFocus value={value} onChange={(e) => setValue(e.target.value)}

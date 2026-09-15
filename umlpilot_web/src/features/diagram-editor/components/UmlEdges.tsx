@@ -1,4 +1,4 @@
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useInternalNode, type EdgeProps } from '@xyflow/react'
 import type { ReactNode } from 'react'
 
 const EDGE_COLOR = '#9ca3af'
@@ -6,11 +6,12 @@ const EDGE_SELECTED = '#60a5fa'
 const NODE_BG = '#111827'
 
 function relInfo(data: unknown) {
-  const d = (data || {}) as { name?: string; sourceMultiplicity?: string; targetMultiplicity?: string; onDelete?: () => void }
+  const d = (data || {}) as { name?: string; sourceMultiplicity?: string; targetMultiplicity?: string; associationClassElementId?: string | null; onDelete?: () => void }
   return {
     name: d.name || '',
     sourceMultiplicity: d.sourceMultiplicity || '',
     targetMultiplicity: d.targetMultiplicity || '',
+    associationClassElementId: d.associationClassElementId || null,
     onDelete: d.onDelete,
   }
 }
@@ -120,16 +121,40 @@ export function AssociationEdge(props: EdgeProps) {
   )
 }
 
+function AssociationClassConnector({ elementId, midX, midY, selected }: { elementId: string; midX: number; midY: number; selected?: boolean }) {
+  const node = useInternalNode(elementId)
+  if (!node) return null
+
+  const width = node.measured?.width ?? 180
+  const height = node.measured?.height ?? 80
+  const nx = node.internals.positionAbsolute.x
+  const ny = node.internals.positionAbsolute.y
+
+  const inside = midX >= nx && midX <= nx + width && midY >= ny && midY <= ny + height
+  const tx = inside ? nx + width / 2 : Math.max(nx, Math.min(midX, nx + width))
+  const ty = inside ? ny : Math.max(ny, Math.min(midY, ny + height))
+
+  return (
+    <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+      <path d={`M ${midX},${midY} L ${tx},${ty}`} fill="none"
+        stroke={selected ? EDGE_SELECTED : EDGE_COLOR} strokeWidth={1.5} strokeDasharray="5,5" />
+    </svg>
+  )
+}
+
 export function AssociationClassEdge(props: EdgeProps) {
   const { id, selected, data, sourceX, sourceY, targetX, targetY } = props
   const { path, labelX, labelY } = edgeGeometry(props)
-  const { name, sourceMultiplicity, targetMultiplicity, onDelete } = relInfo(data)
+  const { name, sourceMultiplicity, targetMultiplicity, associationClassElementId, onDelete } = relInfo(data)
   return (
     <>
       <BaseEdge id={id} path={path} style={{ strokeWidth: 2, stroke: selected ? EDGE_SELECTED : EDGE_COLOR }} />
+      {associationClassElementId && (
+        <AssociationClassConnector elementId={associationClassElementId} midX={labelX} midY={labelY} selected={selected} />
+      )}
       <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
       <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={name || '«association class»'} selected={selected} onDelete={onDelete} />
+      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
     </>
   )
 }

@@ -1,5 +1,6 @@
 package com.umlpilot.umlpilot_api.infrastructure.websocket;
 
+import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
 import com.umlpilot.umlpilot_api.infrastructure.security.JwtService;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -16,9 +17,11 @@ import java.util.Collections;
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    public WebSocketAuthInterceptor(JwtService jwtService) {
+    public WebSocketAuthInterceptor(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -34,8 +37,13 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 if (jwtService.isTokenValid(token)) {
                     String email = jwtService.extractEmail(token);
                     if (email != null) {
+                        // Resolve the user id once at CONNECT so each STOMP message
+                        // can use principal.getName() without hitting the database.
+                        String userId = userRepository.findByEmail(email)
+                                .map(u -> u.getId().value())
+                                .orElse(email);
                         UsernamePasswordAuthenticationToken auth =
-                                new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
+                                new UsernamePasswordAuthenticationToken(userId, null, Collections.emptyList());
                         accessor.setUser(auth);
                     }
                 }

@@ -22,10 +22,18 @@ public class RelationshipPersistenceAdapter implements RelationshipRepository {
         e.setDirection(rel.getDirection());
         e.setIsTemplateBinding(rel.getIsTemplateBinding());
         e.setTemplateClass(rel.getTemplateClass());
+        e.setAssociationClassElementId(rel.getAssociationClassElementId());
         RelationshipJpaEntity saved = jpa.save(e);
-        return Relationship.reconstitute(RelationshipId.from(saved.getId()), DiagramId.from(saved.getDiagramId()), ElementId.from(saved.getSourceElementId()), ElementId.from(saved.getTargetElementId()), saved.getRelationshipType(), saved.getName(), saved.getDirection(), saved.getIsTemplateBinding(), saved.getTemplateClass(), saved.getCreatedAt(), saved.getUpdatedAt());
+        return toDomain(saved);
     }
-    @Override public Optional<Relationship> findById(RelationshipId id) { return jpa.findById(id.value()).map(e -> Relationship.reconstitute(RelationshipId.from(e.getId()), DiagramId.from(e.getDiagramId()), ElementId.from(e.getSourceElementId()), ElementId.from(e.getTargetElementId()), e.getRelationshipType(), e.getName(), e.getDirection(), e.getIsTemplateBinding(), e.getTemplateClass(), e.getCreatedAt(), e.getUpdatedAt())); }
-    @Override public List<Relationship> findByDiagramId(String diagramId) { return jpa.findByDiagramId(diagramId).stream().map(e -> Relationship.reconstitute(RelationshipId.from(e.getId()), DiagramId.from(e.getDiagramId()), ElementId.from(e.getSourceElementId()), ElementId.from(e.getTargetElementId()), e.getRelationshipType(), e.getName(), e.getDirection(), e.getIsTemplateBinding(), e.getTemplateClass(), e.getCreatedAt(), e.getUpdatedAt())).toList(); }
+
+    @Override public Optional<Relationship> findById(RelationshipId id) { return jpa.findById(id.value()).map(this::toDomain); }
+
+    @Override public List<Relationship> findByDiagramId(String diagramId) { return jpa.findByDiagramId(diagramId).stream().map(this::toDomain).toList(); }
+
     @Override public void delete(RelationshipId id) { jpa.deleteById(id.value()); }
+
+    private Relationship toDomain(RelationshipJpaEntity e) {
+        return Relationship.reconstitute(RelationshipId.from(e.getId()), DiagramId.from(e.getDiagramId()), ElementId.from(e.getSourceElementId()), ElementId.from(e.getTargetElementId()), e.getRelationshipType(), e.getName(), e.getDirection(), e.getIsTemplateBinding(), e.getTemplateClass(), e.getAssociationClassElementId(), e.getCreatedAt(), e.getUpdatedAt());
+    }
 }

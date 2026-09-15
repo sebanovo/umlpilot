@@ -31,20 +31,21 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     }
 
     private String extractUserId(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
-        String email = null;
+        // The STOMP principal is already set to the user id at CONNECT time.
         if (principal != null) {
-            email = principal.getName();
-        } else {
-            String token = headerAccessor.getFirstNativeHeader("Authorization");
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
-                if (jwtService.isTokenValid(token)) {
-                    email = jwtService.extractEmail(token);
+            return principal.getName();
+        }
+        String token = headerAccessor.getFirstNativeHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+            if (jwtService.isTokenValid(token)) {
+                String email = jwtService.extractEmail(token);
+                if (email != null) {
+                    return userRepository.findByEmail(email).map(u -> u.getId().value()).orElse(email);
                 }
             }
         }
-        if (email == null) return null;
-        return userRepository.findByEmail(email).map(u -> u.getId().value()).orElse(email);
+        return null;
     }
 
     @MessageMapping("/joinDiagram")

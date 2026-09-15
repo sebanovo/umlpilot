@@ -3,7 +3,7 @@ import { ReactFlowProvider } from '@xyflow/react'
 import { useAuth } from '../features/auth/useAuth'
 import { useDiagramState } from '../features/diagram-editor/hooks/useDiagramState'
 import { DiagramCanvas } from '../features/diagram-editor/components/DiagramCanvas'
-import { Toolbar } from '../features/diagram-editor/components/Toolbar'
+import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
 import { Wifi, WifiOff, Users, ArrowLeft } from 'lucide-react'
@@ -17,7 +17,7 @@ export function DiagramEditorPage() {
     selectedElement, selectedAttributes, selectedMethods, loading,
     activeRelationship, setActiveRelationship, connectSource, handleNodeClick,
     selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
-    updateRelationshipName, updateMultiplicity,
+    updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
@@ -72,14 +72,15 @@ export function DiagramEditorPage() {
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
-        <Toolbar onAddElement={createElement} activeRelationship={activeRelationship} onSelectRelationship={setActiveRelationship} />
         <div className="flex flex-1 overflow-hidden">
+          <Toolbox onAddElement={createElement} activeRelationship={activeRelationship} onSelectRelationship={setActiveRelationship} />
           <div className="flex-1">
             <DiagramCanvas
               nodes={nodes} edges={edges}
               onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
               onNodeClick={handleNodeClick} onConnect={onConnect}
               onEdgeClick={onEdgeClick} onPaneClick={clearRelationshipSelection}
+              onCursorMove={handleCursorMove} cursors={Object.values(remoteCursors)}
               connectSourceId={connectSource}
             />
           </div>

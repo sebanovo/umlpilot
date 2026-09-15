@@ -4,6 +4,17 @@ import { v4 as uuidv4 } from 'uuid'
 
 const CLIENT_ID = uuidv4()
 
+const CURSOR_TTL_MS = 5000
+
+export interface RemoteCursor {
+  clientId: string
+  x: number
+  y: number
+  name: string
+  color: string
+  ts: number
+}
+
 interface PresenceMessage {
   userId: string
   users?: string[]
@@ -15,11 +26,20 @@ interface DiagramUpdateMessage {
   data?: Record<string, unknown>
 }
 
+function colorFor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return `hsl(${hash % 360} 85% 62%)`
+}
+
 export function useWebSocket(diagramId: string, userId: string) {
   const clientRef = useRef<Client | null>(null)
   const [connected, setConnected] = useState(false)
   const [presenceUsers, setPresenceUsers] = useState<string[]>([])
   const [remoteChanges, setRemoteChanges] = useState<DiagramUpdateMessage[]>([])
+  const [remoteCursors, setRemoteCursors] = useState<Record<string, RemoteCursor>>({})
 
   useEffect(() => {
     if (!diagramId || !userId) return
@@ -53,10 +73,29 @@ export function useWebSocket(diagramId: string, userId: string) {
         client.subscribe(`/topic/diagram/${diagramId}/changes`, (message: IMessage) => {
           try {
             const body = JSON.parse(message.body) as DiagramUpdateMessage
-            const senderClientId = (body.data as { clientId?: string } | undefined)?.clientId
-            if (senderClientId !== CLIENT_ID) {
-              setRemoteChanges((prev) => [...prev, body])
+            const data = body.data as { clientId?: string; x?: number; y?: number; name?: string } | undefined
+            const senderClientId = data?.clientId
+
+            if (senderClientId === CLIENT_ID) return
+
+            if (body.type === 'user_cursor') {
+              if (senderClientId && typeof data?.x === 'number' && typeof data?.y === 'number') {
+                setRemoteCursors((prev) => ({
+                  ...prev,
+                  [senderClientId]: {
+                    clientId: senderClientId,
+                    x: data.x as number,
+                    y: data.y as number,
+                    name: data.name || 'Colaborador',
+                    color: colorFor(body.userId || senderClientId),
+                    ts: Date.now(),
+                  },
+                }))
+              }
+              return
             }
+
+            setRemoteChanges((prev) => [...prev, body])
           } catch { /* ignore */ }
         })
       },
@@ -80,6 +119,23 @@ export function useWebSocket(diagramId: string, userId: string) {
     }
   }, [diagramId, userId])
 
+  // Remove cursors that stopped moving
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRemoteCursors((prev) => {
+        const now = Date.now()
+        const next: Record<string, RemoteCursor> = {}
+        let changed = false
+        for (const [key, cursor] of Object.entries(prev)) {
+          if (now - cursor.ts < CURSOR_TTL_MS) next[key] = cursor
+          else changed = true
+        }
+        return changed ? next : prev
+      })
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [])
+
   const publish = useCallback((destination: string, body: Record<string, unknown>) => {
     if (clientRef.current?.connected) {
       clientRef.current.publish({
@@ -93,8 +149,8 @@ export function useWebSocket(diagramId: string, userId: string) {
     publish('/app/diagram/update', { diagramId, type, data: { elementId, clientId: CLIENT_ID, ...data } })
   }, [publish, diagramId])
 
-  const broadcastCursor = useCallback((x: number, y: number) => {
-    publish('/app/diagram/update', { diagramId, type: 'user_cursor', data: { x, y, clientId: CLIENT_ID } })
+  const broadcastCursor = useCallback((x: number, y: number, name?: string) => {
+    publish('/app/diagram/update', { diagramId, type: 'user_cursor', data: { x, y, name: name || '', clientId: CLIENT_ID } })
   }, [publish, diagramId])
 
   const clearRemoteChanges = useCallback(() => {
@@ -105,6 +161,7 @@ export function useWebSocket(diagramId: string, userId: string) {
     connected,
     presenceUsers,
     remoteChanges,
+    remoteCursors,
     publish,
     broadcastElementChange,
     broadcastCursor,
