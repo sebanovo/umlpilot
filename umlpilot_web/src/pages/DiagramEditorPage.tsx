@@ -59,13 +59,20 @@ export function DiagramEditorPage() {
         height: n.measured?.height,
       }
     }
+    const multiplicities: Record<string, { source?: string; target?: string }> = {}
+    for (const e of edges) {
+      const d = (e.data || {}) as { sourceMultiplicity?: string; targetMultiplicity?: string }
+      multiplicities[e.id] = { source: d.sourceMultiplicity, target: d.targetMultiplicity }
+    }
     const xml = buildXmi({
       modelName: `Diagram_${diagramId}`,
+      diagramId: diagramId!,
       elements,
       attributes,
       methods,
       relationships,
       positions,
+      multiplicities,
     })
     const blob = new Blob([xml], { type: 'application/xml' })
     const url = URL.createObjectURL(blob)
