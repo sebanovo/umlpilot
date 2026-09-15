@@ -6,7 +6,7 @@ interface RelationshipPanelProps {
   relationship: UmlRelationshipApi | null
   multiplicities: MultiplicityApi[]
   onUpdateName: (name: string) => void
-  onUpdateMultiplicity: (multiplicityId: string, min: number, max: number) => void
+  onUpdateMultiplicity: (multiplicityId: string, min: number | null, max: number | null) => void
   width?: number
 }
 
@@ -21,11 +21,14 @@ const TYPE_LABELS: Record<string, string> = {
   dependency: 'Dependency',
 }
 
-const PRESETS = [
-  { label: '1', min: 1, max: 1 },
-  { label: '0..1', min: 0, max: 1 },
-  { label: '1..*', min: 1, max: -1 },
-  { label: '0..*', min: 0, max: -1 },
+interface MultOption { text: string; value: string; min: number | null; max: number | null }
+
+const PRESETS: MultOption[] = [
+  { text: '1', value: '1', min: 1, max: 1 },
+  { text: '0..1', value: '0..1', min: 0, max: 1 },
+  { text: '1..*', value: '1..*', min: 1, max: -1 },
+  { text: '0..*', value: '0..*', min: 0, max: -1 },
+  { text: '— sin multiplicidad', value: '', min: null, max: null },
 ]
 
 function multLabel(min: number | null, max: number | null): string {
@@ -49,19 +52,19 @@ export function RelationshipPanel({ relationship, multiplicities, onUpdateName, 
   const renderMultiplicity = (label: string, mult?: MultiplicityApi) => {
     if (!mult) return null
     const current = multLabel(mult.min, mult.max)
-    const options = PRESETS.some((p) => p.label === current)
+    const options = PRESETS.some((p) => p.value === current)
       ? PRESETS
-      : [{ label: current, min: mult.min ?? 0, max: mult.max ?? 0 }, ...PRESETS]
+      : [{ text: current || '— sin multiplicidad', value: current, min: mult.min, max: mult.max }, ...PRESETS]
     return (
       <div>
         <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
         <select value={current}
           onChange={(e) => {
-            const p = options.find((o) => o.label === e.target.value)
+            const p = options.find((o) => o.value === e.target.value)
             if (p) onUpdateMultiplicity(mult.id, p.min, p.max)
           }}
           className="w-full rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 outline-none">
-          {options.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}
+          {options.map((o) => <option key={o.value || 'none'} value={o.value}>{o.text}</option>)}
         </select>
       </div>
     )

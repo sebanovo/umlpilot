@@ -29,9 +29,8 @@ public class RelationshipService {
         Relationship rel = Relationship.create(command.diagramId(), command.sourceElementId(), command.targetElementId(), command.relationshipType(), command.associationClassElementId(), command.sourceHandle(), command.targetHandle());
         Relationship saved = relationshipRepository.save(rel);
 
-        Multiplicity.create(saved.getId().value(), "source", 1, 1);
-        multiplicityRepository.save(Multiplicity.create(saved.getId().value(), "source", 1, 1));
-        multiplicityRepository.save(Multiplicity.create(saved.getId().value(), "target", 1, 1));
+        multiplicityRepository.save(Multiplicity.create(saved.getId().value(), "source", null, null));
+        multiplicityRepository.save(Multiplicity.create(saved.getId().value(), "target", null, null));
 
         return toResult(saved);
     }

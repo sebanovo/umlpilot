@@ -43,10 +43,10 @@ function scope(v: string | undefined): string {
   const s = (v || 'public').toLowerCase()
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
-// "0..*" / "1" / "*" -> { lower, upper } for LiteralInteger/LiteralUnlimitedNatural
-function bounds(m?: string): { lower: string; upper: string } {
+// "0..*" / "1" / "*" -> { lower, upper }; null when there is no multiplicity
+function bounds(m?: string): { lower: string; upper: string } | null {
   const s = (m || '').trim()
-  if (!s) return { lower: '1', upper: '1' }
+  if (!s) return null
   if (s.includes('..')) {
     const [a, b] = s.split('..')
     return { lower: (a.trim() || '0'), upper: (b.trim() || '*') }
@@ -200,14 +200,14 @@ export function buildXmi(input: XmiInput): string {
     out.push(`${p(4)}<memberEnd xmi:idref="${src}"/>`)
     out.push(`${p(4)}<ownedEnd xmi:type="uml:Property" xmi:id="${src}" association="${relId}"${agg !== 'none' ? ` aggregation="${agg}"` : ''}>`)
     out.push(`${p(5)}<type xmi:idref="${xid(rel.sourceElementId)}"/>`)
-    if (!isAssocClass) {
+    if (!isAssocClass && sb) {
       out.push(`${p(5)}<lowerValue xmi:type="uml:LiteralInteger" xmi:id="${xid(rel.id + '_slv')}" value="${sb.lower}"/>`)
       out.push(`${p(5)}<upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="${xid(rel.id + '_suv')}" value="${sb.upper}"/>`)
     }
     out.push(`${p(4)}</ownedEnd>`)
     out.push(`${p(4)}<ownedEnd xmi:type="uml:Property" xmi:id="${dst}" association="${relId}">`)
     out.push(`${p(5)}<type xmi:idref="${xid(rel.targetElementId)}"/>`)
-    if (!isAssocClass) {
+    if (!isAssocClass && tb) {
       out.push(`${p(5)}<lowerValue xmi:type="uml:LiteralInteger" xmi:id="${xid(rel.id + '_tlv')}" value="${tb.lower}"/>`)
       out.push(`${p(5)}<upperValue xmi:type="uml:LiteralUnlimitedNatural" xmi:id="${xid(rel.id + '_tuv')}" value="${tb.upper}"/>`)
     }
@@ -331,7 +331,9 @@ export function buildXmi(input: XmiInput): string {
       out.push(`${p(4)}<links>`)
       for (const link of links) {
         const kind = link.relationshipType === 'generalization' ? 'Generalization' : 'Association'
-        out.push(`${p(5)}<${kind} xmi:id="${xid(link.id + '_link')}" start="${xid(link.sourceElementId)}" end="${xid(link.targetElementId)}"/>`)
+        // EA reuses the connector id here so the cache points at the existing connector;
+        // a different id makes EA create a duplicate association on import.
+        out.push(`${p(5)}<${kind} xmi:id="${xid(link.id)}" start="${xid(link.sourceElementId)}" end="${xid(link.targetElementId)}"/>`)
       }
       out.push(`${p(4)}</links>`)
     }
@@ -348,8 +350,8 @@ export function buildXmi(input: XmiInput): string {
     const isAssocClass = rel.relationshipType === 'association_class'
     const agg = rel.relationshipType === 'aggregation' ? 'shared' : rel.relationshipType === 'composition' ? 'composite' : 'none'
     const clsId = isAssocClass ? (rel.associationClassElementId || '') : ''
-    const sMul = (multiplicities?.[rel.id]?.source || '').trim() || '1'
-    const tMul = (multiplicities?.[rel.id]?.target || '').trim() || '1'
+    const sMul = (multiplicities?.[rel.id]?.source || '').trim()
+    const tMul = (multiplicities?.[rel.id]?.target || '').trim()
     const srcEl = elements.find((e) => e.id === rel.sourceElementId)
     const tgtEl = elements.find((e) => e.id === rel.targetElementId)
     const srcLocal = localIds.get(rel.sourceElementId)
@@ -359,7 +361,7 @@ export function buildXmi(input: XmiInput): string {
     out.push(`${p(5)}<model${srcLocal ? ` ea_localid="${srcLocal}"` : ''} type="Class" name="${esc(srcEl?.name || '')}"/>`)
     out.push(`${p(5)}<role visibility="Public"/>`)
     if (isGen || isReal) out.push(`${p(5)}<type aggregation="none"/>`)
-    else out.push(`${p(5)}<type multiplicity="${esc(sMul)}" aggregation="${agg}"/>`)
+    else out.push(`${p(5)}<type${sMul ? ` multiplicity="${esc(sMul)}"` : ''} aggregation="none"/>`)
     out.push(`${p(5)}<constraints/>`)
     out.push(`${p(5)}<modifiers isOrdered="false" isNavigable="false"/>`)
     out.push(`${p(5)}<documentation/>`)
@@ -368,7 +370,7 @@ export function buildXmi(input: XmiInput): string {
     out.push(`${p(5)}<model${tgtLocal ? ` ea_localid="${tgtLocal}"` : ''} type="Class" name="${esc(tgtEl?.name || '')}"/>`)
     out.push(`${p(5)}<role visibility="Public"/>`)
     if (isGen || isReal) out.push(`${p(5)}<type aggregation="none"/>`)
-    else out.push(`${p(5)}<type multiplicity="${esc(tMul)}" aggregation="none"/>`)
+    else out.push(`${p(5)}<type${tMul ? ` multiplicity="${esc(tMul)}"` : ''} aggregation="${agg}"/>`)
     out.push(`${p(5)}<constraints/>`)
     out.push(`${p(5)}<modifiers isOrdered="false" isNavigable="true"/>`)
     out.push(`${p(5)}<documentation/>`)
@@ -377,9 +379,11 @@ export function buildXmi(input: XmiInput): string {
     out.push(`${p(4)}<properties ea_type="${eaType}"${isAssocClass ? ' subtype="Class"' : ''} direction="${isGen ? 'Source -&gt; Destination' : 'Unspecified'}"/>`)
     out.push(`${p(4)}<modifiers isRoot="false" isLeaf="false"/>`)
     out.push(`${p(4)}<appearance linemode="3" linecolor="-1" linewidth="0" seqno="0" headStyle="0" lineStyle="0"/>`)
-    if (isAssocClass) out.push(`${p(4)}<labels/>`)
-    else if (isGen || isReal) out.push(`${p(4)}<labels mt="${esc(rel.name)}"/>`)
-    else out.push(`${p(4)}<labels lb="${esc(sMul)}" mt="${esc(rel.name)}" rb="${esc(tMul)}"/>`)
+    if (isAssocClass || isGen || isReal) out.push(`${p(4)}<labels${rel.name ? ` mt="${esc(rel.name)}"` : ''}/>`)
+    else {
+      const parts = [sMul ? `lb="${esc(sMul)}"` : '', rel.name ? `mt="${esc(rel.name)}"` : '', tMul ? `rb="${esc(tMul)}"` : ''].filter(Boolean)
+      out.push(parts.length ? `${p(4)}<labels ${parts.join(' ')}/>` : `${p(4)}<labels/>`)
+    }
     if (isAssocClass && clsId) {
       const priv = localIds.get(clsId)
       out.push(`${p(4)}<extendedProperties virtualInheritance="0" associationclass="${xid(clsId)}"${priv ? ` privatedata1="${priv}"` : ''}/>`)

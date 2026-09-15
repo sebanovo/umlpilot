@@ -163,6 +163,6 @@ export const relationshipsApi = {
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'DELETE' }),
   getMultiplicities: (projectId: string, diagramId: string, relationshipId: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}/multiplicities`) as Promise<MultiplicityApi[]>,
-  updateMultiplicity: (projectId: string, diagramId: string, multiplicityId: string, data: { min?: number; max?: number }) =>
+  updateMultiplicity: (projectId: string, diagramId: string, multiplicityId: string, data: { min?: number | null; max?: number | null }) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/multiplicities/${multiplicityId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<MultiplicityApi>,
 }

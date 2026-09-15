@@ -482,7 +482,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       id: tempId, source: sourceId, target: targetId,
       sourceHandle: srcHandle, targetHandle: tgtHandle,
       type: edgeTypeFor(relationshipType),
-      data: { relationshipType, name: '', associationClassElementId, sourceMultiplicity: '1', targetMultiplicity: '1' },
+      data: { relationshipType, name: '', associationClassElementId, sourceMultiplicity: '', targetMultiplicity: '' },
     }
     setState(prev => ({ ...prev, edges: [...prev.edges, newEdge] }))
 
@@ -495,7 +495,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       setState(prev => ({
         ...prev,
         edges: prev.edges.map((e) => e.id === tempId
-          ? { ...e, id: rel.id, sourceHandle: rel.sourceHandle || srcHandle, targetHandle: rel.targetHandle || tgtHandle, type: edgeTypeFor(rel.relationshipType), data: { relationshipType: rel.relationshipType, name: rel.name || '', associationClassElementId: rel.associationClassElementId || null, sourceMultiplicity: '1', targetMultiplicity: '1', onDelete: () => handleDeleteEdge(rel.id) } }
+          ? { ...e, id: rel.id, sourceHandle: rel.sourceHandle || srcHandle, targetHandle: rel.targetHandle || tgtHandle, type: edgeTypeFor(rel.relationshipType), data: { relationshipType: rel.relationshipType, name: rel.name || '', associationClassElementId: rel.associationClassElementId || null, sourceMultiplicity: '', targetMultiplicity: '', onDelete: () => handleDeleteEdge(rel.id) } }
           : e),
         relationships: [...prev.relationships, rel],
       }))
@@ -608,7 +608,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     }
   }, [selectedRelationship, projectId, diagramId, broadcastElementChange, rebuildDiagram])
 
-  const updateMultiplicity = useCallback(async (multiplicityId: string, min: number, max: number) => {
+  const updateMultiplicity = useCallback(async (multiplicityId: string, min: number | null, max: number | null) => {
     const rel = selectedRelationship
     if (!rel) return
     const updated = relationshipMultiplicities.map((m) => m.id === multiplicityId ? { ...m, min, max } : m)
