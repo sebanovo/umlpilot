@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import type { UmlElement, UmlAttribute, UmlMethod } from '../types/uml'
 import { Plus, X, ChevronDown, ChevronRight, Pencil, Check, Trash2 } from 'lucide-react'
 
-interface AttributeInput { name: string; scope: string; type: string; alias: string; initialValue: string }
+interface AttributeInput { name: string; scope: string; type: string; alias: string; stereotype: string; initialValue: string }
+interface ParameterInput { name: string; type: string; direction: string; notes: string }
 
 interface PropertiesPanelProps {
   element: UmlElement | null
@@ -13,6 +14,8 @@ interface PropertiesPanelProps {
   onAddMethod: (data: AttributeInput) => void
   onDeleteAttribute: (id: string) => void
   onDeleteMethod: (id: string) => void
+  onAddParameter: (methodId: string, data: ParameterInput) => void
+  onDeleteParameter: (methodId: string, paramId: string) => void
   onDelete?: () => void
   width?: number
 }
@@ -23,21 +26,26 @@ const SCOPE_OPTIONS = [
   { value: 'protected', label: 'protegido', symbol: '#' },
   { value: 'package', label: 'paquete', symbol: '~' },
 ]
+const DIRECTIONS = ['in', 'inout', 'out', 'return']
 
 const scopeSymbol = (scope: string) => SCOPE_OPTIONS.find((s) => s.value === scope)?.symbol || '+'
-const emptyInput: AttributeInput = { name: '', scope: 'private', type: 'String', alias: '', initialValue: '' }
+const emptyInput: AttributeInput = { name: '', scope: 'private', type: 'String', alias: '', stereotype: '', initialValue: '' }
+const emptyParam: ParameterInput = { name: '', type: 'String', direction: 'in', notes: '' }
 
-export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddAttribute, onAddMethod, onDeleteAttribute, onDeleteMethod, onDelete, width }: PropertiesPanelProps) {
+export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddAttribute, onAddMethod, onDeleteAttribute, onDeleteMethod, onAddParameter, onDeleteParameter, onDelete, width }: PropertiesPanelProps) {
   const [newAttr, setNewAttr] = useState<AttributeInput>(emptyInput)
   const [newMethod, setNewMethod] = useState<AttributeInput>({ ...emptyInput, scope: 'public', type: 'void' })
   const [showAttrs, setShowAttrs] = useState(true)
   const [showMethods, setShowMethods] = useState(true)
+  const [expandedMethod, setExpandedMethod] = useState<string | null>(null)
+  const [newParam, setNewParam] = useState<ParameterInput>(emptyParam)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
 
   useEffect(() => {
     setIsEditing(false)
+    setExpandedMethod(null)
   }, [element?.id])
 
   if (!element) {
@@ -52,18 +60,6 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
         <p className="text-xs text-gray-600 mt-1">para ver sus propiedades</p>
       </div>
     )
-  }
-
-  const submitAttr = () => {
-    if (!newAttr.name.trim()) return
-    onAddAttribute(newAttr)
-    setNewAttr({ ...emptyInput })
-  }
-
-  const submitMethod = () => {
-    if (!newMethod.name.trim()) return
-    onAddMethod(newMethod)
-    setNewMethod({ ...emptyInput, scope: 'public', type: 'void' })
   }
 
   const inputClass = 'w-full rounded border border-gray-700 bg-gray-800 px-1.5 py-1 text-[11px] text-gray-100 placeholder-gray-500 focus:border-blue-500 outline-none'
@@ -81,7 +77,6 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        {/* Element name */}
         <div>
           <label className="block text-xs font-medium text-gray-400 mb-1">Nombre</label>
           {isEditing ? (
@@ -113,6 +108,7 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
                   <span className="text-xs text-gray-300 font-mono truncate">
                     {scopeSymbol(a.visibility)} {a.name}: {a.dataType}
                     {a.defaultValue ? ` = ${a.defaultValue}` : ''}
+                    {a.stereotype ? <span className="text-purple-300"> «{a.stereotype}»</span> : null}
                     {a.alias ? <span className="text-gray-500"> ({a.alias})</span> : null}
                   </span>
                   <button onClick={() => onDeleteAttribute(a.id)}
@@ -128,9 +124,10 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
                   {SCOPE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
                 <input placeholder="tipo" value={newAttr.type} onChange={(e) => setNewAttr({ ...newAttr, type: e.target.value })} className={inputClass} />
+                <input placeholder="stereotype" value={newAttr.stereotype} onChange={(e) => setNewAttr({ ...newAttr, stereotype: e.target.value })} className={inputClass} />
                 <input placeholder="alias" value={newAttr.alias} onChange={(e) => setNewAttr({ ...newAttr, alias: e.target.value })} className={inputClass} />
-                <input placeholder="valor inicial" value={newAttr.initialValue} onChange={(e) => setNewAttr({ ...newAttr, initialValue: e.target.value })} className={`${inputClass} col-span-2`} />
-                <button onClick={submitAttr}
+                <input placeholder="valor inicial" value={newAttr.initialValue} onChange={(e) => setNewAttr({ ...newAttr, initialValue: e.target.value })} className={inputClass} />
+                <button onClick={() => { if (newAttr.name.trim()) { onAddAttribute(newAttr); setNewAttr({ ...emptyInput }) } }}
                   className="col-span-2 flex items-center justify-center gap-1 rounded bg-blue-600 px-2 py-1 text-[11px] text-white hover:bg-blue-500 cursor-pointer">
                   <Plus className="w-3 h-3" /> Agregar atributo
                 </button>
@@ -149,16 +146,51 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
           {showMethods && (
             <div className="space-y-1">
               {methods.map((m) => (
-                <div key={m.id} className="flex items-center justify-between py-1 px-2 rounded hover:bg-gray-800 group">
-                  <span className="text-xs text-gray-300 font-mono truncate">
-                    {scopeSymbol(m.visibility)} {m.name}(): {m.returnType}
-                    {m.defaultValue ? ` = ${m.defaultValue}` : ''}
-                    {m.alias ? <span className="text-gray-500"> ({m.alias})</span> : null}
-                  </span>
-                  <button onClick={() => onDeleteMethod(m.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity cursor-pointer">
-                    <X className="w-3 h-3" />
-                  </button>
+                <div key={m.id} className="rounded hover:bg-gray-800/50">
+                  <div className="flex items-center justify-between py-1 px-2 group">
+                    <button onClick={() => setExpandedMethod(expandedMethod === m.id ? null : m.id)}
+                      className="flex items-center gap-1 text-xs text-gray-300 font-mono truncate cursor-pointer text-left">
+                      {expandedMethod === m.id ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
+                      <span className="truncate">
+                        {scopeSymbol(m.visibility)} {m.name}(): {m.returnType}
+                        {m.stereotype ? <span className="text-purple-300"> «{m.stereotype}»</span> : null}
+                        {(m.parameters?.length ? ` (${m.parameters.length})` : '')}
+                      </span>
+                    </button>
+                    <button onClick={() => onDeleteMethod(m.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity cursor-pointer">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {expandedMethod === m.id && (
+                    <div className="ml-3 mt-1 mb-2 border-l border-gray-700 pl-2 space-y-1">
+                      {m.parameters?.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between py-0.5 px-1 rounded hover:bg-gray-800 group">
+                          <span className="text-[11px] text-gray-400 font-mono truncate">
+                            <span className="text-gray-500">{p.direction || 'in'}</span> {p.name}: {p.dataType}
+                            {p.notes ? <span className="text-gray-500"> — {p.notes}</span> : null}
+                          </span>
+                          <button onClick={() => onDeleteParameter(m.id, p.id)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-opacity cursor-pointer">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="grid grid-cols-2 gap-1 pt-1">
+                        <input placeholder="nombre" value={newParam.name} onChange={(e) => setNewParam({ ...newParam, name: e.target.value })} className={inputClass} />
+                        <input placeholder="tipo" value={newParam.type} onChange={(e) => setNewParam({ ...newParam, type: e.target.value })} className={inputClass} />
+                        <select value={newParam.direction} onChange={(e) => setNewParam({ ...newParam, direction: e.target.value })} className={inputClass}>
+                          {DIRECTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <input placeholder="notes" value={newParam.notes} onChange={(e) => setNewParam({ ...newParam, notes: e.target.value })} className={inputClass} />
+                        <button onClick={() => { if (newParam.name.trim()) { onAddParameter(m.id, newParam); setNewParam({ ...emptyParam }) } }}
+                          className="col-span-2 flex items-center justify-center gap-1 rounded bg-gray-700 px-2 py-1 text-[11px] text-gray-200 hover:bg-gray-600 cursor-pointer">
+                          <Plus className="w-3 h-3" /> Agregar parámetro
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -168,9 +200,10 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
                   {SCOPE_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
                 <input placeholder="tipo" value={newMethod.type} onChange={(e) => setNewMethod({ ...newMethod, type: e.target.value })} className={inputClass} />
+                <input placeholder="stereotype" value={newMethod.stereotype} onChange={(e) => setNewMethod({ ...newMethod, stereotype: e.target.value })} className={inputClass} />
                 <input placeholder="alias" value={newMethod.alias} onChange={(e) => setNewMethod({ ...newMethod, alias: e.target.value })} className={inputClass} />
-                <input placeholder="valor inicial" value={newMethod.initialValue} onChange={(e) => setNewMethod({ ...newMethod, initialValue: e.target.value })} className={`${inputClass} col-span-2`} />
-                <button onClick={submitMethod}
+                <input placeholder="valor inicial" value={newMethod.initialValue} onChange={(e) => setNewMethod({ ...newMethod, initialValue: e.target.value })} className={inputClass} />
+                <button onClick={() => { if (newMethod.name.trim()) { onAddMethod(newMethod); setNewMethod({ ...emptyInput, scope: 'public', type: 'void' }) } }}
                   className="col-span-2 flex items-center justify-center gap-1 rounded bg-blue-600 px-2 py-1 text-[11px] text-white hover:bg-blue-500 cursor-pointer">
                   <Plus className="w-3 h-3" /> Agregar método
                 </button>

@@ -9,6 +9,8 @@ public class ParameterJpaEntity {
     @Column(name = "method_id", nullable = false) private String methodId;
     @Column(nullable = false) private String name;
     @Column(name = "data_type", nullable = false) private String dataType;
+    private String direction;
+    private String notes;
     @Column(name = "order_index") private Integer orderIndex;
     @Column(name = "is_varargs") private Boolean isVarargs;
     @Column(name = "is_final") private Boolean isFinal;
@@ -23,6 +25,10 @@ public class ParameterJpaEntity {
     public void setName(String name) { this.name = name; }
     public String getDataType() { return dataType; }
     public void setDataType(String dataType) { this.dataType = dataType; }
+    public String getDirection() { return direction; }
+    public void setDirection(String direction) { this.direction = direction; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
     public Integer getOrderIndex() { return orderIndex; }
     public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
     public Boolean getIsVarargs() { return isVarargs; }

@@ -11,6 +11,7 @@ public class MethodJpaEntity {
     @Column(name = "return_type", nullable = false) private String returnType;
     private String visibility;
     @Column(name = "alias_name") private String alias;
+    @Column(name = "stereotype") private String stereotype;
     @Column(name = "default_value") private String defaultValue;
     @Column(name = "is_static") private Boolean isStatic;
     @Column(name = "is_abstract") private Boolean isAbstract;
@@ -34,6 +35,8 @@ public class MethodJpaEntity {
     public void setVisibility(String visibility) { this.visibility = visibility; }
     public String getAlias() { return alias; }
     public void setAlias(String alias) { this.alias = alias; }
+    public String getStereotype() { return stereotype; }
+    public void setStereotype(String stereotype) { this.stereotype = stereotype; }
     public String getDefaultValue() { return defaultValue; }
     public void setDefaultValue(String defaultValue) { this.defaultValue = defaultValue; }
     public Boolean getIsStatic() { return isStatic; }

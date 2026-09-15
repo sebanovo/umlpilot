@@ -35,13 +35,13 @@ export function ClassNode({ id, data, selected }: { id: string; data: ClassNodeD
       <div className="px-2 py-1 border-b border-gray-700 min-h-5">
         {attributes.length === 0 && <div className="text-gray-600">&nbsp;</div>}
         {attributes.map((attr: UmlAttribute) => (
-          <div key={attr.id}>{visSymbol[attr.visibility] || '+'} {attr.name}: {attr.dataType}{attr.defaultValue ? ` = ${attr.defaultValue}` : ''}</div>
+          <div key={attr.id}>{visSymbol[attr.visibility] || '+'} {attr.name}: {attr.dataType}{attr.stereotype ? ` «${attr.stereotype}»` : ''}{attr.defaultValue ? ` = ${attr.defaultValue}` : ''}</div>
         ))}
       </div>
       <div className="px-2 py-1 min-h-5">
         {methods.length === 0 && <div className="text-gray-600">&nbsp;</div>}
         {methods.map((m: UmlMethod) => (
-          <div key={m.id}>{visSymbol[m.visibility] || '+'} {m.name}({m.parameters.map((p) => p.name).join(', ')}): {m.returnType}{m.defaultValue ? ` = ${m.defaultValue}` : ''}</div>
+          <div key={m.id}>{visSymbol[m.visibility] || '+'} {m.name}({m.parameters.map((p) => p.name).join(', ')}): {m.returnType}{m.stereotype ? ` «${m.stereotype}»` : ''}{m.defaultValue ? ` = ${m.defaultValue}` : ''}</div>
         ))}
       </div>
     </div>

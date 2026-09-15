@@ -22,6 +22,7 @@ export function DiagramEditorPage() {
     updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
+    addParameter, deleteParameter,
     attributes, methods, relationships,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
@@ -49,12 +50,22 @@ export function DiagramEditorPage() {
   }
 
   const handleExportXmi = () => {
+    const positions: Record<string, { x: number; y: number; width?: number; height?: number }> = {}
+    for (const n of nodes) {
+      positions[n.id] = {
+        x: n.position.x,
+        y: n.position.y,
+        width: n.measured?.width,
+        height: n.measured?.height,
+      }
+    }
     const xml = buildXmi({
       modelName: `Diagram_${diagramId}`,
       elements,
       attributes,
       methods,
       relationships,
+      positions,
     })
     const blob = new Blob([xml], { type: 'application/xml' })
     const url = URL.createObjectURL(blob)
@@ -184,6 +195,7 @@ export function DiagramEditorPage() {
               methods={selectedMethods.map((m) => ({ ...m }))}
               onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
               onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
+              onAddParameter={addParameter} onDeleteParameter={deleteParameter}
               onDelete={selectedElement ? () => deleteElement(selectedElement.id) : undefined}
               width={panelWidth}
             />

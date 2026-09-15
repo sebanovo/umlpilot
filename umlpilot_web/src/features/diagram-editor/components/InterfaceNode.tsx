@@ -33,12 +33,12 @@ export function InterfaceNode({ id, data, selected }: { id: string; data: Interf
       </div>
       <div className="px-2 py-1 border-b border-gray-700 min-h-[20px]">
         {attributes.map((attr: UmlAttribute) => (
-          <div key={attr.id}>{visSymbol[attr.visibility] || '+'} {attr.name}: {attr.dataType}{attr.defaultValue ? ` = ${attr.defaultValue}` : ''}</div>
+          <div key={attr.id}>{visSymbol[attr.visibility] || '+'} {attr.name}: {attr.dataType}{attr.stereotype ? ` «${attr.stereotype}»` : ''}{attr.defaultValue ? ` = ${attr.defaultValue}` : ''}</div>
         ))}
       </div>
       <div className="px-2 py-1 min-h-[20px]">
         {methods.map((m: UmlMethod) => (
-          <div key={m.id}>{visSymbol[m.visibility] || '+'} {m.name}({m.parameters.map((p) => p.name).join(', ')}): {m.returnType}{m.defaultValue ? ` = ${m.defaultValue}` : ''}</div>
+          <div key={m.id}>{visSymbol[m.visibility] || '+'} {m.name}({m.parameters.map((p) => p.name).join(', ')}): {m.returnType}{m.stereotype ? ` «${m.stereotype}»` : ''}{m.defaultValue ? ` = ${m.defaultValue}` : ''}</div>
         ))}
       </div>
     </div>

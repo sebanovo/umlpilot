@@ -112,7 +112,7 @@ function AssociationClassConnector({ elementId, midX, midY, selected }: { elemen
 }
 
 function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
-  const { selected, data, sourceX, sourceY, targetX, targetY, targetPosition } = props
+  const { selected, data, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
   const { path, labelX, labelY } = edgeGeometry(props)
   const { name, sourceMultiplicity, targetMultiplicity, associationClassElementId, onDelete } = relInfo(data)
 
@@ -121,6 +121,15 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   const thin = kind === 'dependency' || kind === 'template_binding'
   const targetIn = TARGET_DIR[targetPosition ?? 'top'] ?? [0, -1]
   const targetOut = SOURCE_DIR[targetPosition ?? 'top'] ?? [0, -1]
+  const sourceOut = SOURCE_DIR[sourcePosition ?? 'bottom'] ?? [0, 1]
+
+  // Multiplicity labels are offset away from the node along the handle normal
+  const sPerp: [number, number] = [-sourceOut[1], sourceOut[0]]
+  const sourceLabelX = sourceX + sourceOut[0] * 16 + sPerp[0] * 14
+  const sourceLabelY = sourceY + sourceOut[1] * 16 + sPerp[1] * 14
+  const tPerp: [number, number] = [-targetOut[1], -targetOut[0]]
+  const targetLabelX = targetX + targetOut[0] * 16 + tPerp[0] * 14
+  const targetLabelY = targetY + targetOut[1] * 16 + tPerp[1] * 14
 
   return (
     <>
@@ -146,8 +155,8 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
 
         <path d={path} fill="none" stroke="transparent" strokeWidth={20} style={{ pointerEvents: 'stroke' }} />
       </svg>
-      <EndLabel x={sourceX + 18} y={sourceY + 18} text={sourceMultiplicity} />
-      <EndLabel x={targetX + 18} y={targetY - 18} text={targetMultiplicity} />
+      <EndLabel x={sourceLabelX} y={sourceLabelY} text={sourceMultiplicity} />
+      <EndLabel x={targetLabelX} y={targetLabelY} text={targetMultiplicity} />
       <EdgeMid x={labelX} y={labelY} name={kind === 'template_binding' ? (name || '«bind»') : name} selected={selected} onDelete={onDelete} />
     </>
   )
