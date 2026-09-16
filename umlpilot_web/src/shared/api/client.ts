@@ -210,4 +210,9 @@ export const aiChatApi = {
     if (instructions) form.append('instructions', instructions)
     return authUpload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/ai/diagram-from-image`, form) as Promise<AiChatResult>
   },
+  diagramFromText: (projectId: string, diagramId: string, prompt: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/ai/diagram-from-text`, {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }) as Promise<AiChatResult>,
 }

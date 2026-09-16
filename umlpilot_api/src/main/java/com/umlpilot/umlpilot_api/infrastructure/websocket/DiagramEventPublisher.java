@@ -53,4 +53,9 @@ public class DiagramEventPublisher {
     public void relationshipDeleted(String diagramId, String userId, String relationshipId) {
         publish(diagramId, userId, "relationship_deleted", Map.of("relationshipId", relationshipId));
     }
+
+    /** Cambio masivo (p. ej. construir el diagrama desde imagen/texto): refresca todo. */
+    public void diagramChanged(String diagramId, String userId) {
+        publish(diagramId, userId, "diagram_changed", Map.of("diagramId", diagramId));
+    }
 }

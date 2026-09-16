@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Bot, Send, X, Sparkles, Mic, Square, ImagePlus } from 'lucide-react'
+import { Bot, Send, X, Sparkles, Mic, Square, ImagePlus, Wand2 } from 'lucide-react'
 import type { ChatMessage } from '../hooks/useAiChat'
 
 interface AiChatPanelProps {
@@ -11,6 +11,7 @@ interface AiChatPanelProps {
   onClose: () => void
   onTranscribe: (audio: Blob) => Promise<string>
   onImage: (file: File) => void
+  onBuildText: (text: string) => void
   width?: number
 }
 
@@ -28,7 +29,7 @@ function actionSummary(actions?: ChatMessage['actions']): string[] {
   return mutations.map((a) => `${ACTION_LABELS[a.action] || a.action} ${a.entity}`)
 }
 
-export function AiChatPanel({ messages, loading, error, onSend, onReset, onClose, onTranscribe, onImage, width }: AiChatPanelProps) {
+export function AiChatPanel({ messages, loading, error, onSend, onReset, onClose, onTranscribe, onImage, onBuildText, width }: AiChatPanelProps) {
   const [input, setInput] = useState('')
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
@@ -84,6 +85,13 @@ export function AiChatPanel({ messages, loading, error, onSend, onReset, onClose
   }
 
   const pickImage = () => fileInputRef.current?.click()
+
+  const submitBuildText = () => {
+    const text = input.trim()
+    if (!text || loading) return
+    onBuildText(text)
+    setInput('')
+  }
 
   const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -186,6 +194,10 @@ export function AiChatPanel({ messages, loading, error, onSend, onReset, onClose
             <button onClick={toggleRecording} disabled={transcribing} title={recording ? 'Detener grabación' : 'Dictar por voz'}
               className={`rounded-md px-2.5 py-1.5 transition-colors cursor-pointer disabled:opacity-40 ${recording ? 'bg-red-600 text-white hover:bg-red-500' : 'border border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
               {recording ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+            <button onClick={submitBuildText} disabled={!input.trim() || loading} title="Construir diagrama desde el texto"
+              className="rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">
+              <Wand2 className="w-4 h-4" />
             </button>
             <button onClick={pickImage} disabled={loading} title="Construir desde una imagen"
               className="rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">

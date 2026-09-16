@@ -1,11 +1,19 @@
 package com.umlpilot.umlpilot_api.infrastructure.ai;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.umlpilot.umlpilot_api.application.dto.DiagramBuildResult;
+import com.umlpilot.umlpilot_api.application.dto.DiagramSpec;
+import com.umlpilot.umlpilot_api.application.service.DiagramBuildService;
+import com.umlpilot.umlpilot_api.domain.exception.DomainException;
+import com.umlpilot.umlpilot_api.infrastructure.websocket.DiagramEventPublisher;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.content.Media;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -15,14 +23,16 @@ import org.springframework.util.MimeType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Ejecuta el bucle de conversación con function calling sobre el diagrama indicado,
- * usando las tools de {@link UmlTools}, el contexto de la conversación y rotación entre
- * proveedores (OpenRouter/Gemini) cuando uno se queda sin créditos o falla.
+ * Ejecuta el chat con function calling sobre el diagrama indicado, rota entre proveedores
+ * (OpenRouter/Gemini) cuando uno falla o se queda sin cuota, y construye diagramas
+ * completos (desde imagen o texto) a partir de un JSON ({@link DiagramSpec}) aplicado por
+ * {@link DiagramBuildService}. Si el JSON falla tras un reintento, recurre a las tools.
  */
 @Service
 public class AiChatService {
@@ -59,6 +69,40 @@ public class AiChatService {
             - Responde en el idioma del usuario.
             """;
 
+    private static final String JSON_SYSTEM_PROMPT = """
+            Eres un modelador UML. Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin texto adicional, sin ```),
+            con este esquema exacto:
+            {
+              "title": "string",
+              "elements": [
+                {
+                  "key": "identificador_local_unico",
+                  "elementType": "class|interface|enumeration|note",
+                  "name": "string",
+                  "attributes": [ { "name": "string", "dataType": "string", "visibility": "public|private|protected", "alias": "string|null", "stereotype": "string|null", "defaultValue": "string|null" } ],
+                  "methods": [ { "name": "string", "returnType": "string", "visibility": "public|private|protected", "alias": "string|null", "stereotype": "string|null", "defaultValue": "string|null", "parameters": [ { "name": "string", "dataType": "string", "direction": "in|out|inout", "notes": "string|null" } ] } ]
+                }
+              ],
+              "relationships": [
+                { "type": "association|aggregation|composition|generalization|realization|dependency|association_class", "sourceKey": "key", "targetKey": "key", "name": "string|null", "sourceMultiplicity": "string|null", "targetMultiplicity": "string|null" }
+              ]
+            }
+            Reglas:
+            - "key" es un identificador local único por elemento (puede ser el nombre).
+            - Cada relación referencia sus extremos con "sourceKey"/"targetKey".
+            - Las multiplicidades son texto: "1", "0..1", "1..*", "0..*".
+            - No incluyas coordenadas ni posiciones.
+            - Si un elemento no tiene atributos o métodos, usa [].
+            - No inventes elementos que no aparezcan en la fuente.
+            - Devuelve SOLO el JSON.
+            """;
+
+    private static final String IMAGE_SPEC_PROMPT =
+            "Analiza la imagen (un diagrama UML de clases) y devuelve el JSON del diagrama que representa.";
+
+    private static final String TEXT_SPEC_PROMPT =
+            "Construye un diagrama UML de clases a partir de la siguiente descripción y devuelve el JSON.";
+
     private static final String BUILD_FROM_IMAGE_PROMPT = """
             Analiza la imagen adjunta y construye el diagrama de clases que representa en el diagrama actual.
             Crea todos los elementos, atributos, métodos y relaciones que puedas identificar.
@@ -70,16 +114,29 @@ public class AiChatService {
             "create_element", "add_attribute", "add_method", "add_parameter", "create_relationship",
             "set_multiplicity");
 
+    private static final int SPEC_ATTEMPTS = 2;
+
     private final AiChatProviderInfo providerInfo;
     private final AiChatProviderRegistry registry;
+    private final AiChatProviderRegistry visionRegistry;
+    private final DiagramBuildService diagramBuildService;
+    private final DiagramEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
     private final List<Provider> providers;
+    private final List<Provider> specProviders;
     private final List<Provider> imageProviders;
+    private final List<Provider> visionSpecProviders;
 
     public AiChatService(UmlTools umlTools, AiChatProviderInfo providerInfo,
                          @Qualifier("aiChatProviderRegistry") AiChatProviderRegistry registry,
-                         @Qualifier("aiChatVisionRegistry") AiChatProviderRegistry visionRegistry) {
+                         @Qualifier("aiChatVisionRegistry") AiChatProviderRegistry visionRegistry,
+                         DiagramBuildService diagramBuildService, DiagramEventPublisher eventPublisher) {
         this.providerInfo = providerInfo;
         this.registry = registry;
+        this.visionRegistry = visionRegistry;
+        this.diagramBuildService = diagramBuildService;
+        this.eventPublisher = eventPublisher;
+        this.objectMapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
         ToolCallback[] allCallbacks = ToolCallbacks.from(umlTools);
         ToolCallback[] buildCallbacks = Arrays.stream(allCallbacks)
@@ -87,18 +144,25 @@ public class AiChatService {
                 .toArray(ToolCallback[]::new);
 
         this.providers = registry.entries().stream()
-                .map(entry -> new Provider(entry, ChatClient.builder(entry.model())
-                        .defaultSystem(SYSTEM_PROMPT)
-                        .defaultTools(allCallbacks)
-                        .build()))
+                .map(entry -> new Provider(entry, client(entry.model(), SYSTEM_PROMPT, allCallbacks)))
                 .toList();
-
+        this.specProviders = registry.entries().stream()
+                .map(entry -> new Provider(entry, client(entry.model(), JSON_SYSTEM_PROMPT, null)))
+                .toList();
         this.imageProviders = visionRegistry.entries().stream()
-                .map(entry -> new Provider(entry, ChatClient.builder(entry.model())
-                        .defaultSystem(IMAGE_SYSTEM_PROMPT)
-                        .defaultTools(buildCallbacks)
-                        .build()))
+                .map(entry -> new Provider(entry, client(entry.model(), IMAGE_SYSTEM_PROMPT, buildCallbacks)))
                 .toList();
+        this.visionSpecProviders = visionRegistry.entries().stream()
+                .map(entry -> new Provider(entry, client(entry.model(), JSON_SYSTEM_PROMPT, null)))
+                .toList();
+    }
+
+    private static ChatClient client(OpenAiChatModel model, String system, ToolCallback[] tools) {
+        ChatClient.Builder builder = ChatClient.builder(model).defaultSystem(system);
+        if (tools != null && tools.length > 0) {
+            builder = builder.defaultTools(tools);
+        }
+        return builder.build();
     }
 
     public AiChatOutcome chat(String projectId, String diagramId, String userId, String message,
@@ -125,15 +189,122 @@ public class AiChatService {
         }
         messages.add(new UserMessage(message));
 
-        return execute(providers, messages, context, recorder);
+        return execute(registry, providers, messages, context, recorder);
+    }
+
+    /** Construye el diagrama completo desde una descripción de texto. */
+    public AiChatOutcome diagramFromText(String projectId, String diagramId, String userId, String prompt) {
+        if (isBlank(prompt)) {
+            throw new LlmException("La descripción es requerida", false);
+        }
+        AiChatOutcome viaSpec = tryBuildFromSpec(projectId, diagramId, userId, null, null, prompt);
+        if (viaSpec != null) return viaSpec;
+        // Respaldo: usar las tools del chat normal.
+        return chat(projectId, diagramId, userId, prompt, List.of());
+    }
+
+    /** Construye el diagrama completo desde una imagen. */
+    public AiChatOutcome diagramFromImage(String projectId, String diagramId, String userId,
+                                          byte[] image, String contentType, String instructions) {
+        AiChatOutcome viaSpec = tryBuildFromSpec(projectId, diagramId, userId, image, contentType, instructions);
+        if (viaSpec != null) return viaSpec;
+        return imageViaTools(projectId, diagramId, userId, image, contentType, instructions);
     }
 
     /**
-     * Construye el diagrama a partir de una imagen usando un modelo multimodal. Solo usa
-     * tools de lectura y creación (no edita ni elimina lo existente).
+     * Intenta generar un {@link DiagramSpec} (JSON), validarlo y construirlo. Reintenta una
+     * vez con el error anterior. Devuelve {@code null} si no lo consigue (para el respaldo).
      */
-    public AiChatOutcome diagramFromImage(String projectId, String diagramId, String userId,
-                                          byte[] image, String contentType, String instructions) {
+    private AiChatOutcome tryBuildFromSpec(String projectId, String diagramId, String userId,
+                                           byte[] image, String contentType, String input) {
+        AiChatProviderRegistry specRegistry = image != null ? visionRegistry : registry;
+        List<Provider> specList = image != null ? visionSpecProviders : specProviders;
+        if (specList.isEmpty()) return null;
+
+        ActionRecorder recorder = new ActionRecorder();
+        Map<String, Object> context = context(projectId, diagramId, userId, recorder);
+
+        String previousError = null;
+        for (int attempt = 0; attempt < SPEC_ATTEMPTS; attempt++) {
+            try {
+                List<Message> messages = specMessages(image, contentType, input, previousError);
+                String content = executeContent(specRegistry, specList, messages, context);
+                DiagramSpec spec = parseSpec(content);
+                DiagramBuildResult result = diagramBuildService.build(diagramId, userId, spec);
+                eventPublisher.diagramChanged(diagramId, userId);
+                return new AiChatOutcome(summaryText(result), summaryActions(result));
+            } catch (Exception e) {
+                previousError = e.getMessage();
+            }
+        }
+        return null;
+    }
+
+    private List<Message> specMessages(byte[] image, String contentType, String input, String previousError) {
+        StringBuilder text = new StringBuilder();
+        if (image != null) {
+            text.append(IMAGE_SPEC_PROMPT);
+            if (!isBlank(input)) text.append("\nInstrucciones adicionales: ").append(input.trim());
+        } else {
+            text.append(TEXT_SPEC_PROMPT);
+            if (!isBlank(input)) text.append("\nDescripción: ").append(input.trim());
+        }
+        if (previousError != null) {
+            text.append("\n\nEl intento anterior falló con: ").append(previousError)
+                    .append("\nCorrige y devuelve SOLO el JSON válido, sin texto adicional.");
+        }
+
+        if (image != null) {
+            String mime = isBlank(contentType) ? "image/png" : contentType;
+            Media media = Media.builder().mimeType(MimeType.valueOf(mime)).data(image).build();
+            return List.of(UserMessage.builder().text(text.toString()).media(media).build());
+        }
+        return List.of(new UserMessage(text.toString()));
+    }
+
+    private DiagramSpec parseSpec(String content) {
+        if (isBlank(content)) {
+            throw new DomainException("El modelo no devolvió contenido");
+        }
+        String json = extractJson(content);
+        try {
+            return objectMapper.readValue(json, DiagramSpec.class);
+        } catch (Exception e) {
+            throw new DomainException("JSON inválido: " + e.getMessage());
+        }
+    }
+
+    private static String extractJson(String content) {
+        String s = content.trim();
+        if (s.startsWith("```")) {
+            int newline = s.indexOf('\n');
+            if (newline > 0) s = s.substring(newline + 1);
+            int fence = s.lastIndexOf("```");
+            if (fence >= 0) s = s.substring(0, fence);
+        }
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            throw new DomainException("No se encontró un objeto JSON en la respuesta del modelo");
+        }
+        return s.substring(start, end + 1);
+    }
+
+    private static String summaryText(DiagramBuildResult result) {
+        return "Construí el diagrama: " + result.summary() + ".";
+    }
+
+    private static List<Map<String, Object>> summaryActions(DiagramBuildResult result) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("action", "create");
+        action.put("entity", result.summary());
+        action.put("id", "");
+        action.put("result", "ok");
+        return List.of(action);
+    }
+
+    private AiChatOutcome imageViaTools(String projectId, String diagramId, String userId,
+                                        byte[] image, String contentType, String instructions) {
         if (imageProviders.isEmpty()) {
             throw new LlmException(
                     "No hay modelos con visión configurados (define OPENROUTER_VISION_MODELS o GEMINI_VISION_MODELS)",
@@ -143,20 +314,16 @@ public class AiChatService {
         ActionRecorder recorder = new ActionRecorder();
         Map<String, Object> context = context(projectId, diagramId, userId, recorder);
 
-        String mime = (contentType == null || contentType.isBlank()) ? "image/png" : contentType;
-        Media media = Media.builder()
-                .mimeType(MimeType.valueOf(mime))
-                .data(image)
-                .build();
+        String mime = isBlank(contentType) ? "image/png" : contentType;
+        Media media = Media.builder().mimeType(MimeType.valueOf(mime)).data(image).build();
 
         StringBuilder prompt = new StringBuilder(BUILD_FROM_IMAGE_PROMPT);
-        if (instructions != null && !instructions.isBlank()) {
-            prompt.append("\nInstrucciones adicionales: ").append(instructions);
+        if (!isBlank(instructions)) {
+            prompt.append("\nInstrucciones adicionales: ").append(instructions.trim());
         }
-
         UserMessage userMessage = UserMessage.builder().text(prompt.toString()).media(media).build();
 
-        return execute(imageProviders, List.of(userMessage), context, recorder);
+        return execute(visionRegistry, imageProviders, List.of(userMessage), context, recorder);
     }
 
     private void ensureConfigured() {
@@ -176,16 +343,22 @@ public class AiChatService {
         return context;
     }
 
-    private AiChatOutcome execute(List<Provider> providerList, List<Message> messages,
-                                  Map<String, Object> context, ActionRecorder recorder) {
+    private AiChatOutcome execute(AiChatProviderRegistry providerRegistry, List<Provider> providerList,
+                                  List<Message> messages, Map<String, Object> context, ActionRecorder recorder) {
+        String reply = executeContent(providerRegistry, providerList, messages, context);
+        return new AiChatOutcome(reply == null ? "" : reply, recorder.actions());
+    }
+
+    private String executeContent(AiChatProviderRegistry providerRegistry, List<Provider> providerList,
+                                  List<Message> messages, Map<String, Object> context) {
         int size = providerList.size();
-        int start = registry.cursor();
+        int start = providerRegistry.cursor();
         List<String> errors = new ArrayList<>();
 
         for (int i = 0; i < size; i++) {
             int index = (start + i) % size;
             Provider provider = providerList.get(index);
-            if (registry.isCoolingDown(provider.entry.cooldownKey())) continue;
+            if (providerRegistry.isCoolingDown(provider.entry.cooldownKey())) continue;
 
             try {
                 String reply = provider.client.prompt()
@@ -193,27 +366,28 @@ public class AiChatService {
                         .toolContext(context)
                         .call()
                         .content();
-                registry.moveCursorTo(index);
-                return new AiChatOutcome(reply == null ? "" : reply, recorder.actions());
+                providerRegistry.moveCursorTo(index);
+                return reply;
             } catch (Exception e) {
                 if (QuotaErrors.isProviderWideQuota(e)) {
-                    // Créditos de la cuenta agotados: se enfría todo el proveedor.
-                    registry.coolDownProvider(provider.entry.id(), provider.entry.quotaCooldownSeconds());
+                    providerRegistry.coolDownProvider(provider.entry.id(), provider.entry.quotaCooldownSeconds());
                 } else if (QuotaErrors.isQuotaRelated(e)) {
-                    // Cuota/límite de esa combinación (key + modelo): se enfría solo esa.
-                    registry.coolDownEntry(provider.entry.cooldownKey(), provider.entry.quotaCooldownSeconds());
+                    providerRegistry.coolDownEntry(provider.entry.cooldownKey(), provider.entry.quotaCooldownSeconds());
                 } else {
-                    // Fallo puntual (modelo saturado, no disponible, etc.): cooldown corto.
-                    registry.coolDownEntry(provider.entry.cooldownKey(), provider.entry.errorCooldownSeconds());
+                    providerRegistry.coolDownEntry(provider.entry.cooldownKey(), provider.entry.errorCooldownSeconds());
                 }
                 errors.add(provider.entry.id() + " [" + provider.entry.modelName() + "]: " + e.getMessage());
             }
         }
 
         String detail = errors.isEmpty()
-                ? "todos en enfriamiento (" + registry.remainingCooldownSeconds() + "s)"
+                ? "todos en enfriamiento (" + providerRegistry.remainingCooldownSeconds() + "s)"
                 : String.join(" | ", errors);
         throw new LlmException("Ningún proveedor de IA disponible: " + detail, true);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private record Provider(AiChatProviderRegistry.Entry entry, ChatClient client) {

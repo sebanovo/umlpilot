@@ -65,5 +65,23 @@ export function useAiChat(projectId: string, diagramId: string, onActions?: () =
     }
   }, [projectId, diagramId, loading, onActions])
 
-  return { messages, loading, error, send, reset, transcribeAudio, buildFromImage }
+  /** Construye el diagrama completo a partir de una descripción de texto. */
+  const buildFromText = useCallback(async (text: string) => {
+    const prompt = text.trim()
+    if (!prompt || loading) return
+    setMessages((prev) => [...prev, { role: 'user', content: prompt }])
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await aiChatApi.diagramFromText(projectId, diagramId, prompt)
+      setMessages((prev) => [...prev, { role: 'assistant', content: result.reply, actions: result.actions }])
+      if (result.actions?.some((a) => a.action !== 'read')) onActions?.()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al construir desde el texto')
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId, diagramId, loading, onActions])
+
+  return { messages, loading, error, send, reset, transcribeAudio, buildFromImage, buildFromText }
 }

@@ -3,6 +3,7 @@ package com.umlpilot.umlpilot_api.infrastructure.adapter.in.web;
 import com.umlpilot.umlpilot_api.application.service.DiagramService;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.UmlAiChatRequest;
+import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.UmlAiTextBuildRequest;
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.response.UmlAiChatResponse;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatOutcome;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatService;
@@ -63,6 +64,26 @@ public class AiChatController {
         try {
             AiChatOutcome outcome = aiChatService.chat(projectId, diagramId,
                     SecurityUtils.getCurrentUserId(), request.message(), history);
+            return ResponseEntity.ok(new UmlAiChatResponse(outcome.reply(), outcome.actions()));
+        } catch (LlmException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
+        } catch (DomainException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/diagram-from-text")
+    public ResponseEntity<?> diagramFromText(@PathVariable String projectId, @PathVariable String diagramId,
+                                             @RequestBody(required = false) UmlAiTextBuildRequest request) {
+        if (request == null || request.prompt() == null || request.prompt().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "La descripción es requerida"));
+        }
+        if (diagramMissing(projectId, diagramId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
+        }
+        try {
+            AiChatOutcome outcome = aiChatService.diagramFromText(projectId, diagramId,
+                    SecurityUtils.getCurrentUserId(), request.prompt());
             return ResponseEntity.ok(new UmlAiChatResponse(outcome.reply(), outcome.actions()));
         } catch (LlmException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));

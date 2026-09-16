@@ -334,7 +334,8 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
         }
         case 'relationship_created':
         case 'relationship_updated':
-        case 'relationship_deleted': {
+        case 'relationship_deleted':
+        case 'diagram_changed': {
           rebuildDiagram().catch(() => {})
           break
         }

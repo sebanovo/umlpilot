@@ -207,6 +207,7 @@ export function DiagramEditorPage() {
               onClose={() => setAiOpen(false)}
               onTranscribe={aiChat.transcribeAudio}
               onImage={aiChat.buildFromImage}
+              onBuildText={aiChat.buildFromText}
               width={panelWidth}
             />
           ) : selectedRelationship ? (
