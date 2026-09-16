@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         '/ws': {
-          target: env.VITE_API_URL?.replace('http', 'ws'),
+          target: env.VITE_WS_URL,
           ws: true,
         },
       },
