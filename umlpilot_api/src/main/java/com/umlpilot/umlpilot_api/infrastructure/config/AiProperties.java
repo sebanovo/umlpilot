@@ -33,6 +33,7 @@ public class AiProperties {
     public static class Provider {
         private List<String> apiKeys = new ArrayList<>();
         private List<String> models = new ArrayList<>();
+        private List<String> visionModels = new ArrayList<>();
         private int quotaCooldownSeconds = 300;
         private int errorCooldownSeconds = 30;
 
@@ -40,6 +41,8 @@ public class AiProperties {
         public void setApiKeys(List<String> apiKeys) { this.apiKeys = apiKeys; }
         public List<String> getModels() { return models; }
         public void setModels(List<String> models) { this.models = models; }
+        public List<String> getVisionModels() { return visionModels; }
+        public void setVisionModels(List<String> visionModels) { this.visionModels = visionModels; }
         public int getQuotaCooldownSeconds() { return quotaCooldownSeconds; }
         public void setQuotaCooldownSeconds(int quotaCooldownSeconds) { this.quotaCooldownSeconds = quotaCooldownSeconds; }
         public int getErrorCooldownSeconds() { return errorCooldownSeconds; }

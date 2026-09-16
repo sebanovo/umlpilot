@@ -8,10 +8,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Registro de proveedores/modelos de IA disponibles para el asistente, con rotación y
- * enfriamiento (cooldown) al estilo de {@code AiOrchestrator}. Cada entrada es un par
- * (proveedor, modelo): si un modelo falla se enfría solo ese modelo; si el error es de
- * cuota/créditos se enfría todo el proveedor y se pasa al siguiente.
+ * Registro de proveedores de IA disponibles para el asistente, con rotación y
+ * enfriamiento (cooldown) al estilo de {@code AiOrchestrator}. Cada entrada es una
+ * combinación (proveedor, api key, modelo): si una combinación falla se enfría solo esa
+ * combinación; si el error es de créditos agotados (402/insufficient credits) se enfría
+ * todo el proveedor y se pasa al otro.
  */
 public class AiChatProviderRegistry {
 
@@ -51,12 +52,12 @@ public class AiChatProviderRegistry {
         return true;
     }
 
-    /** Enfría un único modelo. */
+    /** Enfría una única combinación (key + modelo). */
     public void coolDownEntry(String cooldownKey, int seconds) {
         cooldownUntil.put(cooldownKey, System.currentTimeMillis() + Math.max(1, seconds) * 1000L);
     }
 
-    /** Enfría todos los modelos de un proveedor (p. ej. cuando se agotan sus créditos). */
+    /** Enfría todas las combinaciones de un proveedor (p. ej. créditos de la cuenta agotados). */
     public void coolDownProvider(String providerId, int seconds) {
         long until = System.currentTimeMillis() + Math.max(1, seconds) * 1000L;
         for (Entry entry : entries) {
@@ -78,10 +79,10 @@ public class AiChatProviderRegistry {
         return max;
     }
 
-    public record Entry(String id, String modelName, OpenAiChatModel model,
+    public record Entry(String id, String modelName, String keyRef, OpenAiChatModel model,
                         int quotaCooldownSeconds, int errorCooldownSeconds) {
         public String cooldownKey() {
-            return id + ":" + modelName;
+            return id + ":" + keyRef + ":" + modelName;
         }
     }
 }

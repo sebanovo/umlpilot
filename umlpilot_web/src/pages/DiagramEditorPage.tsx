@@ -205,6 +205,8 @@ export function DiagramEditorPage() {
               onSend={aiChat.send}
               onReset={aiChat.reset}
               onClose={() => setAiOpen(false)}
+              onTranscribe={aiChat.transcribeAudio}
+              onImage={aiChat.buildFromImage}
               width={panelWidth}
             />
           ) : selectedRelationship ? (

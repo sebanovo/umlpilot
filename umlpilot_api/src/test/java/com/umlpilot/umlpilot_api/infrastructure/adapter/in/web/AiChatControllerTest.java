@@ -6,6 +6,7 @@ import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.UmlAiChat
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.response.UmlAiChatResponse;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatOutcome;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatService;
+import com.umlpilot.umlpilot_api.infrastructure.ai.GroqTranscriptionService;
 import com.umlpilot.umlpilot_api.infrastructure.ai.LlmException;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -24,7 +25,8 @@ class AiChatControllerTest {
 
     private final AiChatService aiChatService = mock(AiChatService.class);
     private final DiagramService diagramService = mock(DiagramService.class);
-    private final AiChatController controller = new AiChatController(aiChatService, diagramService);
+    private final GroqTranscriptionService transcriptionService = mock(GroqTranscriptionService.class);
+    private final AiChatController controller = new AiChatController(aiChatService, diagramService, transcriptionService);
 
     @Test
     void blankMessageReturns400() {

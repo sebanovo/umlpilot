@@ -6,10 +6,13 @@ import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.UmlAiChat
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.response.UmlAiChatResponse;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatOutcome;
 import com.umlpilot.umlpilot_api.infrastructure.ai.AiChatService;
+import com.umlpilot.umlpilot_api.infrastructure.ai.GroqTranscriptionService;
 import com.umlpilot.umlpilot_api.infrastructure.ai.LlmException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,7 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Chat del asistente de IA con contexto de diagrama y function calling.
+ * Chat del asistente de IA con contexto de diagrama y function calling, más dictado por
+ * voz (Groq/Whisper) y construcción del diagrama desde una imagen.
  */
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/diagrams/{diagramId}/ai")
@@ -25,10 +29,13 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
     private final DiagramService diagramService;
+    private final GroqTranscriptionService transcriptionService;
 
-    public AiChatController(AiChatService aiChatService, DiagramService diagramService) {
+    public AiChatController(AiChatService aiChatService, DiagramService diagramService,
+                            GroqTranscriptionService transcriptionService) {
         this.aiChatService = aiChatService;
         this.diagramService = diagramService;
+        this.transcriptionService = transcriptionService;
     }
 
     @PostMapping("/chat")
@@ -38,9 +45,7 @@ public class AiChatController {
             return ResponseEntity.badRequest().body(Map.of("error", "El mensaje es requerido"));
         }
 
-        try {
-            diagramService.getDiagram(projectId, diagramId);
-        } catch (DomainException e) {
+        if (diagramMissing(projectId, diagramId)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
         }
 
@@ -63,6 +68,55 @@ public class AiChatController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
         } catch (DomainException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> transcribe(@PathVariable String projectId, @PathVariable String diagramId,
+                                        @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El audio es requerido"));
+        }
+        if (diagramMissing(projectId, diagramId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
+        }
+        try {
+            String text = transcriptionService.transcribe(file.getBytes(), file.getOriginalFilename());
+            return ResponseEntity.ok(Map.of("text", text));
+        } catch (LlmException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping(value = "/diagram-from-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> diagramFromImage(@PathVariable String projectId, @PathVariable String diagramId,
+                                              @RequestParam("file") MultipartFile file,
+                                              @RequestParam(value = "instructions", required = false) String instructions) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "La imagen es requerida"));
+        }
+        if (diagramMissing(projectId, diagramId)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
+        }
+        try {
+            AiChatOutcome outcome = aiChatService.diagramFromImage(projectId, diagramId,
+                    SecurityUtils.getCurrentUserId(), file.getBytes(), file.getContentType(), instructions);
+            return ResponseEntity.ok(new UmlAiChatResponse(outcome.reply(), outcome.actions()));
+        } catch (LlmException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private boolean diagramMissing(String projectId, String diagramId) {
+        try {
+            diagramService.getDiagram(projectId, diagramId);
+            return false;
+        } catch (DomainException e) {
+            return true;
         }
     }
 }

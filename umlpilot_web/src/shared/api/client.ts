@@ -46,6 +46,28 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
   return res.json()
 }
 
+async function authUpload(path: string, formData: FormData, isRetry = false): Promise<unknown> {
+  const token = localStorage.getItem('accessToken')
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', headers, body: formData })
+
+  if ((res.status === 401 || res.status === 403) && !isRetry) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return authUpload(path, formData, true)
+    }
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Error ${res.status}`)
+  }
+  return res.json()
+}
+
 export interface Project {
   id: string
   name: string
@@ -177,4 +199,15 @@ export const aiChatApi = {
       method: 'POST',
       body: JSON.stringify({ message, history }),
     }) as Promise<AiChatResult>,
+  transcribe: (projectId: string, diagramId: string, audio: Blob, filename: string) => {
+    const form = new FormData()
+    form.append('file', audio, filename)
+    return authUpload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/ai/transcribe`, form) as Promise<{ text: string }>
+  },
+  diagramFromImage: (projectId: string, diagramId: string, image: File, instructions?: string) => {
+    const form = new FormData()
+    form.append('file', image, image.name)
+    if (instructions) form.append('instructions', instructions)
+    return authUpload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/ai/diagram-from-image`, form) as Promise<AiChatResult>
+  },
 }

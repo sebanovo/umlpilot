@@ -11,6 +11,7 @@ import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.setup.OpenAiSetup;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,47 +23,77 @@ import java.util.List;
 /**
  * Construye un modelo de chat OpenAI-compatible por cada combinación (proveedor, modelo)
  * configurada —OpenRouter y/o Google Gemini (endpoint OpenAI-compatible)— y los registra
- * en {@link AiChatProviderRegistry}. El asistente rota entre ellos cuando un modelo no
- * está disponible o se agotan los créditos de un proveedor. La autoconfiguración de
- * OpenAI está deshabilitada en {@code application.yml} para no requerir una api-key global.
+ * en {@link AiChatProviderRegistry}. Hay dos registros: el de chat (texto) y el de visión
+ * (imagen + tools, para construir el diagrama desde una imagen). El asistente rota entre
+ * entradas cuando un modelo no está disponible o se agotan los créditos de un proveedor.
+ * La autoconfiguración de OpenAI está deshabilitada en {@code application.yml} para no
+ * requerir una api-key global.
  */
 @Configuration
 public class AiChatConfiguration {
 
+    /** Proveedores para el chat de texto. */
     @Bean
     public AiChatProviderRegistry aiChatProviderRegistry(AiProperties aiProperties, AiChatProperties chatProperties) {
+        return buildRegistry(aiProperties, chatProperties, false);
+    }
+
+    /** Proveedores con visión (imagen + tools) para construir desde una imagen. */
+    @Bean
+    public AiChatProviderRegistry aiChatVisionRegistry(AiProperties aiProperties, AiChatProperties chatProperties) {
+        return buildRegistry(aiProperties, chatProperties, true);
+    }
+
+    /** Proveedor/modelo principal del chat (el primero de la rotación) para mensajes de estado. */
+    @Bean
+    public AiChatProviderInfo aiChatProviderInfo(
+            @Qualifier("aiChatProviderRegistry") AiChatProviderRegistry registry) {
+        if (registry.entries().isEmpty()) {
+            return new AiChatProviderInfo(null, null, false);
+        }
+        AiChatProviderRegistry.Entry first = registry.entries().get(0);
+        return new AiChatProviderInfo(first.id(), first.modelName(), true);
+    }
+
+    private AiChatProviderRegistry buildRegistry(AiProperties aiProperties, AiChatProperties chatProperties,
+                                                 boolean vision) {
         List<AiChatProviderRegistry.Entry> entries = new ArrayList<>();
 
         for (String providerId : providerOrder(aiProperties, chatProperties)) {
             AiProperties.Provider config = aiProperties.providerConfig(providerId);
             if (config == null) continue;
 
-            String apiKey = firstNonBlank(config.getApiKeys());
-            List<String> models = nonBlank(config.getModels());
-            if (apiKey == null || models.isEmpty()) continue;
+            List<String> keys = nonBlank(config.getApiKeys());
+            List<String> models = vision ? visionModelsFor(providerId, config) : nonBlank(config.getModels());
+            if (keys.isEmpty() || models.isEmpty()) continue;
 
             String baseUrl = "gemini".equalsIgnoreCase(providerId)
                     ? chatProperties.getGeminiBaseUrl()
                     : chatProperties.getBaseUrl();
 
-            for (String model : models) {
-                entries.add(new AiChatProviderRegistry.Entry(providerId, model,
-                        buildModel(baseUrl, apiKey, model, chatProperties),
-                        config.getQuotaCooldownSeconds(), config.getErrorCooldownSeconds()));
+            for (String key : keys) {
+                String keyRef = Integer.toHexString(key.hashCode());
+                for (String model : models) {
+                    entries.add(new AiChatProviderRegistry.Entry(providerId, model, keyRef,
+                            buildModel(baseUrl, key, model, chatProperties),
+                            config.getQuotaCooldownSeconds(), config.getErrorCooldownSeconds()));
+                }
             }
         }
 
         return new AiChatProviderRegistry(entries);
     }
 
-    /** Proveedor/modelo principal (el primero de la rotación) para mensajes de estado/error. */
-    @Bean
-    public AiChatProviderInfo aiChatProviderInfo(AiChatProviderRegistry registry) {
-        if (registry.entries().isEmpty()) {
-            return new AiChatProviderInfo(null, null, false);
-        }
-        AiChatProviderRegistry.Entry first = registry.entries().get(0);
-        return new AiChatProviderInfo(first.id(), first.modelName(), true);
+    /**
+     * Modelos con visión de un proveedor: su lista explícita {@code vision-models} si la
+     * hay; si no, para Gemini se usan los modelos normales (todos aceptan imagen) y para
+     * OpenRouter ninguno (sus modelos gratuitos de texto no aceptan imagen).
+     */
+    private static List<String> visionModelsFor(String providerId, AiProperties.Provider config) {
+        List<String> explicit = nonBlank(config.getVisionModels());
+        if (!explicit.isEmpty()) return explicit;
+        if ("gemini".equalsIgnoreCase(providerId)) return nonBlank(config.getModels());
+        return List.of();
     }
 
     private static OpenAiChatModel buildModel(String baseUrl, String apiKey, String model,
@@ -115,15 +146,6 @@ public class AiChatConfiguration {
             order.add("gemini");
         }
         return new ArrayList<>(order);
-    }
-
-    private static String firstNonBlank(List<String> values) {
-        if (values == null) return null;
-        return values.stream()
-                .filter(v -> v != null && !v.isBlank())
-                .map(String::trim)
-                .findFirst()
-                .orElse(null);
     }
 
     private static List<String> nonBlank(List<String> values) {

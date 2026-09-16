@@ -41,5 +41,29 @@ export function useAiChat(projectId: string, diagramId: string, onActions?: () =
     setError(null)
   }, [])
 
-  return { messages, loading, error, send, reset }
+  /** Transcribe un audio a texto (Groq/Whisper). No agrega mensajes a la conversación. */
+  const transcribeAudio = useCallback(async (audio: Blob): Promise<string> => {
+    const ext = audio.type.includes('mp4') ? 'mp4' : audio.type.includes('ogg') ? 'ogg' : 'webm'
+    const result = await aiChatApi.transcribe(projectId, diagramId, audio, `audio.${ext}`)
+    return result.text
+  }, [projectId, diagramId])
+
+  /** Construye el diagrama a partir de una imagen (solo creación). */
+  const buildFromImage = useCallback(async (image: File) => {
+    if (loading) return
+    setMessages((prev) => [...prev, { role: 'user', content: `[Imagen] ${image.name}` }])
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await aiChatApi.diagramFromImage(projectId, diagramId, image)
+      setMessages((prev) => [...prev, { role: 'assistant', content: result.reply, actions: result.actions }])
+      if (result.actions?.some((a) => a.action !== 'read')) onActions?.()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al construir desde la imagen')
+    } finally {
+      setLoading(false)
+    }
+  }, [projectId, diagramId, loading, onActions])
+
+  return { messages, loading, error, send, reset, transcribeAudio, buildFromImage }
 }
