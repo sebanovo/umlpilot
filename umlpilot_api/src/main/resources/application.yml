@@ -138,6 +138,14 @@ app:
       language: ${GROQ_LANGUAGE:}
 
 
+  # Generación de backend Spring Boot a partir de un diagrama de clases
+  code-generation:
+    # Tope máximo de entidades generables (para evitar abuso)
+    max-classes: ${CODE_GENERATION_MAX_CLASSES:100}
+    # Paquete base del proyecto generado
+    base-package: ${CODE_GENERATION_BASE_PACKAGE:com.generated}
+
+
   # Configuración de JWT (autenticación)
   security:
     jwt:

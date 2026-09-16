@@ -13,7 +13,7 @@ El sistema SHALL exponer `GET /api/v1/projects/{projectId}/diagrams/{diagramId}/
 
 #### Scenario: Petición sin autenticación
 - **WHEN** la petición no incluye un token válido
-- **THEN** el sistema responde HTTP 401 y no genera ningún archivo
+- **THEN** el sistema responde HTTP 401 con un cuerpo JSON de error y no genera ningún archivo
 
 #### Scenario: Diagrama inexistente
 - **WHEN** el `diagramId` no existe o no pertenece al proyecto indicado

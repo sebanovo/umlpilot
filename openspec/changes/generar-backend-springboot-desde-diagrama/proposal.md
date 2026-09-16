@@ -33,5 +33,5 @@ UmlPilot ya permite modelar diagramas de clases UML colaborativos, pero el model
 - **Frontend (`umlpilot_web`)**:
   - `shared/api/client.ts`: helper de descarga autenticada (`authDownload`) y llamada al endpoint de generación.
   - `pages/DiagramEditorPage.tsx` (y/o `Toolbar`): botón "Generar backend" con estado de carga y manejo de errores.
-- **Contratos**: nuevo endpoint documentado; respuestas `200 application/zip`, `400` (diagrama inválido/vacío/límite excedido), `404` (diagrama inexistente), `401` sin token.
+- **Contratos**: nuevo endpoint documentado; respuestas `200 application/zip`, `400` (diagrama inválido/vacío/límite excedido), `404` (diagrama inexistente) y `401` sin token válido.
 - **No afecta** la arquitectura hexagonal de UmlPilot ni los endpoints existentes.

@@ -38,7 +38,9 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 
 ### 3. Empaquetado y streaming sin disco
 - Se valida y **renderiza todo en memoria** primero (bounded por el tope de clases), de modo que un error de validación aún pueda responder 400 antes de abrir el stream.
-- El controlador devuelve `ResponseEntity<StreamingResponseBody>` y escribe las entradas con `ZipOutputStream` directamente sobre el `OutputStream` de la respuesta, sin construir un `byte[]` gigante ni archivos temporales.
+- El controlador devuelve `StreamingResponseBody` **directamente** (no envuelto en `ResponseEntity`) y escribe las entradas con `ZipOutputStream` sobre el `OutputStream` de la respuesta, sin construir un `byte[]` gigante ni archivos temporales. `Content-Type` (`application/zip`) y `Content-Disposition` se fijan sobre el `HttpServletResponse` antes de devolver el cuerpo; los errores (400/404) se resuelven con `@ExceptionHandler`.
+- *Decisión revisada:* la primera versión usaba `ResponseEntity<StreamingResponseBody>`; Spring MVC no resuelve el cuerpo cuando va envuelto en `ResponseEntity` y cae en los conversores de mensajes (`HttpMessageNotWritableException: No converter for [...$$Lambda...]`). Devolver el `StreamingResponseBody` plano activa el `StreamingResponseBodyReturnValueHandler`.
+- *Seguridad y despacho ASYNC:* Spring Boot registra la cadena de seguridad para los tipos de despacho `ASYNC` y `ERROR`. Al streamear, el contenedor hace un despacho ASYNC sobre el que `SecurityContextHolder` está vacío (la app es stateless), y `AuthorizationFilter` volvía a denegar (`AuthorizationDeniedException`) con la respuesta ya comprometida. `SecurityConfig` ahora hace `dispatcherTypeMatchers(ASYNC, ERROR).permitAll()` (y `/error` también es público), porque el despacho ASYNC es una continuación interna de una petición ya autorizada.
 - *Riesgo asumido:* un fallo tras iniciar el stream ya no puede cambiar el código HTTP; se mitiga renderizando todo antes.
 
 ### 4. Validación (rechazo con 400)

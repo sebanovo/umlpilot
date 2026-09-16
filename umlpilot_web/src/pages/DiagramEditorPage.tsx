@@ -10,7 +10,8 @@ import { RelationshipPanel } from '../features/diagram-editor/components/Relatio
 import { AiChatPanel } from '../features/diagram-editor/components/AiChatPanel'
 import { useAiChat } from '../features/diagram-editor/hooks/useAiChat'
 import { buildXmi } from '../features/diagram-editor/lib/xmi'
-import { Wifi, WifiOff, Users, ArrowLeft, Download, Sparkles } from 'lucide-react'
+import { backendGenerationApi } from '../shared/api/client'
+import { Wifi, WifiOff, Users, ArrowLeft, Download, Sparkles, Package } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -35,6 +36,8 @@ export function DiagramEditorPage() {
   const [handTool, setHandTool] = useState(false)
   const [toolboxWidth, setToolboxWidth] = useState(176)
   const [panelWidth, setPanelWidth] = useState(288)
+  const [generatingBackend, setGeneratingBackend] = useState(false)
+  const [backendError, setBackendError] = useState<string | null>(null)
 
   const startResize = (which: 'toolbox' | 'panel') => (e: ReactPointerEvent) => {
     e.preventDefault()
@@ -88,6 +91,27 @@ export function DiagramEditorPage() {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+  }
+
+  const handleGenerateBackend = async () => {
+    if (generatingBackend) return
+    setGeneratingBackend(true)
+    setBackendError(null)
+    try {
+      const { blob, filename } = await backendGenerationApi.download(projectId!, diagramId!)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setBackendError(e instanceof Error ? e.message : 'No se pudo generar el backend')
+    } finally {
+      setGeneratingBackend(false)
+    }
   }
 
   useEffect(() => {
@@ -163,9 +187,23 @@ export function DiagramEditorPage() {
               <Download className="w-3.5 h-3.5" />
               Exportar XMI
             </button>
+            <button onClick={handleGenerateBackend} disabled={generatingBackend}
+              title="Generar backend Spring Boot (.zip) a partir del diagrama"
+              className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${generatingBackend ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+              <Package className="w-3.5 h-3.5" />
+              {generatingBackend ? 'Generando…' : 'Generar backend'}
+            </button>
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
+        {backendError && (
+          <div className="flex items-center justify-between gap-3 border-b border-red-900/50 bg-red-950/40 px-3 py-1.5 text-xs text-red-300">
+            <span>No se pudo generar el backend: {backendError}</span>
+            <button onClick={() => setBackendError(null)} className="cursor-pointer text-red-200 hover:text-white">
+              Cerrar
+            </button>
+          </div>
+        )}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <Toolbox
             onAddElement={createElement}

@@ -68,6 +68,36 @@ async function authUpload(path: string, formData: FormData, isRetry = false): Pr
   return res.json()
 }
 
+export interface DownloadedFile {
+  blob: Blob
+  filename: string
+}
+
+async function authDownload(path: string, isRetry = false): Promise<DownloadedFile> {
+  const token = localStorage.getItem('accessToken')
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  const res = await fetch(`${API_URL}${path}`, { headers })
+
+  if ((res.status === 401 || res.status === 403) && !isRetry) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return authDownload(path, true)
+    }
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Error ${res.status}`)
+  }
+
+  const disposition = res.headers.get('Content-Disposition') || ''
+  const match = disposition.match(/filename="?([^";]+)"?/i)
+  return { blob: await res.blob(), filename: match ? match[1] : 'download' }
+}
+
 export interface Project {
   id: string
   name: string
@@ -215,4 +245,9 @@ export const aiChatApi = {
       method: 'POST',
       body: JSON.stringify({ prompt }),
     }) as Promise<AiChatResult>,
+}
+
+export const backendGenerationApi = {
+  download: (projectId: string, diagramId: string) =>
+    authDownload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/generate/backend`),
 }
