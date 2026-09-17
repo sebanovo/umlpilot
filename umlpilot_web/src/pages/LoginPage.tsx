@@ -54,19 +54,19 @@ export function LoginPage() {
           <h2 className="text-lg font-semibold text-gray-100 mb-6">Iniciar Sesión</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                <input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required
                   placeholder="tu@email.com"
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 pl-10 pr-3 py-2.5 text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 outline-none transition-colors" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required
+                <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required
                   placeholder="••••••••"
                   className="w-full rounded-lg border border-gray-700 bg-gray-800 pl-10 pr-10 py-2.5 text-gray-100 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 outline-none transition-colors" />
                 <button type="button" onClick={() => setShowPassword((v) => !v)}

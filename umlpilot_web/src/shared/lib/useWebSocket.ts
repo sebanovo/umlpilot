@@ -26,7 +26,7 @@ interface DiagramUpdateMessage {
   data?: Record<string, unknown>
 }
 
-function colorFor(id: string): string {
+export function colorFor(id: string): string {
   let hash = 0
   for (let i = 0; i < id.length; i++) {
     hash = (hash * 31 + id.charCodeAt(i)) >>> 0

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { projectsApi, diagramsApi, type Project, type Collaborator, type Diagram } from '../shared/api/client'
+import { useToast } from '../shared/ui/toast/useToast'
 import { ArrowLeft, Plus, Trash2, Share2, Check, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [diagrams, setDiagrams] = useState<Diagram[]>([])
@@ -28,6 +30,7 @@ export function ProjectDetailPage() {
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
+      toast({ title: 'Enlace copiado', description: 'Compártelo para invitar a tu equipo', variant: 'success' })
       setTimeout(() => setCopied(false), 2000)
     } catch {
       prompt('Copia esta URL:', url)
@@ -42,14 +45,29 @@ export function ProjectDetailPage() {
       const diagram = await diagramsApi.create(id, { name: diagramName, type: diagramType })
       setDiagrams([...diagrams, diagram])
       setShowCreateDiagram(false); setDiagramName('')
-    } catch (err) { alert(err instanceof Error ? err.message : 'Error al crear diagrama') }
-    finally { setCreatingDiagram(false) }
+      toast({ title: 'Diagrama creado', description: diagram.name, variant: 'success' })
+    } catch (err) {
+      toast({
+        title: 'No se pudo crear el diagrama',
+        description: err instanceof Error ? err.message : 'Error inesperado',
+        variant: 'error',
+      })
+    } finally { setCreatingDiagram(false) }
   }
 
   const handleDeleteDiagram = async (diagramId: string) => {
     if (!id || !confirm('¿Eliminar este diagrama?')) return
-    try { await diagramsApi.delete(id, diagramId); setDiagrams(diagrams.filter(d => d.id !== diagramId)) }
-    catch (err) { alert(err instanceof Error ? err.message : 'Error al eliminar') }
+    try {
+      await diagramsApi.delete(id, diagramId)
+      setDiagrams(diagrams.filter(d => d.id !== diagramId))
+      toast({ title: 'Diagrama eliminado', variant: 'success' })
+    } catch (err) {
+      toast({
+        title: 'No se pudo eliminar el diagrama',
+        description: err instanceof Error ? err.message : 'Error inesperado',
+        variant: 'error',
+      })
+    }
   }
 
   if (loading) return (

@@ -1,17 +1,20 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import { useAuth } from '../features/auth/useAuth'
 import { useDiagramState } from '../features/diagram-editor/hooks/useDiagramState'
 import { DiagramCanvas } from '../features/diagram-editor/components/DiagramCanvas'
+import { PresenceBar, type PresenceUser } from '../features/diagram-editor/components/PresenceBar'
 import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
 import { AiChatPanel } from '../features/diagram-editor/components/AiChatPanel'
 import { useAiChat } from '../features/diagram-editor/hooks/useAiChat'
 import { buildXmi } from '../features/diagram-editor/lib/xmi'
-import { backendGenerationApi } from '../shared/api/client'
-import { Wifi, WifiOff, Users, ArrowLeft, Download, Sparkles, Package } from 'lucide-react'
+import { backendGenerationApi, projectsApi, type Collaborator } from '../shared/api/client'
+import { colorFor } from '../shared/lib/useWebSocket'
+import { useToast } from '../shared/ui/toast/useToast'
+import { ArrowLeft, Download, Sparkles, Package } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -29,15 +32,68 @@ export function DiagramEditorPage() {
     attributes, methods, relationships, rebuildDiagram,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
+  const { toast } = useToast()
+
   const [aiOpen, setAiOpen] = useState(false)
-  const aiChat = useAiChat(projectId!, diagramId!, () => { rebuildDiagram().catch(() => {}) })
+  const aiChat = useAiChat(projectId!, diagramId!, () => {
+    rebuildDiagram().catch(() => {})
+    toast({ title: 'El asistente actualizó el diagrama', variant: 'info' })
+  })
 
   const [selectMode, setSelectMode] = useState(false)
   const [handTool, setHandTool] = useState(false)
   const [toolboxWidth, setToolboxWidth] = useState(176)
   const [panelWidth, setPanelWidth] = useState(288)
   const [generatingBackend, setGeneratingBackend] = useState(false)
-  const [backendError, setBackendError] = useState<string | null>(null)
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+
+  useEffect(() => {
+    if (!projectId) return
+    projectsApi.getCollaborators(projectId).then(setCollaborators).catch(() => {})
+  }, [projectId])
+
+  const nameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const collaborator of collaborators) {
+      const name = `${collaborator.firstName ?? ''} ${collaborator.lastName ?? ''}`.trim()
+      map.set(collaborator.userId, name || collaborator.email || 'Colaborador')
+    }
+    return map
+  }, [collaborators])
+
+  const nameByIdRef = useRef(nameById)
+  useEffect(() => { nameByIdRef.current = nameById }, [nameById])
+
+  const presenceList = useMemo<PresenceUser[]>(() => {
+    const self: PresenceUser[] = user
+      ? [{ id: user.id, name: `${user.firstName} ${user.lastName}`.trim() || user.email, color: colorFor(user.id), isSelf: true }]
+      : []
+    const others: PresenceUser[] = presenceUsers.map((id) => ({
+      id,
+      name: nameById.get(id) || 'Colaborador',
+      color: colorFor(id),
+    }))
+    return [...self, ...others]
+  }, [user, presenceUsers, nameById])
+
+  // Avisa cuando un colaborador entra o sale del diagrama
+  const prevPresenceRef = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const next = new Set(presenceUsers)
+    if (prevPresenceRef.current === null) {
+      prevPresenceRef.current = next
+      return
+    }
+    const prev = prevPresenceRef.current
+    const display = (id: string) => nameByIdRef.current.get(id) || 'Un colaborador'
+    for (const id of next) {
+      if (!prev.has(id)) toast({ title: `${display(id)} se unió al diagrama`, variant: 'info' })
+    }
+    for (const id of prev) {
+      if (!next.has(id)) toast({ title: `${display(id)} salió del diagrama`, variant: 'info' })
+    }
+    prevPresenceRef.current = next
+  }, [presenceUsers, toast])
 
   const startResize = (which: 'toolbox' | 'panel') => (e: ReactPointerEvent) => {
     e.preventDefault()
@@ -91,12 +147,12 @@ export function DiagramEditorPage() {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+    toast({ title: 'Diagrama exportado', description: 'Se descargó el archivo .xmi', variant: 'success' })
   }
 
   const handleGenerateBackend = async () => {
     if (generatingBackend) return
     setGeneratingBackend(true)
-    setBackendError(null)
     try {
       const { blob, filename } = await backendGenerationApi.download(projectId!, diagramId!)
       const url = URL.createObjectURL(blob)
@@ -107,8 +163,13 @@ export function DiagramEditorPage() {
       link.click()
       link.remove()
       URL.revokeObjectURL(url)
+      toast({ title: 'Backend generado', description: `Se descargó ${filename}`, variant: 'success' })
     } catch (e) {
-      setBackendError(e instanceof Error ? e.message : 'No se pudo generar el backend')
+      toast({
+        title: 'No se pudo generar el backend',
+        description: e instanceof Error ? e.message : 'Error inesperado',
+        variant: 'error',
+      })
     } finally {
       setGeneratingBackend(false)
     }
@@ -156,27 +217,7 @@ export function DiagramEditorPage() {
             )}
           </div>
           <div className="flex items-center gap-4">
-            {/* Presence */}
-            {presenceUsers.length > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                <Users className="w-3.5 h-3.5" />
-                {presenceUsers.length} en línea
-              </div>
-            )}
-            {/* Connection status */}
-            <div className="flex items-center gap-1.5">
-              {connected ? (
-                <>
-                  <Wifi className="w-3.5 h-3.5 text-green-400" />
-                  <span className="text-xs text-green-400">Conectado</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-red-400" />
-                  <span className="text-xs text-red-400">Desconectado</span>
-                </>
-              )}
-            </div>
+            <PresenceBar users={presenceList} connected={connected} />
             <button onClick={() => setAiOpen((v) => !v)} title="Asistente IA"
               className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors cursor-pointer ${aiOpen ? 'border-blue-500 bg-blue-950/60 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
               <Sparkles className="w-3.5 h-3.5" />
@@ -196,14 +237,6 @@ export function DiagramEditorPage() {
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
-        {backendError && (
-          <div className="flex items-center justify-between gap-3 border-b border-red-900/50 bg-red-950/40 px-3 py-1.5 text-xs text-red-300">
-            <span>No se pudo generar el backend: {backendError}</span>
-            <button onClick={() => setBackendError(null)} className="cursor-pointer text-red-200 hover:text-white">
-              Cerrar
-            </button>
-          </div>
-        )}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <Toolbox
             onAddElement={createElement}

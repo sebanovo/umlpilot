@@ -43,10 +43,96 @@ body {
   background-color: var(--color-gray-950);
   color: var(--color-gray-100);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
   min-height: 100vh;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-blue-500) 35%, transparent);
+}
+
+/* Visible, consistent focus ring for keyboard users (skill: focus-states) */
+a:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 2px solid var(--color-blue-500);
+  outline-offset: 2px;
+}
+
+/* Dark scrollbars (skill: dark-mode-pairing) */
+* {
+  scrollbar-color: var(--color-gray-700) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-700);
+  border-radius: 9999px;
+  border: 2px solid var(--color-gray-950);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Subtle grid backdrop reusable across dark surfaces */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Toast motion (skill: duration-timing, easing, transform-performance) */
+@keyframes ui-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes ui-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+.ui-toast[data-state='open'] {
+  animation: ui-toast-in 180ms ease-out;
+}
+.ui-toast[data-state='closed'] {
+  animation: ui-toast-out 140ms ease-in;
+}
+.ui-toast[data-swipe='move'] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+.ui-toast[data-swipe='cancel'] {
+  transform: translateX(0);
+  transition: transform 160ms ease-out;
+}
+.ui-toast[data-swipe='end'] {
+  animation: ui-toast-out 120ms ease-in;
+}
+
+/* Respect reduced motion (skill: reduced-motion) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Ports (handles) stay hidden until connecting / reconnecting a relationship */

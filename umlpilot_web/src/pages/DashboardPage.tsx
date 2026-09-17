@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { projectsApi, type Project } from '../shared/api/client'
 import { useAuth } from '../features/auth/useAuth'
+import { useToast } from '../shared/ui/toast/useToast'
 import { Plus, LogOut, FolderOpen, Calendar, Loader2 } from 'lucide-react'
 
 export function DashboardPage() {
   const { logout, user } = useAuth()
+  const { toast } = useToast()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -27,9 +29,14 @@ export function DashboardPage() {
       setShowCreate(false)
       setName('')
       setDescription('')
+      toast({ title: 'Proyecto creado', description: project.name, variant: 'success' })
       navigate(`/projects/${project.id}`)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error al crear proyecto')
+      toast({
+        title: 'No se pudo crear el proyecto',
+        description: err instanceof Error ? err.message : 'Error inesperado',
+        variant: 'error',
+      })
     } finally {
       setCreating(false)
     }
