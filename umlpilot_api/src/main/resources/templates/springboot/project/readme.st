@@ -7,11 +7,23 @@ Sigue el patrón clásico de 4 capas (Model → Repository → Service → Contr
 
 - Java 21
 - Maven 3.9+
-- PostgreSQL
 
-## Configuración
+## Base de datos
 
-La conexión se parametriza con variables de entorno:
+Por defecto usa **H2 en archivo**, con el fichero en la ruta raíz `/data` (configurable con `H2_DATA_PATH`):
+
+| Variable        | Valor por defecto |
+|-----------------|-------------------|
+| `H2_DATA_PATH`  | `/data`           |
+| `H2_USER`       | `sa`              |
+| `H2_PASSWORD`   | (vacío)           |
+| `SERVER_PORT`   | `8080`            |
+
+Para usar **PostgreSQL** activa el perfil `postgres` (`src/main/resources/application-postgres.yml`):
+
+```bash
+SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
+```
 
 | Variable      | Valor por defecto |
 |---------------|-------------------|
@@ -20,7 +32,6 @@ La conexión se parametriza con variables de entorno:
 | `DB_NAME`     | `generated_db`    |
 | `DB_USER`     | `postgres`        |
 | `DB_PASSWORD` | `postgres`        |
-| `SERVER_PORT` | `8080`            |
 
 ## Ejecución
 

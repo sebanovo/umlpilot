@@ -79,8 +79,15 @@ Una clase `BackendModel` (records internos, en `application/generation` o `appli
 ### 10. Configuración
 - `app.code-generation.max-classes` (env `CODE_GENERATION_MAX_CLASSES`, default 100) y `app.code-generation.base-package` (default `com.generated`).
 
+### 11. Base de datos del proyecto generado
+- Por defecto, **H2 en archivo** con el fichero en la ruta raíz `/data` (configurable con `H2_DATA_PATH`), para que el backend generado arranque sin infraestructura externa. *Alternativa:* PostgreSQL por defecto (rechazada: obligaba a tener un servidor para probar).
+- **PostgreSQL** vive en un perfil secundario (`application-postgres.yml`), activable con `SPRING_PROFILES_ACTIVE=postgres`; el `pom.xml` declara ambos drivers y Spring elige el datasource del perfil.
+- El proyecto generado activa `hibernate.globally_quoted_identifiers: true` para que nombres de atributo que son **palabras reservadas SQL** (p. ej. `value`, que en H2 2.x rompe el `create table`) funcionen igual en H2 y PostgreSQL.
+- Misma convención aplicada al propio UmlPilot: `application.yml` con H2 (`/data`) y `application-postgres.yml` con PostgreSQL. En UmlPilot se usa `NON_KEYWORDS=VALUE` en la URL de H2 (la tabla `literal` tiene una columna `value`) en lugar de citar identificadores, para no alterar el esquema existente de los usuarios de PostgreSQL.
+
 ## Risks / Trade-offs
 
+- **El fichero H2 en `/data`** depende de permisos de escritura en esa ruta → Mitigación: la ruta es configurable con `H2_DATA_PATH`; en Windows `/data` resuelve a `C:\data`.
 - **Pluralización/`snake_case` heurísticos** → Mitigación: función simple y determinista, cubierta por tests unitarios y documentada en el `README` del proyecto generado.
 - **Fallo tras comenzar el stream** deja la descarga corrupta sin poder cambiarse el HTTP → Mitigación: validar y renderizar todo antes de abrir el `ZipOutputStream`.
 - **`StreamingResponseBody` se ejecuta en otro hilo** (sin `SecurityContext`) → Mitigación: resolver usuario/validar acceso de forma síncrona antes de devolver la respuesta; el render no necesita el contexto.

@@ -61,11 +61,19 @@ El sistema SHALL imponer un tope máximo de entidades generables y SHALL rechaza
 - **THEN** el sistema responde HTTP 400 con un mensaje que indica el límite superado
 
 ### Requirement: Estructura del proyecto generado
-El proyecto `.zip` SHALL contener `pom.xml`, `README.md`, `.gitignore`, `src/main/resources/application.yml` y, bajo `src/main/java`, la clase de arranque `GeneratedApplication` y los paquetes `model`, `repository`, `service`, `controller`, `dto` y `config`. El `pom.xml` SHALL declarar dependencias de Spring Boot Web, Spring Data JPA, PostgreSQL, Lombok, SpringDoc OpenAPI y Validation. La configuración `application.yml` SHALL permitir parametrizar el datasource.
+El proyecto `.zip` SHALL contener `pom.xml`, `README.md`, `.gitignore`, `src/main/resources/application.yml`, `src/main/resources/application-postgres.yml` y, bajo `src/main/java`, la clase de arranque `GeneratedApplication` y los paquetes `model`, `repository`, `service`, `controller`, `dto` y `config`. El `pom.xml` SHALL declarar dependencias de Spring Boot Web, Spring Data JPA, H2, PostgreSQL, Lombok, SpringDoc OpenAPI y Validation. El `application.yml` principal SHALL usar H2 en archivo con la ruta raíz `/data` por defecto, y el perfil secundario `postgres` SHALL usar PostgreSQL.
 
 #### Scenario: Contenido y estructura del `.zip`
 - **WHEN** se inspecciona el `.zip` generado
-- **THEN** contiene la clase de arranque, un paquete por capa, el `pom.xml`, el `application.yml`, el `README.md`, el `.gitignore` y la clase de configuración de OpenAPI
+- **THEN** contiene la clase de arranque, un paquete por capa, el `pom.xml`, el `application.yml`, el `application-postgres.yml`, el `README.md`, el `.gitignore` y la clase de configuración de OpenAPI
+
+#### Scenario: Base de datos por defecto
+- **WHEN** se ejecuta el backend generado sin activar ningún perfil
+- **THEN** arranca con H2 en modo archivo, guardando el fichero en la ruta raíz `/data`
+
+#### Scenario: Perfil secundario de PostgreSQL
+- **WHEN** se ejecuta el backend generado con el perfil `postgres` activo
+- **THEN** usa la conexión PostgreSQL parametrizada por variables de entorno
 
 #### Scenario: Swagger UI disponible
 - **WHEN** se ejecuta el backend generado

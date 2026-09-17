@@ -26,6 +26,7 @@ class StringTemplateProjectRendererTest {
         assertTrue(files.containsKey("README.md"), "falta README.md");
         assertTrue(files.containsKey(".gitignore"), "falta .gitignore");
         assertTrue(files.containsKey("src/main/resources/application.yml"), "falta application.yml");
+        assertTrue(files.containsKey("src/main/resources/application-postgres.yml"), "falta application-postgres.yml");
 
         String root = "src/main/java/com/generated";
         assertTrue(files.containsKey(root + "/GeneratedApplication.java"), "falta la clase de arranque");
@@ -42,7 +43,7 @@ class StringTemplateProjectRendererTest {
             assertTrue(files.containsKey(root + "/dto/" + entity + "Response.java"), "falta el response de " + entity);
         }
 
-        assertEquals(4 + 4 + 6 * 3, files.size());
+        assertEquals(5 + 4 + 6 * 3, files.size());
     }
 
     @Test
@@ -77,12 +78,23 @@ class StringTemplateProjectRendererTest {
     }
 
     @Test
-    void applicationYmlKeepsEnvironmentPlaceholders() {
+    void applicationYmlDefaultsToH2WithRootDataPath() {
         BackendModel model = builder.build(SnapshotFixtures.threeClassesWithRelations());
-        String yml = renderer.render(model).get("src/main/resources/application.yml");
-        assertTrue(yml.contains("jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:generated_db}"),
-                "los placeholders de entorno deben conservarse: " + yml);
+        Map<String, String> files = renderer.render(model);
+
+        String yml = files.get("src/main/resources/application.yml");
+        assertTrue(yml.contains("jdbc:h2:file:${H2_DATA_PATH:/data}/generated_db"),
+                "H2 debe usar la ruta raíz /data: " + yml);
+        assertTrue(yml.contains("org.h2.Driver"), "debe usar el driver de H2");
+        assertTrue(yml.contains("globally_quoted_identifiers: true"),
+                "debe citar identificadores para admitir palabras reservadas: " + yml);
         assertFalse(yml.contains("\\$"), "no deben quedar escapes en el yml");
+
+        String postgres = files.get("src/main/resources/application-postgres.yml");
+        assertTrue(postgres.contains("jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:generated_db}"),
+                "el perfil secundario debe usar PostgreSQL: " + postgres);
+        assertTrue(postgres.contains("org.postgresql.Driver"), "el perfil debe usar el driver de PostgreSQL");
+        assertFalse(postgres.contains("\\$"), "no deben quedar escapes en el yml de postgres");
     }
 
     @Test

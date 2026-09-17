@@ -21,7 +21,7 @@
 ## 4. Plantillas StringTemplate y renderer
 
 - [x] 4.1 Crear la plantilla del `pom.xml` generado (Web, Data JPA, PostgreSQL, Lombok, SpringDoc, Validation) y verificar que el XML renderizado es válido y contiene las dependencias requeridas
-- [x] 4.2 Crear las plantillas de `application.yml` (datasource parametrizable por variables de entorno), `README.md`, `.gitignore`, `GeneratedApplication` y `OpenApiConfig` y verificar el contenido renderizado esperado
+- [x] 4.2 Crear las plantillas de `application.yml` (H2 en archivo con ruta raíz `/data` por defecto), `application-postgres.yml` (perfil secundario con PostgreSQL), `README.md`, `.gitignore`, `GeneratedApplication` y `OpenApiConfig` y verificar el contenido renderizado esperado
 - [x] 4.3 Crear las plantillas de las 4 capas + DTOs (entidad JPA, repositorio, servicio CRUD, controller REST con `/api/v1/{recurso}`, `Request`/`Response`, `ResourceNotFoundException` y `GlobalExceptionHandler`) y verificar con tests de renderizado que no exponen la entidad JPA y que los códigos 201/200/204/404 están presentes
 - [x] 4.4 Implementar `StringTemplateProjectRenderer` (implementa `BackendProjectRenderer`, carga plantillas del classpath y devuelve `Map<ruta, contenido>`) y verificar con un test que las rutas coinciden con la estructura definida
 - [x] 4.5 Verificar la compilación del proyecto generado: generar un fixture de 3 clases con relaciones, escribir el `.zip` en un directorio temporal de test y compilarlo, comprobando que `mvn -q compile` (o el JDK Compiler API) finaliza sin errores

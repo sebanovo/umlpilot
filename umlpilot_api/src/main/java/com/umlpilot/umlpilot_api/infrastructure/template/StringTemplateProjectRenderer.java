@@ -41,6 +41,8 @@ public class StringTemplateProjectRenderer implements BackendProjectRenderer {
         files.put("README.md", render("project/readme", MODEL_ARG, modelAttributes));
         files.put(".gitignore", render("project/gitignore", MODEL_ARG, modelAttributes));
         files.put("src/main/resources/application.yml", render("project/application_yml", MODEL_ARG, modelAttributes));
+        files.put("src/main/resources/application-postgres.yml",
+                render("project/application_postgres_yml", MODEL_ARG, modelAttributes));
 
         String javaRoot = "src/main/java/" + model.basePath();
         files.put(javaRoot + "/GeneratedApplication.java", render("java/application", MODEL_ARG, modelAttributes));

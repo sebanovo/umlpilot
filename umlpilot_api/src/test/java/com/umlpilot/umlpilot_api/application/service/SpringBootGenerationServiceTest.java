@@ -56,6 +56,7 @@ class SpringBootGenerationServiceTest {
         assertTrue(names.contains("README.md"));
         assertTrue(names.contains(".gitignore"));
         assertTrue(names.contains("src/main/resources/application.yml"));
+        assertTrue(names.contains("src/main/resources/application-postgres.yml"));
         assertTrue(names.contains("src/main/java/com/generated/GeneratedApplication.java"));
         assertTrue(names.contains("src/main/java/com/generated/config/OpenApiConfig.java"));
         assertTrue(names.contains("src/main/java/com/generated/exception/ResourceNotFoundException.java"));
@@ -68,7 +69,7 @@ class SpringBootGenerationServiceTest {
             assertTrue(names.contains("src/main/java/com/generated/dto/" + entity + "Request.java"));
             assertTrue(names.contains("src/main/java/com/generated/dto/" + entity + "Response.java"));
         }
-        assertEquals(4 + 4 + 6 * 3, names.size());
+        assertEquals(5 + 4 + 6 * 3, names.size());
     }
 
     @Test

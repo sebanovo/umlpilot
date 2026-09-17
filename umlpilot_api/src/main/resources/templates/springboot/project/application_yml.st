@@ -1,22 +1,31 @@
 spring:
   application:
     name: $model.applicationName$
+
+  # Perfil activo (vacío = H2 por defecto; usa 'postgres' para PostgreSQL)
+  profiles:
+    active: \${SPRING_PROFILES_ACTIVE:}
+
+  # Base de datos por defecto: H2 en archivo, con la ruta raíz /data
   datasource:
-    url: jdbc:postgresql://\${DB_HOST:localhost}:\${DB_PORT:5432}/\${DB_NAME:generated_db}
-    username: \${DB_USER:postgres}
-    password: \${DB_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:file:${H2_DATA_PATH:./data}/generated_db;AUTO_SERVER=TRUE
+    username: \${H2_USER:sa}
+    password: \${H2_PASSWORD:}
+    driver-class-name: org.h2.Driver
+
   jpa:
-    database: POSTGRESQL
     hibernate:
       ddl-auto: update
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
+        # Cita todos los identificadores para admitir nombres de columna que son
+        # palabras reservadas (por ejemplo 'value') tanto en H2 como en PostgreSQL
+        globally_quoted_identifiers: true
 
 server:
-  port: \${SERVER_PORT:8080}
+  port: \${SERVER_PORT:8081}
 
 management:
   endpoints:
