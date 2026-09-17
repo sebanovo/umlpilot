@@ -15,13 +15,15 @@ public class ElementService {
     private final MethodRepository methodRepository;
     private final ParameterRepository parameterRepository;
     private final LiteralRepository literalRepository;
+    private final RelationshipService relationshipService;
 
-    public ElementService(ElementRepository elementRepository, AttributeRepository attributeRepository, MethodRepository methodRepository, ParameterRepository parameterRepository, LiteralRepository literalRepository) {
+    public ElementService(ElementRepository elementRepository, AttributeRepository attributeRepository, MethodRepository methodRepository, ParameterRepository parameterRepository, LiteralRepository literalRepository, RelationshipService relationshipService) {
         this.elementRepository = elementRepository;
         this.attributeRepository = attributeRepository;
         this.methodRepository = methodRepository;
         this.parameterRepository = parameterRepository;
         this.literalRepository = literalRepository;
+        this.relationshipService = relationshipService;
     }
 
     @Transactional
@@ -57,6 +59,16 @@ public class ElementService {
         });
         literalRepository.findByElementId(elementId).forEach(l -> literalRepository.delete(l.getId()));
         elementRepository.delete(id);
+    }
+
+    /** Elimina todo el contenido del diagrama: primero las relaciones (con sus multiplicidades) y luego los elementos con sus hijos. */
+    @Transactional
+    public int deleteAllElements(String diagramId) {
+        relationshipService.getRelationships(diagramId)
+                .forEach(relationship -> relationshipService.deleteRelationship(relationship.id()));
+        List<Element> elements = elementRepository.findByDiagramId(diagramId);
+        elements.forEach(element -> deleteElement(element.getId().value()));
+        return elements.size();
     }
 
     @Transactional

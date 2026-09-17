@@ -3,6 +3,7 @@ package com.umlpilot.umlpilot_api.infrastructure.adapter.in.web;
 import com.umlpilot.umlpilot_api.application.dto.*;
 import com.umlpilot.umlpilot_api.application.service.ElementService;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
+import com.umlpilot.umlpilot_api.infrastructure.websocket.DiagramEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +13,21 @@ import java.util.Map;
 @RequestMapping("/api/v1/projects/{projectId}/diagrams/{diagramId}/elements")
 public class ElementController {
     private final ElementService elementService;
-    public ElementController(ElementService elementService) { this.elementService = elementService; }
+    private final DiagramEventPublisher eventPublisher;
+
+    public ElementController(ElementService elementService, DiagramEventPublisher eventPublisher) {
+        this.elementService = elementService;
+        this.eventPublisher = eventPublisher;
+    }
+
+    @DeleteMapping
+    public ResponseEntity<?> deleteAll(@PathVariable String diagramId) {
+        try {
+            elementService.deleteAllElements(diagramId);
+            eventPublisher.diagramChanged(diagramId, SecurityUtils.getCurrentUserId(), "delete_all");
+            return ResponseEntity.noContent().build();
+        } catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
+    }
 
     @PostMapping
     public ResponseEntity<?> create(@PathVariable String projectId, @PathVariable String diagramId, @RequestBody Map<String, Object> body) {

@@ -274,6 +274,14 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     deleteElementRef.current = deleteElement
   }, [deleteElement])
 
+  // Delete all elements + relationships of the diagram
+  const deleteAllElements = useCallback(async (): Promise<number> => {
+    const count = state.elements.length
+    await elementsApi.deleteAll(projectId, diagramId)
+    await rebuildDiagram()
+    return count
+  }, [projectId, diagramId, state.elements.length, rebuildDiagram])
+
   // Patch element (e.g. note text) — optimistic + broadcast
   const patchElement = useCallback(async (elementId: string, data: Partial<UmlElementApi>) => {
     setState(prev => ({
@@ -839,6 +847,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     selectElement,
     createElement,
     deleteElement,
+    deleteAllElements,
     updateElement,
     addAttribute,
     deleteAttribute,

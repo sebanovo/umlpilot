@@ -207,6 +207,8 @@ export const elementsApi = {
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<UmlElementApi>,
   delete: (projectId: string, diagramId: string, elementId: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}`, { method: 'DELETE' }),
+  deleteAll: (projectId: string, diagramId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements`, { method: 'DELETE' }),
   getAttributes: (projectId: string, diagramId: string, elementId: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/elements/${elementId}/attributes`) as Promise<UmlAttributeApi[]>,
   addAttribute: (projectId: string, diagramId: string, elementId: string, data: { name: string; dataType: string; visibility?: string; alias?: string; stereotype?: string; defaultValue?: string; orderIndex?: number }) =>

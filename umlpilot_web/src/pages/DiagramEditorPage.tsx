@@ -14,7 +14,8 @@ import { buildXmi } from '../features/diagram-editor/lib/xmi'
 import { backendGenerationApi, projectsApi, xmiImportApi, type Collaborator } from '../shared/api/client'
 import { colorFor } from '../shared/lib/useWebSocket'
 import { useToast } from '../shared/ui/toast/useToast'
-import { ArrowLeft, Download, Upload, Sparkles, Package } from 'lucide-react'
+import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
+import { ArrowLeft, Download, Upload, Sparkles, Package, Trash2 } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -29,7 +30,7 @@ export function DiagramEditorPage() {
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
     addParameter, deleteParameter,
-    attributes, methods, relationships, rebuildDiagram,
+    attributes, methods, relationships, rebuildDiagram, deleteAllElements,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
   const { toast } = useToast()
@@ -46,6 +47,8 @@ export function DiagramEditorPage() {
   const [panelWidth, setPanelWidth] = useState(288)
   const [generatingBackend, setGeneratingBackend] = useState(false)
   const [importingXmi, setImportingXmi] = useState(false)
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const xmiFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -177,6 +180,28 @@ export function DiagramEditorPage() {
     }
   }
 
+  const handleDeleteAll = async () => {
+    if (clearing) return
+    setClearing(true)
+    try {
+      const count = await deleteAllElements()
+      setConfirmClearOpen(false)
+      toast({
+        title: 'Diagrama vaciado',
+        description: `Se eliminaron ${count} elemento${count !== 1 ? 's' : ''} y sus relaciones`,
+        variant: 'success',
+      })
+    } catch (e) {
+      toast({
+        title: 'No se pudieron eliminar los elementos',
+        description: e instanceof Error ? e.message : 'Error inesperado',
+        variant: 'error',
+      })
+    } finally {
+      setClearing(false)
+    }
+  }
+
   const handleImportXmi = async (file: File) => {
     if (importingXmi) return
     setImportingXmi(true)
@@ -275,6 +300,14 @@ export function DiagramEditorPage() {
               <Package className="w-3.5 h-3.5" />
               {generatingBackend ? 'Generando…' : 'Generar backend'}
             </button>
+            <button onClick={() => setConfirmClearOpen(true)} disabled={elements.length === 0}
+              title="Elimina todos los elementos y relaciones del diagrama"
+              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors ${elements.length === 0
+                ? 'cursor-not-allowed border-gray-800 bg-gray-900 text-gray-600'
+                : 'cursor-pointer border-red-900 bg-red-950/40 text-red-300 hover:bg-red-900/40 hover:text-red-200'}`}>
+              <Trash2 className="w-3.5 h-3.5" />
+              Eliminar todo
+            </button>
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
@@ -344,6 +377,17 @@ export function DiagramEditorPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title="¿Eliminar todo el contenido del diagrama?"
+        description={`Se eliminarán ${elements.length} elemento${elements.length !== 1 ? 's' : ''} y todas sus relaciones. Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar todo"
+        destructive
+        loading={clearing}
+        onConfirm={handleDeleteAll}
+        onCancel={() => setConfirmClearOpen(false)}
+      />
     </ReactFlowProvider>
   )
 }
