@@ -271,3 +271,24 @@ export const backendGenerationApi = {
   download: (projectId: string, diagramId: string) =>
     authDownload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/generate/backend`),
 }
+
+export interface ImportXmiResult {
+  elements: number
+  attributes: number
+  methods: number
+  parameters: number
+  literals: number
+  relationships: number
+  warnings: string[]
+}
+
+export const xmiImportApi = {
+  importXmi: (projectId: string, diagramId: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return authUpload(
+      `/api/v1/projects/${projectId}/diagrams/${diagramId}/import/xmi`,
+      form,
+    ) as Promise<ImportXmiResult>
+  },
+}

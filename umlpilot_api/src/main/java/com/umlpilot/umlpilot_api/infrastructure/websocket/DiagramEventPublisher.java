@@ -58,4 +58,9 @@ public class DiagramEventPublisher {
     public void diagramChanged(String diagramId, String userId) {
         publish(diagramId, userId, "diagram_changed", Map.of("diagramId", diagramId));
     }
+
+    /** Cambio masivo indicando el origen (p. ej. {@code import}): refresca todo el diagrama. */
+    public void diagramChanged(String diagramId, String userId, String origin) {
+        publish(diagramId, userId, "diagram_changed", Map.of("diagramId", diagramId, "type", origin));
+    }
 }

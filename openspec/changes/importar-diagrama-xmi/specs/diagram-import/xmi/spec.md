@@ -46,15 +46,23 @@ El sistema SHALL aceptar únicamente diagramas de clases y SHALL rechazar con HT
 - **THEN** el sistema continúa con la importación
 
 #### Scenario: Diagrama de otro tipo
-- **WHEN** el modelo contiene elementos de otros tipos de diagrama (por ejemplo `uml:Actor`, `uml:UseCase`, `uml:Lifeline`, `uml:Activity`, `uml:StateMachine`, `uml:Component`, `uml:Node`)
+- **WHEN** el modelo contiene elementos de otros tipos de diagrama (por ejemplo `uml:Actor`, `uml:UseCase`, `uml:Lifeline`, `uml:Activity`, `uml:StateMachine`, `uml:Interaction`)
 - **THEN** el sistema responde HTTP 400 con el mensaje `"Tipo de diagrama no soportado. Solo se aceptan diagramas de clases."`
 
 ### Requirement: Validación de elementos y relaciones permitidos
-El sistema SHALL validar los elementos del **modelo UML** (`packagedElement` y sus hijos) contra una allow-list, ignorando los elementos de *diagram interchange* (`umldi:*`, `dc:*`) y las extensiones propietarias (por ejemplo `xmi:Extension`). Los elementos permitidos son `uml:Class`, `uml:Interface`, `uml:Enumeration` y `uml:Comment`; las relaciones permitidas son `uml:Association` (incluidas `aggregation="composite"` y `aggregation="shared"`), `uml:Generalization`, `uml:AssociationClass` y `uml:Realization`. Cualquier otro elemento SHALL rechazarse con HTTP 400.
+El sistema SHALL tratar como contenido del diagrama únicamente los hijos `packagedElement` del modelo y sus paquetes, y SHALL ignorar (sin error) las construcciones ajenas al diagrama que las herramientas incluyen en el modelo: envoltorios propias (`primitivetypes`, `profiles`, `diagrams`, `profileApplication`, `xmi:Extension`), *diagram interchange* (`umldi:*`, `dc:*`) y definiciones de perfil (`uml:Profile`, `uml:Stereotype`, `uml:Extension`, `uml:PrimitiveType`). Los elementos permitidos son `uml:Class`, `uml:Interface`, `uml:Enumeration`, `uml:Comment` y `uml:DataType` (tratado como clase); las relaciones permitidas son `uml:Association` (incluidas `aggregation="composite"` y `aggregation="shared"`), `uml:Generalization`, `uml:AssociationClass` y `uml:Realization`. Los elementos de otros diagramas no soportados SHALL rechazarse con HTTP 400.
 
-#### Scenario: Elemento no soportado
-- **WHEN** el modelo contiene un elemento fuera de la allow-list (por ejemplo `uml:Actor`, `uml:Component` o `uml:Artifact`)
+#### Scenario: XMI de Enterprise Architect con perfil propio
+- **WHEN** el archivo incluye `profileApplication`, `primitivetypes`, `profiles`, `diagrams` o `xmi:Extension`
+- **THEN** el sistema los ignora y importa solo las clases y relaciones del diagrama, sin errores ni warnings
+
+#### Scenario: Elemento de otro diagrama no soportado
+- **WHEN** el modelo contiene como contenido del diagrama un elemento no soportado (por ejemplo `uml:Component`, `uml:Artifact`, `uml:Node` o `uml:Device`)
 - **THEN** el sistema responde HTTP 400 con el mensaje `"Elemento no soportado: {tipo}. Solo se permiten Clase, Interfaz, Enum, Nota y las relaciones Asociación, Generalización, Composición, Agregación, Clase asociación y Realización."`
+
+#### Scenario: DataType como clase
+- **WHEN** el modelo contiene un `uml:DataType`
+- **THEN** el sistema lo importa como una clase con sus atributos
 
 #### Scenario: Extensiones propietarias ignoradas
 - **WHEN** el archivo incluye una `xmi:Extension` con datos de la herramienta de origen o elementos `umldi:*`
@@ -72,7 +80,7 @@ La importación SHALL ser aditiva: el sistema SHALL conservar todos los elemento
 - **THEN** el sistema importa la clase con un sufijo numérico (por ejemplo `Cliente_1`) y añade un warning que lo indica
 
 ### Requirement: Mapeo de elementos UML a UmlPilot
-El sistema SHALL mapear los elementos UML a los tipos de UmlPilot según la tabla: `uml:Class` → clase, `uml:Interface` → interfaz, `uml:Enumeration` → enumeración, `uml:Comment` → nota, `uml:Property` → atributo, `uml:Operation` → método, `uml:Parameter` → parámetro, `uml:EnumerationLiteral` → literal. Los elementos sin posición en el archivo SHALL colocarse en una cuadrícula por debajo del contenido existente; los que declaren `dc:bounds` SHALL conservar su posición y tamaño.
+El sistema SHALL mapear los elementos UML a los tipos de UmlPilot según la tabla: `uml:Class` → clase, `uml:Interface` → interfaz, `uml:Enumeration` → enumeración, `uml:Comment` → nota, `uml:DataType` → clase, `uml:Property` → atributo, `uml:Operation` → método, `uml:Parameter` → parámetro, `uml:EnumerationLiteral` → literal. El sistema SHALL importar únicamente los elementos **presentes en el diagrama** (con forma y `dc:bounds` en el *diagram interchange*) y SHALL omitir con un warning los elementos que solo existen en el modelo, conservando la posición y el tamaño declarados. Si el archivo no incluye ninguna información de diagrama, SHALL importar todos los elementos y colocarlos en una cuadrícula por debajo del contenido existente.
 
 #### Scenario: Clase con atributos, métodos y parámetros
 - **WHEN** el archivo contiene una clase con `uml:Property`, `uml:Operation` y `uml:Parameter`
@@ -82,13 +90,21 @@ El sistema SHALL mapear los elementos UML a los tipos de UmlPilot según la tabl
 - **WHEN** el archivo incluye `dc:bounds` para un elemento
 - **THEN** el elemento importado conserva la posición y el tamaño del archivo
 
-#### Scenario: Posiciones ausentes
-- **WHEN** el archivo no incluye posición para un elemento
-- **THEN** el sistema lo coloca en una cuadrícula debajo del contenido existente
+#### Scenario: Elemento del modelo que no está en el diagrama
+- **WHEN** el archivo trae formas con `dc:bounds` y existe un elemento del modelo sin forma en el diagrama
+- **THEN** el sistema no lo importa y añade un warning indicando que se omitió porque no está en el diagrama
+
+#### Scenario: Archivo sin información de diagrama
+- **WHEN** el archivo no incluye ninguna forma con `dc:bounds`
+- **THEN** el sistema importa todos los elementos y los coloca en una cuadrícula debajo del contenido existente
 
 #### Scenario: Nota importada
 - **WHEN** el archivo contiene un `uml:Comment`
 - **THEN** el sistema crea un elemento de tipo nota con el cuerpo del comentario como texto
+
+#### Scenario: Atributo o parámetro sin tipo
+- **WHEN** un atributo o un parámetro no declara tipo (no tiene `<type>`/`type`)
+- **THEN** el sistema lo importa con el tipo por defecto de la aplicación (`String`), para no violar la restricción `NOT NULL` de la base de datos
 
 ### Requirement: Mapeo de relaciones UML a UmlPilot
 El sistema SHALL mapear las relaciones según la tabla: `uml:Association` → asociación, `uml:Association` con `aggregation="composite"` → composición, `uml:Association` con `aggregation="shared"` → agregación, `uml:Generalization` → generalización, `uml:AssociationClass` → clase asociación con su clase asociada, y `uml:Realization` → realización. El sistema SHALL preservar las multiplicidades de los extremos (`lowerValue`/`upperValue`) como texto (`"0..*"`, `"1"`, etc.) y la visibilidad.

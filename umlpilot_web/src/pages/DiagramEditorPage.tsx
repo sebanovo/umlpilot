@@ -11,10 +11,10 @@ import { RelationshipPanel } from '../features/diagram-editor/components/Relatio
 import { AiChatPanel } from '../features/diagram-editor/components/AiChatPanel'
 import { useAiChat } from '../features/diagram-editor/hooks/useAiChat'
 import { buildXmi } from '../features/diagram-editor/lib/xmi'
-import { backendGenerationApi, projectsApi, type Collaborator } from '../shared/api/client'
+import { backendGenerationApi, projectsApi, xmiImportApi, type Collaborator } from '../shared/api/client'
 import { colorFor } from '../shared/lib/useWebSocket'
 import { useToast } from '../shared/ui/toast/useToast'
-import { ArrowLeft, Download, Sparkles, Package } from 'lucide-react'
+import { ArrowLeft, Download, Upload, Sparkles, Package } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -45,7 +45,9 @@ export function DiagramEditorPage() {
   const [toolboxWidth, setToolboxWidth] = useState(176)
   const [panelWidth, setPanelWidth] = useState(288)
   const [generatingBackend, setGeneratingBackend] = useState(false)
+  const [importingXmi, setImportingXmi] = useState(false)
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const xmiFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!projectId) return
@@ -175,6 +177,33 @@ export function DiagramEditorPage() {
     }
   }
 
+  const handleImportXmi = async (file: File) => {
+    if (importingXmi) return
+    setImportingXmi(true)
+    try {
+      const result = await xmiImportApi.importXmi(projectId!, diagramId!, file)
+      await rebuildDiagram()
+      const summary = `${result.elements} elemento${result.elements !== 1 ? 's' : ''} y ${result.relationships} relación${result.relationships !== 1 ? 'es' : ''} añadidos`
+      if (result.warnings?.length) {
+        toast({
+          title: 'XMI importado con advertencias',
+          description: `${summary}. ${result.warnings.length} advertencia${result.warnings.length !== 1 ? 's' : ''}: ${result.warnings[0]}`,
+          variant: 'warning',
+        })
+      } else {
+        toast({ title: 'XMI importado', description: summary, variant: 'success' })
+      }
+    } catch (e) {
+      toast({
+        title: 'No se pudo importar el XMI',
+        description: e instanceof Error ? e.message : 'Error inesperado',
+        variant: 'error',
+      })
+    } finally {
+      setImportingXmi(false)
+    }
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -228,6 +257,18 @@ export function DiagramEditorPage() {
               <Download className="w-3.5 h-3.5" />
               Exportar XMI
             </button>
+            <button onClick={() => xmiFileInputRef.current?.click()} disabled={importingXmi}
+              title="Importar un diagrama desde un archivo XMI 2.5.1 (se añade al diagrama actual)"
+              className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${importingXmi ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+              <Upload className="w-3.5 h-3.5" />
+              {importingXmi ? 'Importando…' : 'Importar XMI'}
+            </button>
+            <input ref={xmiFileInputRef} type="file" accept=".xmi,.xml" className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) handleImportXmi(file)
+              }} />
             <button onClick={handleGenerateBackend} disabled={generatingBackend}
               title="Generar backend Spring Boot (.zip) a partir del diagrama"
               className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${generatingBackend ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>

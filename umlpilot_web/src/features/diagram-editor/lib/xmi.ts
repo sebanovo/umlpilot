@@ -156,7 +156,7 @@ export function buildXmi(input: XmiInput): string {
   }
 
   out.push('<?xml version="1.0" encoding="UTF-8"?>')
-  out.push(`<xmi:XMI xmlns:uml="${NS_UML}" xmlns:xmi="${NS_XMI}" xmlns:umldi="${NS_UMLDI}" xmlns:dc="${NS_DC}">`)
+  out.push(`<xmi:XMI xmi:version="2.5.1" xmlns:uml="${NS_UML}" xmlns:xmi="${NS_XMI}" xmlns:umldi="${NS_UMLDI}" xmlns:dc="${NS_DC}">`)
   out.push(`${p(1)}<xmi:Documentation exporter="Enterprise Architect" exporterVersion="6.5"/>`)
   out.push(`${p(1)}<uml:Model xmi:type="uml:Model" name="EA_Model">`)
   out.push(`${p(2)}<packagedElement xmi:type="uml:Package" xmi:id="${PKG_ID}" name="${esc(modelName)}">`)

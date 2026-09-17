@@ -33,8 +33,8 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 
 ### 2. Parseo XML seguro (JAXP/DOM)
 - `DocumentBuilderFactory` con `FEATURE_SECURE_PROCESSING`, `disallow-doctype-decl=true` y entidades externas deshabilitadas (evita **XXE**), `setExpandEntityReferences(false)`, `setXIncludeAware(false)`.
-- Validación en este orden: (a) XML bien formado → si falla, 400 "archivo XMI no válido"; (b) `xmi:version` + namespace XMI 2.5.1 → si no, 400 con la versión detectada; (c) allow-list de elementos del modelo → 400 con el tipo ofensor.
-- La validación recorre solo elementos de modelo (`packagedElement` y descendientes); `umldi:*`, `dc:*` y `xmi:Extension` se ignoran explícitamente.
+- Validación en este orden: (a) XML bien formado → si falla, 400 "archivo XMI no válido"; (b) `xmi:version` + namespace XMI 2.5.1 → si no, 400 con la versión detectada; (c) solo se rechazan los elementos de diagrama no soportados (otros tipos de diagrama y `Component`/`Artifact`/`Node`/…) con 400.
+- *Decisión revisada:* la allow-list estricta ("cualquier otro elemento → error") rompía los XMI reales de Enterprise Architect, que incluyen envoltorios propios (`primitivetypes`, `profiles`, `diagrams`, `profileApplication`, `xmi:Extension`) y definiciones de perfil (`uml:Profile`, `uml:Stereotype`, `uml:Extension`, `uml:PrimitiveType`). Ahora solo se considera contenido del diagrama a los hijos `packagedElement` del modelo/paquetes, y **todo lo demás se ignora** (no se importa ni se rechaza); `uml:DataType` se importa como clase para permitir el round-trip de los XMI de UmlPilot. El rechazo queda acotado a elementos de otros diagramas.
 
 ### 3. Modelo intermedio y resolución de referencias
 - El parser resuelve los `xmi:id` del archivo a **claves locales** y arma `ImportedDiagram`: elementos con `localKey`, tipo, nombre, visibilidad, posición/tamaño; relaciones con `sourceKey`/`targetKey` y multiplicidades ya normalizadas a `min`/`max` (con `-1` = `*`).
@@ -44,7 +44,8 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 ### 4. Importación aditiva y renombrado
 - Nunca se borra ni modifica nada existente. Los UUID los genera UmlPilot (`ElementService.createElement`), ignorando los `xmi:id`.
 - Colisión de nombres: se compara **sin distinguir mayúsculas** contra los nombres ya existentes y contra los importados en el mismo lote; si hay colisión se añade sufijo numérico (`Cliente_1`, `Cliente_2`) y se agrega un warning por cada renombrado. *Alternativa:* rechazar la importación (peor UX) o permitir duplicados (confuso).
-- Posiciones: si el elemento tiene `dc:bounds` se conserva `x`/`y`/`width`/`height`; si no, se coloca en cuadrícula calculada **por debajo del contenido existente** (mismo criterio que `DiagramBuildService.computeStartY`).
+- Posiciones: si el elemento tiene `dc:bounds` se conserva `x`/`y`/`width`/`height`.
+- *Decisión revisada:* se importa **solo lo que está dibujado en el diagrama**. Si el archivo trae formas con `dc:bounds` (todo XMI con *diagram interchange*), los elementos del modelo sin forma (p. ej. `Class1` en un export de EA: existe en el paquete pero no se dibujó) se omiten con un warning, porque el usuario espera importar el diagrama, no todo el modelo. Si el archivo no trae ninguna información de diagrama, se importan todos y se colocan en cuadrícula **por debajo del contenido existente** (mismo criterio que `DiagramBuildService.computeStartY`).
 - Asociación-clase: se crea la clase asociada como elemento y la relación `association_class` enlazándola (`associationClassElementId`).
 
 ### 5. Evento de refresco
@@ -54,6 +55,7 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 ### 6. Límites y errores
 - Tope de **200 elementos** y **10 MB** por archivo. El tamaño lo corta `spring.servlet.multipart`; si se excede, un `@ExceptionHandler(MaxUploadSizeExceededException.class)` en el controlador devuelve 400 con el límite. El tope de elementos lo valida el caso de uso antes de persistir.
 - Todos los mensajes de validación son los del requerimiento (versión detectada, tipo de diagrama, elemento no soportado).
+- *Campos `NOT NULL`*: `attribute.data_type`, `parameter.data_type` y `method.return_type` no admiten nulos. Al importar se aplican los defaults de la UI: tipo `String` para atributos/parámetros sin tipo y `void` para métodos sin retorno, evitando `DataIntegrityViolationException`.
 
 ### 7. Frontend
 - `shared/api/client.ts`: `xmiImportApi.import(projectId, diagramId, file)` con `authUpload` (multipart, campo `file`).
@@ -64,7 +66,7 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 
 - **XXE / XML malicioso** → *Mitigación:* parseo con *secure processing*, sin DTD ni entidades externas, y límite de 10 MB.
 - **Cuerpo de nota larga**: el `name` del elemento es un `varchar` (255 por defecto) y las notas usan ese campo → *Mitigación:* truncar a 255 caracteres y añadir un warning cuando se trunque. *Limitación documentada.*
-- **`uml:DataType` fuera de la allow-list**: UmlPilot puede exportar `uml:DataType` (tipo `dataType`), por lo que un XMI propio con ese elemento sería rechazado → *Trade-off aceptado:* se respeta la allow-list solicitada; se puede ampliar más adelante.
+- **Construcciones ajenas al diagrama** (envoltorios y perfiles de EA, `uml:PrimitiveType`, estereotipos) → *Mitigación:* se ignoran; solo se rechazan elementos de diagrama no soportados. Riesgo residual: un elemento de diagrama desconocido se ignora silenciosamente en vez de avisar; los tipos conocidos de otros diagramas sí se rechazan.
 - **Referencias colgantes o ids desconocidos** → *Mitigación:* omitir la relación con warning (no abortar).
 - **Solapamiento visual** si el archivo trae posiciones parciales mezcladas con cuadrícula → *Trade-off aceptado:* se prioriza no destruir el layout existente.
 - **Transacción larga** (hasta 200 elementos con hijos) → *Mitigación:* una sola transacción acotada por el tope de 200.
