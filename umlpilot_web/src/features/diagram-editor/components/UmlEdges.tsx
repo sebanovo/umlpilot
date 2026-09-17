@@ -6,7 +6,7 @@ const NODE_BG = '#111827'
 
 type Kind =
   | 'association' | 'association_class' | 'generalization' | 'realization'
-  | 'dependency' | 'aggregation' | 'composition' | 'template_binding'
+  | 'aggregation' | 'composition'
 
 function relInfo(data: unknown) {
   const d = (data || {}) as { name?: string; sourceMultiplicity?: string; targetMultiplicity?: string; associationClassElementId?: string | null; onDelete?: () => void }
@@ -46,12 +46,6 @@ function trianglePath(x: number, y: number, dir: [number, number], len = 14, hal
   const px = -dy, py = dx
   const bx = x - dx * len, by = y - dy * len
   return `M ${x},${y} L ${bx + px * half},${by + py * half} L ${bx - px * half},${by - py * half} Z`
-}
-
-function openArrowPath(x: number, y: number, dir: [number, number], len = 12, half = 6): string {
-  const [dx, dy] = dir
-  const px = -dy, py = dx
-  return `M ${x - dx * len + px * half},${y - dy * len + py * half} L ${x},${y} L ${x - dx * len - px * half},${y - dy * len - py * half}`
 }
 
 function diamondPath(x: number, y: number, dir: [number, number], len = 9, half = 5.5): string {
@@ -117,8 +111,7 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   const { name, sourceMultiplicity, targetMultiplicity, associationClassElementId, onDelete } = relInfo(data)
 
   const stroke = selected ? EDGE_SELECTED : EDGE_COLOR
-  const dashed = kind === 'dependency' || kind === 'realization' || kind === 'template_binding'
-  const thin = kind === 'dependency' || kind === 'template_binding'
+  const dashed = kind === 'realization'
   const targetIn = TARGET_DIR[targetPosition ?? 'top'] ?? [0, -1]
   const targetOut = SOURCE_DIR[targetPosition ?? 'top'] ?? [0, -1]
   const sourceOut = SOURCE_DIR[sourcePosition ?? 'bottom'] ?? [0, 1]
@@ -137,15 +130,11 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
         <AssociationClassConnector elementId={associationClassElementId} midX={labelX} midY={labelY} selected={selected} />
       )}
       <svg style={{ position: 'absolute', width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
-        <path d={path} fill="none" stroke={stroke} strokeWidth={thin ? 1.5 : 2}
+        <path d={path} fill="none" stroke={stroke} strokeWidth={2}
           strokeDasharray={dashed ? '5,5' : undefined} />
 
         {(kind === 'generalization' || kind === 'realization') && (
           <path d={trianglePath(targetX, targetY, targetIn)} fill={NODE_BG} stroke={stroke} strokeWidth={1.5} />
-        )}
-
-        {(kind === 'dependency' || kind === 'template_binding') && (
-          <path d={openArrowPath(targetX, targetY, targetIn)} fill="none" stroke={stroke} strokeWidth={1.5} />
         )}
 
         {(kind === 'aggregation' || kind === 'composition') && (
@@ -157,7 +146,7 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
       </svg>
       <EndLabel x={sourceLabelX} y={sourceLabelY} text={sourceMultiplicity} />
       <EndLabel x={targetLabelX} y={targetLabelY} text={targetMultiplicity} />
-      <EdgeMid x={labelX} y={labelY} name={kind === 'template_binding' ? (name || '«bind»') : name} selected={selected} onDelete={onDelete} />
+      <EdgeMid x={labelX} y={labelY} name={name} selected={selected} onDelete={onDelete} />
     </>
   )
 }
@@ -166,7 +155,5 @@ export function AssociationEdge(props: EdgeProps) { return <UmlEdge kind="associ
 export function AssociationClassEdge(props: EdgeProps) { return <UmlEdge kind="association_class" props={props} /> }
 export function GeneralizationEdge(props: EdgeProps) { return <UmlEdge kind="generalization" props={props} /> }
 export function RealizationEdge(props: EdgeProps) { return <UmlEdge kind="realization" props={props} /> }
-export function DependencyEdge(props: EdgeProps) { return <UmlEdge kind="dependency" props={props} /> }
-export function TemplateBindingEdge(props: EdgeProps) { return <UmlEdge kind="template_binding" props={props} /> }
 export function AggregationEdge(props: EdgeProps) { return <UmlEdge kind="aggregation" props={props} /> }
 export function CompositionEdge(props: EdgeProps) { return <UmlEdge kind="composition" props={props} /> }

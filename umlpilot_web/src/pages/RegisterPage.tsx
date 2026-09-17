@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 import { Mail, Lock, User, UserPlus, Loader2, Eye, EyeOff } from 'lucide-react'
 
 export function RegisterPage() {
-  const { register } = useAuth()
+  const { register, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,13 +14,15 @@ export function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  if (isAuthenticated) return <Navigate to="/projects" replace />
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
       await register(email, password, firstName, lastName)
-      navigate('/')
+      navigate('/projects', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse')
     } finally {

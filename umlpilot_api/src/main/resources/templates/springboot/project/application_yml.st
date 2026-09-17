@@ -8,7 +8,7 @@ spring:
 
   # Base de datos por defecto: H2 en archivo, con la ruta raíz /data
   datasource:
-    url: jdbc:h2:file:${H2_DATA_PATH:./data}/generated_db;AUTO_SERVER=TRUE
+    url: jdbc:h2:file:\${H2_DATA_PATH:./data}/generated_db;AUTO_SERVER=TRUE
     username: \${H2_USER:sa}
     password: \${H2_PASSWORD:}
     driver-class-name: org.h2.Driver

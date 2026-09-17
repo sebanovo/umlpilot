@@ -327,13 +327,13 @@ public class UmlTools {
     // Relationship tools
     // ------------------------------------------------------------------
 
-    @Tool(name = "list_relationships", description = "Lista las relaciones del diagrama actual (asociaciones, generalizaciones, dependencias, agregaciones, composiciones, realizaciones) con su id, tipo y extremos.")
+    @Tool(name = "list_relationships", description = "Lista las relaciones del diagrama actual (asociaciones, generalizaciones, agregaciones, composiciones, realizaciones, clases de asociación) con su id, tipo y extremos.")
     public List<RelationshipResult> listRelationships(ToolContext ctx) {
         recorder(ctx).record("read", "relationships", "", "ok");
         return relationshipService.getRelationships(diagram(ctx));
     }
 
-    @Tool(name = "create_relationship", description = "Crea una relación entre dos elementos. relationshipType: association, aggregation, composition, generalization, realization, dependency, association_class o template_binding. Usa list_elements para los ids.")
+    @Tool(name = "create_relationship", description = "Crea una relación entre dos elementos. relationshipType: association, aggregation, composition, generalization, realization o association_class. Usa list_elements para los ids.")
     public Map<String, Object> createRelationship(
             @ToolParam(description = "Id del elemento origen") String sourceElementId,
             @ToolParam(description = "Id del elemento destino") String targetElementId,

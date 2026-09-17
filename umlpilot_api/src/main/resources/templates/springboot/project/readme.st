@@ -10,20 +10,16 @@ Sigue el patrón clásico de 4 capas (Model → Repository → Service → Contr
 
 ## Base de datos
 
-Por defecto usa **H2 en archivo**, con el fichero en la ruta raíz `/data` (configurable con `H2_DATA_PATH`):
+Por defecto usa **H2 en archivo**; el fichero se guarda en la ruta `H2_DATA_PATH` (por defecto `./data`).
 
 | Variable        | Valor por defecto |
 |-----------------|-------------------|
-| `H2_DATA_PATH`  | `/data`           |
+| `H2_DATA_PATH`  | `./data`          |
 | `H2_USER`       | `sa`              |
 | `H2_PASSWORD`   | (vacío)           |
-| `SERVER_PORT`   | `8080`            |
+| `SERVER_PORT`   | `8081`            |
 
-Para usar **PostgreSQL** activa el perfil `postgres` (`src/main/resources/application-postgres.yml`):
-
-```bash
-SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
-```
+Para usar **PostgreSQL**, activa el perfil `postgres` (`src/main/resources/application-postgres.yml`):
 
 | Variable      | Valor por defecto |
 |---------------|-------------------|
@@ -35,14 +31,47 @@ SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
 
 ## Ejecución
 
+Con **H2** (por defecto):
+
 ```bash
 mvn spring-boot:run
 ```
 
+Con **PostgreSQL** (perfil `postgres`):
+
+```bash
+# Linux / macOS
+SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run
+```
+
+```bat
+REM Windows (CMD)
+set SPRING_PROFILES_ACTIVE=postgres
+mvn spring-boot:run
+```
+
+```powershell
+# Windows (PowerShell)
+\$env:SPRING_PROFILES_ACTIVE = "postgres"
+mvn spring-boot:run
+```
+
+Empaquetar y ejecutar el `.jar`:
+
+```bash
+mvn clean package
+
+# H2 (por defecto)
+java -jar target/generated-backend-0.0.1-SNAPSHOT.jar
+
+# PostgreSQL
+SPRING_PROFILES_ACTIVE=postgres java -jar target/generated-backend-0.0.1-SNAPSHOT.jar
+```
+
 ## Documentación y salud
 
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- Health check: http://localhost:8080/actuator/health
+- Swagger UI: http://localhost:8081/swagger-ui.html
+- Health check: http://localhost:8081/actuator/health
 
 ## Entidades generadas
 

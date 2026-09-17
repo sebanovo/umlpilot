@@ -17,8 +17,6 @@ const TYPE_LABELS: Record<string, string> = {
   aggregation: 'Aggregate',
   association_class: 'Association Class',
   realization: 'Realize',
-  template_binding: 'Template Binding',
-  dependency: 'Dependency',
 }
 
 interface MultOption { text: string; value: string; min: number | null; max: number | null }

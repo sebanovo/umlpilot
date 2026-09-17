@@ -20,8 +20,6 @@ public class RelationshipPersistenceAdapter implements RelationshipRepository {
         e.setRelationshipType(rel.getRelationshipType());
         e.setName(rel.getName());
         e.setDirection(rel.getDirection());
-        e.setIsTemplateBinding(rel.getIsTemplateBinding());
-        e.setTemplateClass(rel.getTemplateClass());
         e.setAssociationClassElementId(rel.getAssociationClassElementId());
         e.setSourceHandle(rel.getSourceHandle());
         e.setTargetHandle(rel.getTargetHandle());
@@ -36,6 +34,6 @@ public class RelationshipPersistenceAdapter implements RelationshipRepository {
     @Override public void delete(RelationshipId id) { jpa.deleteById(id.value()); }
 
     private Relationship toDomain(RelationshipJpaEntity e) {
-        return Relationship.reconstitute(RelationshipId.from(e.getId()), DiagramId.from(e.getDiagramId()), ElementId.from(e.getSourceElementId()), ElementId.from(e.getTargetElementId()), e.getRelationshipType(), e.getName(), e.getDirection(), e.getIsTemplateBinding(), e.getTemplateClass(), e.getAssociationClassElementId(), e.getSourceHandle(), e.getTargetHandle(), e.getCreatedAt(), e.getUpdatedAt());
+        return Relationship.reconstitute(RelationshipId.from(e.getId()), DiagramId.from(e.getDiagramId()), ElementId.from(e.getSourceElementId()), ElementId.from(e.getTargetElementId()), e.getRelationshipType(), e.getName(), e.getDirection(), e.getAssociationClassElementId(), e.getSourceHandle(), e.getTargetHandle(), e.getCreatedAt(), e.getUpdatedAt());
     }
 }

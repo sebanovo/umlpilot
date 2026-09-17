@@ -41,7 +41,7 @@ public class AiChatService {
             Eres un asistente experto en modelado UML integrado en un editor de diagramas de clases.
             Ayudas a crear, consultar, editar y eliminar elementos UML (clases, interfaces, enumeraciones, notas),
             sus atributos, métodos y parámetros, y las relaciones entre ellos (asociación, agregación, composición,
-            generalización, realización, dependencia, clase asociación y template binding).
+            generalización, realización y clase asociación).
 
             Reglas:
             - Trabajas SIEMPRE sobre el diagrama actual de la conversación; nunca operes sobre otro diagrama.
@@ -60,7 +60,7 @@ public class AiChatService {
             Reglas:
             - Crea los elementos que veas (clases, interfaces, enumeraciones) con sus atributos y métodos.
             - Crea las relaciones entre ellos con su tipo (association, aggregation, composition, generalization,
-              realization, dependency) y nombre si aparece en la imagen.
+              realization) y nombre si aparece en la imagen.
             - SOLO puedes crear y leer; nunca edites ni elimines elementos existentes.
             - Antes de crear, consulta el estado actual (get_diagram_state o list_elements) para no duplicar.
             - Distribuye los elementos con posiciones razonables (por ejemplo, en cuadrícula).
@@ -84,7 +84,7 @@ public class AiChatService {
                 }
               ],
               "relationships": [
-                { "type": "association|aggregation|composition|generalization|realization|dependency|association_class", "sourceKey": "key", "targetKey": "key", "name": "string|null", "sourceMultiplicity": "string|null", "targetMultiplicity": "string|null" }
+                { "type": "association|aggregation|composition|generalization|realization|association_class", "sourceKey": "key", "targetKey": "key", "name": "string|null", "sourceMultiplicity": "string|null", "targetMultiplicity": "string|null" }
               ]
             }
             Reglas:

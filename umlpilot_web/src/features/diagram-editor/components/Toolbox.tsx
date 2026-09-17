@@ -30,8 +30,6 @@ const RELATIONSHIP_ICONS: Record<string, { id: string; viewBox: string }> = {
   aggregation: { id: 'Aggregation', viewBox: '16.5 177 14 14' },
   association_class: { id: 'AssociationClass', viewBox: '96 80.5 16 15' },
   realization: { id: 'Realization', viewBox: '96 96.5 15.5 14' },
-  template_binding: { id: 'Dependency', viewBox: '65 80.5 15 14' },
-  dependency: { id: 'Dependency', viewBox: '65 80.5 15 14' },
 }
 
 const elementTypes = [
@@ -48,8 +46,6 @@ const relationshipTypes = [
   { type: 'aggregation', label: 'Aggregate' },
   { type: 'association_class', label: 'Asoc. Class' },
   { type: 'realization', label: 'Realize' },
-  // { type: 'template_binding', label: 'Template' },
-  // { type: 'dependency', label: 'Dependency' },
 ]
 
 interface ToolboxProps {

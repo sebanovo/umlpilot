@@ -56,7 +56,7 @@ El sistema SHALL exponer al modelo tools para crear, listar, actualizar y elimin
 - **THEN** el asistente elimina la entidad (y los parámetros del método si aplica)
 
 ### Requirement: Tools de relaciones UML
-El sistema SHALL exponer al modelo tools para crear, listar, actualizar y eliminar relaciones (association, aggregation, composition, generalization, realization, dependency, association_class, template_binding), incluyendo nombre, dirección y multiplicidades.
+El sistema SHALL exponer al modelo tools para crear, listar, actualizar y eliminar relaciones (association, aggregation, composition, generalization, realization, association_class), incluyendo nombre, dirección y multiplicidades.
 
 #### Scenario: Crear asociación
 - **WHEN** el usuario pide "relaciona Cliente con Pedido"

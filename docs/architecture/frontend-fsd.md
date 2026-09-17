@@ -182,7 +182,7 @@ export interface UmlAttribute {
 
 export interface UmlRelation {
   id: string;
-  type: 'inheritance' | 'association' | 'aggregation' | 'composition' | 'dependency';
+  type: 'generalization' | 'association' | 'aggregation' | 'composition' | 'realization';
   sourceId: string;
   targetId: string;
   multiplicity?: string;

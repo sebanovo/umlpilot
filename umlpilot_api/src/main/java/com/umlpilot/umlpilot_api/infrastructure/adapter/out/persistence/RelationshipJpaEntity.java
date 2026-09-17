@@ -13,8 +13,6 @@ public class RelationshipJpaEntity {
     @Column(name = "relationship_type", nullable = false) private String relationshipType;
     private String name;
     private String direction;
-    @Column(name = "is_template_binding") private Boolean isTemplateBinding;
-    @Column(name = "template_class") private String templateClass;
     @Column(name = "association_class_element_id") private String associationClassElementId;
     @Column(name = "source_handle") private String sourceHandle;
     @Column(name = "target_handle") private String targetHandle;
@@ -39,10 +37,6 @@ public class RelationshipJpaEntity {
     public void setName(String name) { this.name = name; }
     public String getDirection() { return direction; }
     public void setDirection(String direction) { this.direction = direction; }
-    public Boolean getIsTemplateBinding() { return isTemplateBinding; }
-    public void setIsTemplateBinding(Boolean isTemplateBinding) { this.isTemplateBinding = isTemplateBinding; }
-    public String getTemplateClass() { return templateClass; }
-    public void setTemplateClass(String templateClass) { this.templateClass = templateClass; }
     public String getAssociationClassElementId() { return associationClassElementId; }
     public void setAssociationClassElementId(String associationClassElementId) { this.associationClassElementId = associationClassElementId; }
     public String getSourceHandle() { return sourceHandle; }

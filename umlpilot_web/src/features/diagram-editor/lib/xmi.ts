@@ -129,7 +129,7 @@ export function buildXmi(input: XmiInput): string {
 
   // Relationship types that we actually materialise in the UML model; anything
   // else would leave a dangling modelElement reference in the diagram.
-  const MODELED_TYPES = new Set(['association', 'aggregation', 'composition', 'association_class', 'dependency', 'template_binding', 'generalization', 'realization'])
+  const MODELED_TYPES = new Set(['association', 'aggregation', 'composition', 'association_class', 'generalization', 'realization'])
   const modeledRel = (rel: UmlRelationshipApi) => validRel(rel) && MODELED_TYPES.has(rel.relationshipType)
 
   const out: string[] = []
@@ -217,11 +217,6 @@ export function buildXmi(input: XmiInput): string {
       emitMethods(clsEl.id, 4)
     }
     out.push(`${p(3)}</packagedElement>`)
-  }
-  for (const rel of relationships) {
-    if (rel.relationshipType !== 'dependency' && rel.relationshipType !== 'template_binding') continue
-    if (!validRel(rel)) continue
-    out.push(`${p(3)}<packagedElement xmi:type="uml:Dependency" xmi:id="${xid(rel.id)}" name="${esc(rel.name)}" client="${xid(rel.sourceElementId)}" supplier="${xid(rel.targetElementId)}"/>`)
   }
 
   out.push(`${p(2)}</packagedElement>`)
@@ -342,7 +337,7 @@ export function buildXmi(input: XmiInput): string {
   out.push(`${p(2)}</elements>`)
 
   // connectors
-  const connRels = relationships.filter((r) => validRel(r) && ['association', 'aggregation', 'composition', 'association_class', 'generalization', 'realization', 'dependency', 'template_binding'].includes(r.relationshipType))
+  const connRels = relationships.filter((r) => validRel(r) && ['association', 'aggregation', 'composition', 'association_class', 'generalization', 'realization'].includes(r.relationshipType))
   out.push(`${p(2)}<connectors>`)
   for (const rel of connRels) {
     const isGen = rel.relationshipType === 'generalization'
@@ -375,7 +370,7 @@ export function buildXmi(input: XmiInput): string {
     out.push(`${p(5)}<modifiers isOrdered="false" isNavigable="true"/>`)
     out.push(`${p(5)}<documentation/>`)
     out.push(`${p(4)}</target>`)
-    const eaType = isGen ? 'Generalization' : isReal ? 'Realization' : rel.relationshipType === 'dependency' ? 'Dependency' : 'Association'
+    const eaType = isGen ? 'Generalization' : isReal ? 'Realization' : 'Association'
     out.push(`${p(4)}<properties ea_type="${eaType}"${isAssocClass ? ' subtype="Class"' : ''} direction="${isGen ? 'Source -&gt; Destination' : 'Unspecified'}"/>`)
     out.push(`${p(4)}<modifiers isRoot="false" isLeaf="false"/>`)
     out.push(`${p(4)}<appearance linemode="3" linecolor="-1" linewidth="0" seqno="0" headStyle="0" lineStyle="0"/>`)

@@ -7,7 +7,7 @@ import { useWebSocket } from '../../../shared/lib/useWebSocket'
 
 const EDGE_TYPES = new Set([
   'association', 'association_class', 'generalization', 'realization',
-  'dependency', 'aggregation', 'composition', 'template_binding',
+  'aggregation', 'composition',
 ])
 
 function edgeTypeFor(relType?: string | null): string {

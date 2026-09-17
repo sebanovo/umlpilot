@@ -226,11 +226,10 @@ CREATE TABLE relationship (
     diagram_id VARCHAR(36) NOT NULL,
     source_element_id VARCHAR(36) NOT NULL,
     target_element_id VARCHAR(36) NOT NULL,
-    relationship_type VARCHAR(30) NOT NULL, -- association, generalization, dependency, aggregation, composition, realization, template_binding
+    relationship_type VARCHAR(30) NOT NULL, -- association, generalization, aggregation, composition, realization, association_class
     name VARCHAR(100),
     direction VARCHAR(10), -- bidirectional, unidirectional
-    is_template_binding BOOLEAN DEFAULT FALSE,
-    template_class VARCHAR(100),
+    association_class_element_id VARCHAR(36),
     properties JSON,
     FOREIGN KEY (diagram_id) REFERENCES diagram(diagram_id),
     FOREIGN KEY (source_element_id) REFERENCES element(element_id),
@@ -246,16 +245,6 @@ CREATE TABLE multiplicity (
     max INTEGER DEFAULT 1,
     is_ordered BOOLEAN DEFAULT FALSE,
     is_unique BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (relationship_id) REFERENCES relationship(relationship_id) ON DELETE CASCADE
-);
-
--- Table: template_binding (for Template Binding)
-CREATE TABLE template_binding (
-    binding_id VARCHAR(36) PRIMARY KEY,
-    relationship_id VARCHAR(36) NOT NULL,
-    formal_parameter VARCHAR(100) NOT NULL,
-    actual_argument VARCHAR(100) NOT NULL,
-    position INTEGER DEFAULT 0,
     FOREIGN KEY (relationship_id) REFERENCES relationship(relationship_id) ON DELETE CASCADE
 );
 
@@ -421,7 +410,6 @@ CREATE INDEX idx_relationship_diagram ON relationship(diagram_id);
 CREATE INDEX idx_relationship_source ON relationship(source_element_id);
 CREATE INDEX idx_relationship_target ON relationship(target_element_id);
 CREATE INDEX idx_multiplicity_relationship ON multiplicity(relationship_id);
-CREATE INDEX idx_template_binding_relationship ON template_binding(relationship_id);
 CREATE INDEX idx_diagram_project ON diagram(project_id);
 CREATE INDEX idx_change_history_diagram ON change_history(diagram_id);
 CREATE INDEX idx_change_history_user ON change_history(user_id);

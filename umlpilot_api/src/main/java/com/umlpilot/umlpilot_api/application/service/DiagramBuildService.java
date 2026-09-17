@@ -250,9 +250,7 @@ public class DiagramBuildService {
             case "composition", "composicion" -> "composition";
             case "generalization", "generalizacion", "herencia", "inheritance" -> "generalization";
             case "realization", "realizacion", "implementation" -> "realization";
-            case "dependency", "dependencia" -> "dependency";
             case "association_class", "clase_asociacion" -> "association_class";
-            case "template_binding" -> "template_binding";
             default -> "association";
         };
     }

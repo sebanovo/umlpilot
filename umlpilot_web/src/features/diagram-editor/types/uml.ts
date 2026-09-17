@@ -65,7 +65,7 @@ export interface UmlRelationship {
   diagramId: string
   sourceElementId: string
   targetElementId: string
-  relationshipType: 'association' | 'generalization' | 'dependency' | 'aggregation' | 'composition' | 'realization'
+  relationshipType: 'association' | 'generalization' | 'aggregation' | 'composition' | 'realization'
   name?: string
   direction: string
 }

@@ -5,7 +5,7 @@ import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
 import { EnumNode } from './EnumNode'
 import { NoteNode } from './NoteNode'
-import { AssociationEdge, AssociationClassEdge, GeneralizationEdge, RealizationEdge, DependencyEdge, TemplateBindingEdge, AggregationEdge, CompositionEdge } from './UmlEdges'
+import { AssociationEdge, AssociationClassEdge, GeneralizationEdge, RealizationEdge, AggregationEdge, CompositionEdge } from './UmlEdges'
 import type { RemoteCursor } from '../../../shared/lib/useWebSocket'
 
 interface DiagramCanvasProps {
@@ -40,8 +40,6 @@ const edgeTypes: EdgeTypes = {
   association_class: AssociationClassEdge as any,
   generalization: GeneralizationEdge as any,
   realization: RealizationEdge as any,
-  dependency: DependencyEdge as any,
-  template_binding: TemplateBindingEdge as any,
   aggregation: AggregationEdge as any,
   composition: CompositionEdge as any,
 }

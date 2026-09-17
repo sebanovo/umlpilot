@@ -61,7 +61,7 @@ El sistema SHALL imponer un tope máximo de entidades generables y SHALL rechaza
 - **THEN** el sistema responde HTTP 400 con un mensaje que indica el límite superado
 
 ### Requirement: Estructura del proyecto generado
-El proyecto `.zip` SHALL contener `pom.xml`, `README.md`, `.gitignore`, `src/main/resources/application.yml`, `src/main/resources/application-postgres.yml` y, bajo `src/main/java`, la clase de arranque `GeneratedApplication` y los paquetes `model`, `repository`, `service`, `controller`, `dto` y `config`. El `pom.xml` SHALL declarar dependencias de Spring Boot Web, Spring Data JPA, H2, PostgreSQL, Lombok, SpringDoc OpenAPI y Validation. El `application.yml` principal SHALL usar H2 en archivo con la ruta raíz `/data` por defecto, y el perfil secundario `postgres` SHALL usar PostgreSQL.
+El proyecto `.zip` SHALL contener `pom.xml`, `README.md`, `.gitignore`, `src/main/resources/application.yml`, `src/main/resources/application-postgres.yml` y, bajo `src/main/java`, la clase de arranque `GeneratedApplication` y los paquetes `model`, `repository`, `service`, `controller`, `dto` y `config`. El `pom.xml` SHALL declarar dependencias de Spring Boot Web, Spring Data JPA, H2, PostgreSQL, Lombok, SpringDoc OpenAPI y Validation. El `application.yml` principal SHALL usar H2 en archivo con una ruta de datos configurable (`H2_DATA_PATH`, por defecto `./data`), y el perfil secundario `postgres` SHALL usar PostgreSQL.
 
 #### Scenario: Contenido y estructura del `.zip`
 - **WHEN** se inspecciona el `.zip` generado
@@ -69,7 +69,7 @@ El proyecto `.zip` SHALL contener `pom.xml`, `README.md`, `.gitignore`, `src/mai
 
 #### Scenario: Base de datos por defecto
 - **WHEN** se ejecuta el backend generado sin activar ningún perfil
-- **THEN** arranca con H2 en modo archivo, guardando el fichero en la ruta raíz `/data`
+- **THEN** arranca con H2 en modo archivo, guardando el fichero en la ruta configurada (`./data` por defecto)
 
 #### Scenario: Perfil secundario de PostgreSQL
 - **WHEN** se ejecuta el backend generado con el perfil `postgres` activo

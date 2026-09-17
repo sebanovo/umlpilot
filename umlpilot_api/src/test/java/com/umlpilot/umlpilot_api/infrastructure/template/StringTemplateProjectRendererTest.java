@@ -78,13 +78,13 @@ class StringTemplateProjectRendererTest {
     }
 
     @Test
-    void applicationYmlDefaultsToH2WithRootDataPath() {
+    void applicationYmlDefaultsToH2WithConfigurableDataPath() {
         BackendModel model = builder.build(SnapshotFixtures.threeClassesWithRelations());
         Map<String, String> files = renderer.render(model);
 
         String yml = files.get("src/main/resources/application.yml");
-        assertTrue(yml.contains("jdbc:h2:file:${H2_DATA_PATH:/data}/generated_db"),
-                "H2 debe usar la ruta raíz /data: " + yml);
+        assertTrue(yml.contains("jdbc:h2:file:${H2_DATA_PATH:./data}/generated_db"),
+                "H2 debe usar un archivo con ruta configurable: " + yml);
         assertTrue(yml.contains("org.h2.Driver"), "debe usar el driver de H2");
         assertTrue(yml.contains("globally_quoted_identifiers: true"),
                 "debe citar identificadores para admitir palabras reservadas: " + yml);

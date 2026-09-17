@@ -3,3 +3,8 @@
 
 # Variables de entorno
 .env
+
+# Base de datos H2 local (archivo)
+data/
+**/data/*.mv.db
+**/data/*.trace.db

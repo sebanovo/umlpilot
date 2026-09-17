@@ -20,6 +20,17 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+/** Cierra la sesión local y navega al login (redirección de página completa). */
+function redirectToLogin() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('user')
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
 async function authFetch(path: string, options: RequestInit = {}, isRetry = false): Promise<unknown> {
   const token = localStorage.getItem('accessToken')
   const headers: Record<string, string> = {
@@ -36,6 +47,9 @@ async function authFetch(path: string, options: RequestInit = {}, isRetry = fals
     if (newToken) {
       return authFetch(path, options, true)
     }
+  }
+  if (res.status === 401) {
+    redirectToLogin()
   }
 
   if (!res.ok) {
@@ -59,6 +73,9 @@ async function authUpload(path: string, formData: FormData, isRetry = false): Pr
     if (newToken) {
       return authUpload(path, formData, true)
     }
+  }
+  if (res.status === 401) {
+    redirectToLogin()
   }
 
   if (!res.ok) {
@@ -86,6 +103,9 @@ async function authDownload(path: string, isRetry = false): Promise<DownloadedFi
     if (newToken) {
       return authDownload(path, true)
     }
+  }
+  if (res.status === 401) {
+    redirectToLogin()
   }
 
   if (!res.ok) {

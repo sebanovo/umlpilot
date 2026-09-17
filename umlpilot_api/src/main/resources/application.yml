@@ -1,7 +1,11 @@
 spring:
   application:
     name: umlpilot_api
-  
+
+  # Perfil activo (vacío = PostgreSQL por defecto; usa 'h2' para H2 en archivo)
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:}
+
   # Configuración de la base de datos PostgreSQL con variables de entorno
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:umlpilot_db}
@@ -14,7 +18,7 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
-  
+
   # Configuración de JPA
   jpa:
     database: POSTGRESQL

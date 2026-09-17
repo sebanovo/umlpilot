@@ -218,11 +218,9 @@ CREATE TABLE relacion (
     id_diagrama VARCHAR(36) NOT NULL,
     id_elemento_origen VARCHAR(36) NOT NULL,
     id_elemento_destino VARCHAR(36) NOT NULL,
-    tipo_relacion VARCHAR(30) NOT NULL, -- asociacion, herencia, dependencia, agregacion, composicion, realizacion, template_binding
+    tipo_relacion VARCHAR(30) NOT NULL, -- asociacion, generalizacion, agregacion, composicion, realizacion, asociacion_clase
     nombre VARCHAR(100),
     direccion VARCHAR(10), -- bidireccional, unidireccional
-    es_vinculacion_plantilla BOOLEAN DEFAULT FALSE,
-    clase_plantilla VARCHAR(100),
     propiedades JSON,
     FOREIGN KEY (id_diagrama) REFERENCES diagrama(id_diagrama),
     FOREIGN KEY (id_elemento_origen) REFERENCES elemento(id_elemento),
@@ -238,16 +236,6 @@ CREATE TABLE multiplicidad (
     max INTEGER DEFAULT 1,
     es_ordenada BOOLEAN DEFAULT FALSE,
     es_unica BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (id_relacion) REFERENCES relacion(id_relacion) ON DELETE CASCADE
-);
-
--- Tabla: vinculacion_plantilla (para Template Binding)
-CREATE TABLE vinculacion_plantilla (
-    id_vinculacion VARCHAR(36) PRIMARY KEY,
-    id_relacion VARCHAR(36) NOT NULL,
-    parametro_formal VARCHAR(100) NOT NULL,
-    argumento_real VARCHAR(100) NOT NULL,
-    posicion INTEGER DEFAULT 0,
     FOREIGN KEY (id_relacion) REFERENCES relacion(id_relacion) ON DELETE CASCADE
 );
 
@@ -413,7 +401,6 @@ CREATE INDEX idx_relacion_diagrama ON relacion(id_diagrama);
 CREATE INDEX idx_relacion_origen ON relacion(id_elemento_origen);
 CREATE INDEX idx_relacion_destino ON relacion(id_elemento_destino);
 CREATE INDEX idx_multiplicidad_relacion ON multiplicidad(id_relacion);
-CREATE INDEX idx_vinculacion_relacion ON vinculacion_plantilla(id_relacion);
 CREATE INDEX idx_diagrama_proyecto ON diagrama(id_proyecto);
 CREATE INDEX idx_historial_diagrama ON historial_cambio(id_diagrama);
 CREATE INDEX idx_historial_usuario ON historial_cambio(id_usuario);

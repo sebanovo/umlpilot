@@ -1,4 +1,4 @@
-import { Square, Diamond, Triangle, StickyNote, ArrowRight, GitBranch, Link2, Circle } from 'lucide-react'
+import { Square, Diamond, Triangle, StickyNote, ArrowRight, GitBranch, Circle } from 'lucide-react'
 
 interface ToolbarProps {
   onAddElement: (type: string) => void
@@ -20,8 +20,6 @@ const relationshipTypes = [
   { type: 'aggregation', label: 'Aggregate', icon: Circle },
   { type: 'association_class', label: 'Association Class', icon: Square },
   { type: 'realization', label: 'Realize', icon: Triangle },
-  { type: 'template_binding', label: 'Template Binding', icon: Link2 },
-  { type: 'dependency', label: 'Dependency', icon: Link2 },
 ]
 
 export function Toolbar({ onAddElement, activeRelationship, onSelectRelationship }: ToolbarProps) {

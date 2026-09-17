@@ -6,7 +6,7 @@ Ver `proposal.md - Why`. Estado y restricciones que condicionan el diseño:
 - El modelo UML ya se persiste y se lee con `ElementService` (elementos, atributos, métodos, parámetros, literales) y `RelationshipService` (relaciones y multiplicidades con extremos `source`/`target`). No existe hoy un read-model que componga el diagrama completo; `UmlTools.getDiagramState` lo hace de forma ad-hoc para la IA.
 - Los controladores usan `@RequestMapping` con la ruta `…/projects/{projectId}/diagrams/{diagramId}/…`, validan existencia del diagrama con `DiagramService` y traducen `DomainException` a 400. La autenticación es JWT vía `JwtAuthenticationFilter`; `SecurityConfig` protege `/api/**`.
 - La exportación XMI es **exclusivamente de frontend** (`lib/xmi.ts` + descarga con `Blob` en `DiagramEditorPage`); no hay precedente de descarga binaria desde el backend.
-- Tipos de relación existentes: `association`, `association_class`, `generalization`, `realization`, `dependency`, `aggregation`, `composition`, `template_binding` (`types/uml.ts`, `UmlEdges.tsx`). Tipos de elemento: `class`, `interface`, `enumeration`, `note`.
+- Tipos de relación soportados: `association`, `association_class`, `generalization`, `realization`, `aggregation`, `composition` (`types/uml.ts`, `UmlEdges.tsx`). Tipos de elemento: `class`, `interface`, `enumeration`, `note`.
 - No hay motor de plantillas ni `zip` en el `pom.xml`; `springdoc` está configurado en `application.yml` pero no como dependencia.
 
 ## Goals / Non-Goals
@@ -80,14 +80,14 @@ Una clase `BackendModel` (records internos, en `application/generation` o `appli
 - `app.code-generation.max-classes` (env `CODE_GENERATION_MAX_CLASSES`, default 100) y `app.code-generation.base-package` (default `com.generated`).
 
 ### 11. Base de datos del proyecto generado
-- Por defecto, **H2 en archivo** con el fichero en la ruta raíz `/data` (configurable con `H2_DATA_PATH`), para que el backend generado arranque sin infraestructura externa. *Alternativa:* PostgreSQL por defecto (rechazada: obligaba a tener un servidor para probar).
+- Por defecto, **H2 en archivo** con una ruta de datos configurable (`H2_DATA_PATH`, por defecto `./data`), para que el backend generado arranque sin infraestructura externa. *Alternativa:* PostgreSQL por defecto (rechazada: obligaba a tener un servidor para probar).
 - **PostgreSQL** vive en un perfil secundario (`application-postgres.yml`), activable con `SPRING_PROFILES_ACTIVE=postgres`; el `pom.xml` declara ambos drivers y Spring elige el datasource del perfil.
 - El proyecto generado activa `hibernate.globally_quoted_identifiers: true` para que nombres de atributo que son **palabras reservadas SQL** (p. ej. `value`, que en H2 2.x rompe el `create table`) funcionen igual en H2 y PostgreSQL.
-- Misma convención aplicada al propio UmlPilot: `application.yml` con H2 (`/data`) y `application-postgres.yml` con PostgreSQL. En UmlPilot se usa `NON_KEYWORDS=VALUE` en la URL de H2 (la tabla `literal` tiene una columna `value`) en lugar de citar identificadores, para no alterar el esquema existente de los usuarios de PostgreSQL.
+- Misma convención aplicada al propio UmlPilot, pero invertida: `application.yml` usa **PostgreSQL** por defecto y `application-h2.yml` define el perfil secundario `h2` (archivo, `H2_DATA_PATH`, por defecto `./data`). En UmlPilot se usa `NON_KEYWORDS=VALUE` en la URL de H2 (la tabla `literal` tiene una columna `value`) en lugar de citar identificadores, para no alterar el esquema existente de los usuarios de PostgreSQL.
 
 ## Risks / Trade-offs
 
-- **El fichero H2 en `/data`** depende de permisos de escritura en esa ruta → Mitigación: la ruta es configurable con `H2_DATA_PATH`; en Windows `/data` resuelve a `C:\data`.
+- **El fichero H2 en la ruta de datos** depende de permisos de escritura en esa ruta → Mitigación: la ruta es configurable con `H2_DATA_PATH`.
 - **Pluralización/`snake_case` heurísticos** → Mitigación: función simple y determinista, cubierta por tests unitarios y documentada en el `README` del proyecto generado.
 - **Fallo tras comenzar el stream** deja la descarga corrupta sin poder cambiarse el HTTP → Mitigación: validar y renderizar todo antes de abrir el `ZipOutputStream`.
 - **`StreamingResponseBody` se ejecuta en otro hilo** (sin `SecurityContext`) → Mitigación: resolver usuario/validar acceso de forma síncrona antes de devolver la respuesta; el render no necesita el contexto.
