@@ -1,3 +1,8 @@
 {
+  "dart.flutterCreatePlatforms": [
+    "android",
+    "web"
+  ],
+  "dart.runPubGetOnPubspecChanges": "prompt",
   "java.configuration.updateBuildConfiguration": "interactive"
 }
