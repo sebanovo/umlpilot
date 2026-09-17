@@ -37,6 +37,11 @@ class GeneratedBackendCompilationTest {
         compile(SnapshotFixtures.reportedDiagram(), tempDir.resolve("reported"));
     }
 
+    @Test
+    void associationClassDiagramCompiles() throws Exception {
+        compile(SnapshotFixtures.associationClass(), tempDir.resolve("association-class"));
+    }
+
     private void compile(DiagramSnapshot snapshot, Path projectDir) throws Exception {
         var model = new BackendModelBuilder(new CodeGenerationProperties()).build(snapshot);
         Map<String, String> files = new StringTemplateProjectRenderer(new DefaultResourceLoader()).render(model);

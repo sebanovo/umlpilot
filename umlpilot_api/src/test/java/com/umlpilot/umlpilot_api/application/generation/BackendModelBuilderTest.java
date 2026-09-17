@@ -114,4 +114,20 @@ class BackendModelBuilderTest {
         assertTrue(cliente.accessorDeclarations().stream().anyMatch(a -> a.contains("public void setNombre(String nombre)")));
         assertTrue(cliente.accessorDeclarations().stream().anyMatch(a -> a.contains("public Long getId()")));
     }
+
+    @Test
+    void mapsAssociationClassAsJoinEntityWithBothForeignKeys() {
+        BackendModel model = builder.build(SnapshotFixtures.associationClass());
+
+        BackendModel.Entity link = entity(model, "PedidoProducto");
+        assertEquals(2, link.references().size());
+        assertTrue(link.references().stream().allMatch(BackendModel.Reference::manyToOne),
+                "las dos referencias de la clase asociación deben ser @ManyToOne");
+        assertTrue(link.references().stream().anyMatch(r -> "Pedido".equals(r.targetClassName())));
+        assertTrue(link.references().stream().anyMatch(r -> "Producto".equals(r.targetClassName())));
+
+        // Los extremos NO llevan @ManyToMany: la tabla intermedia es la propia clase asociación.
+        assertTrue(entity(model, "Pedido").references().isEmpty());
+        assertTrue(entity(model, "Producto").references().isEmpty());
+    }
 }

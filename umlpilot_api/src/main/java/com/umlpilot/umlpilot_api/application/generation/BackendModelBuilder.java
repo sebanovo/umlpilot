@@ -93,6 +93,22 @@ public class BackendModelBuilder {
             return;
         }
 
+        String type = (relationship.type() == null || relationship.type().isBlank())
+                ? "association"
+                : relationship.type().trim().toLowerCase(Locale.ROOT);
+        EntityBuilder associationClass = (relationship.associationClassElementId() == null)
+                ? null
+                : byElementId.get(relationship.associationClassElementId());
+
+        // La clase asociación es la entidad enlace del muchos-a-muchos: tiene las dos claves
+        // foráneas (@ManyToOne a cada extremo) en lugar de una tabla intermedia aparte.
+        if ("association_class".equals(type) && associationClass != null
+                && associationClass != source && associationClass != target) {
+            associationClass.addManyToOne(source, true);
+            associationClass.addManyToOne(target, true);
+            return;
+        }
+
         boolean sourceMany = isMany(relationship.sourceMultiplicity());
         boolean targetMany = isMany(relationship.targetMultiplicity());
 
