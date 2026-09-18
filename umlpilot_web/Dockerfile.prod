@@ -3,19 +3,17 @@
 # Build:  docker build -t umlpilot-web:latest -f Dockerfile.prod .
 # ============================================================
 
-# ---------- Etapa 1: build con Node + pnpm ----------
+# ---------- Etapa 1: build con Node + npm ----------
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# El pnpm-lock.yaml está en formato 6.0 (pnpm 8)
-RUN npm install -g pnpm@8.7.1
-
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# npm ci instala exactamente lo del package-lock.json
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 COPY . .
-RUN pnpm run build
+RUN npm run build
 
 # ---------- Etapa 2: servir con nginx ----------
 FROM nginx:stable-alpine

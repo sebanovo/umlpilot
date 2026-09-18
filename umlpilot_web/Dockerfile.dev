@@ -6,11 +6,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# El pnpm-lock.yaml está en formato 6.0 (pnpm 8)
-RUN npm install -g pnpm@8.7.1
-
 EXPOSE 5173
 
 # Instala dependencias (en el volumen node_modules) y arranca el dev server
 # accesible desde el host. --host 0.0.0.0 es necesario dentro de un contenedor.
-CMD ["sh", "-c", "pnpm install && pnpm dev --host 0.0.0.0"]
+CMD ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"]
