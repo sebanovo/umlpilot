@@ -1,0 +1,18 @@
+# Dependencias (se instalan dentro de la imagen)
+node_modules/
+
+# Salida de build (se genera dentro de la imagen)
+dist/
+
+# Secretos y configuración local
+.env
+.env.prod
+
+# Metadatos de IDE
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git
+.gitignore

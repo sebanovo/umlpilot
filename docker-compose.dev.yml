@@ -1,0 +1,98 @@
+# ============================================================
+# UmlPilot - entorno de DESARROLLO (con recarga en caliente)
+#
+#   Levantar:  docker compose -f docker-compose.dev.yml up --build
+#   Frontend:  http://localhost:${FRONTEND_PORT}   (Vite dev server)
+#   Backend:   http://localhost:${SERVER_PORT}
+#
+#   El código se monta como volumen: editas en tu IDE y el contenedor
+#   lo ve. Todo se configura en el .env de la raíz.
+# ============================================================
+
+name: umlpilot-dev
+
+services:
+  # ---------- PostgreSQL ----------
+  umlpilot-db:
+    image: postgres:16-alpine
+    container_name: umlpilot_db_dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - umlpilot_db_dev_data:/var/lib/postgresql/data
+    networks:
+      - umlpilot-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------- Backend (spring-boot:run + devtools) ----------
+  umlpilot-api:
+    build:
+      context: ./umlpilot_api
+      dockerfile: Dockerfile.dev
+    image: umlpilot-api:dev
+    container_name: umlpilot_api_dev
+    restart: unless-stopped
+    depends_on:
+      umlpilot-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Dentro de la red de compose la BD es el servicio, no localhost
+      DB_HOST: umlpilot-db
+      DB_PORT: "5432"
+    volumes:
+      - ./umlpilot_api:/app
+      - maven_cache:/root/.m2
+    ports:
+      - "${SERVER_PORT}:8080"
+    networks:
+      - umlpilot-net
+
+  # ---------- Frontend (Vite dev server + HMR) ----------
+  umlpilot-web:
+    build:
+      context: ./umlpilot_web
+      dockerfile: Dockerfile.dev
+    image: umlpilot-web:dev
+    container_name: umlpilot_web_dev
+    restart: unless-stopped
+    depends_on:
+      - umlpilot-api
+    env_file:
+      - .env
+    environment:
+      # El proxy de Vite (vite.config.ts) apunta al backend dentro de la red
+      VITE_API_URL: http://umlpilot-api:8080
+      VITE_WS_URL: ws://umlpilot-api:8080
+      # HMR fiable con Docker Desktop (Windows/macOS)
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./umlpilot_web:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT}:5173"
+    networks:
+      - umlpilot-net
+
+volumes:
+  umlpilot_db_dev_data:
+  maven_cache:
+  node_modules:
+
+networks:
+  umlpilot-net:
+    # nombre propio para no chocar con el despliegue de producción
+    name: umlpilot-net-dev
+    driver: bridge

@@ -1,0 +1,36 @@
+# ============================================================
+# UmlPilot API - imagen de producción (Java 25 + Spring Boot 4)
+# Build:  docker build -t umlpilot-api:latest -f Dockerfile.prod .
+# ============================================================
+
+# ---------- Etapa 1: build con Maven ----------
+FROM maven:3.9-eclipse-temurin-25 AS builder
+
+WORKDIR /build
+
+# Cachea las dependencias (si falla un artefacto opcional, el package lo reportará)
+COPY pom.xml .
+RUN mvn -B -DskipTests dependency:go-offline || true
+
+COPY src ./src
+RUN mvn -B -DskipTests clean package
+
+# ---------- Etapa 2: runtime ----------
+FROM eclipse-temurin:25-jre
+
+WORKDIR /app
+
+# curl para el healthcheck de Docker Compose
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/target/umlpilot_api-0.0.1-SNAPSHOT.jar app.jar
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
+    CMD curl -fsS http://localhost:8080/actuator/health || exit 1
+
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

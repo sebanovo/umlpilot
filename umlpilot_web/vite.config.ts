@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       global: 'globalThis',
     },
     server: {
-      port: 5173,
+      port: parseInt(env.FRONTEND_PORT),
       proxy: {
         '/api': {
           target: env.VITE_API_URL,

@@ -1,0 +1,23 @@
+# ============================================================
+# UmlPilot API - imagen de DESARROLLO (Java 25 + hot reload)
+# El código se monta como volumen desde docker-compose.dev.yml
+# ============================================================
+FROM eclipse-temurin:25-jdk
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    curl \
+    git \
+    procps \
+    sed \
+    netcat-openbsd \
+    ca-certificates \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+EXPOSE 8080
+
+# Prepara el wrapper (por si el volumen tiene CRLF o le falta permiso) y arranca en modo dev.
+CMD ["bash", "-lc", "sed -i 's/\\r$//' mvnw && chmod +x mvnw && ./mvnw -q spring-boot:run"]

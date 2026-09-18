@@ -1,0 +1,18 @@
+# Artefactos de build de Maven
+target/
+
+# Base de datos H2 local (perfil 'h2')
+data/
+
+# Secretos y configuración local
+.env
+.env.prod
+
+# Metadatos de IDE
+.idea/
+*.iml
+.vscode/
+
+# Git
+.git
+.gitignore
