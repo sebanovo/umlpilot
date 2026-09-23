@@ -42,7 +42,7 @@ services:
     build:
       context: ./umlpilot_api
       dockerfile: Dockerfile.prod
-    image: umlpilot-api:latest
+    image: sebastiandevjs/umlpilot-api:latest
     container_name: umlpilot_api
     restart: unless-stopped
     environment:
@@ -62,7 +62,7 @@ services:
     build:
       context: ./umlpilot_web
       dockerfile: Dockerfile.prod
-    image: umlpilot-web:latest
+    image: sebastiandevjs/umlpilot-web:latest
     container_name: umlpilot_web
     restart: unless-stopped
     depends_on:

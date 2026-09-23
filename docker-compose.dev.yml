@@ -40,7 +40,7 @@ services:
     build:
       context: ./umlpilot_api
       dockerfile: Dockerfile.dev
-    image: umlpilot-api:dev
+    image: sebastiandevjs/umlpilot-api:dev
     container_name: umlpilot_api_dev
     restart: unless-stopped
     depends_on:
@@ -65,7 +65,7 @@ services:
     build:
       context: ./umlpilot_web
       dockerfile: Dockerfile.dev
-    image: umlpilot-web:dev
+    image: sebastiandevjs/umlpilot-web:dev
     container_name: umlpilot_web_dev
     restart: unless-stopped
     depends_on:
