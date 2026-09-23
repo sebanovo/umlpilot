@@ -45,12 +45,15 @@ services:
     image: umlpilot-api:latest
     container_name: umlpilot_api
     restart: unless-stopped
+    environment:
+      # Dentro de la red de compose la BD es el servicio, no localhost
+      DB_HOST: umlpilot-db
+      DB_PORT: "5432"
     depends_on:
       umlpilot-db:
         condition: service_healthy
     env_file:
       - .env
-    ports: []
     networks:
       - umlpilot-net
 
@@ -64,7 +67,6 @@ services:
     restart: unless-stopped
     depends_on:
       - umlpilot-api
-    ports: []
     networks:
       - umlpilot-net
 

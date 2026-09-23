@@ -26,11 +26,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 ## Imágenes (opcional, para publicar en un registro)
 
 ```bash
-docker build -t <usuario>/umlpilot-api:1.0.0 ./umlpilot_api -f ./umlpilot_api/Dockerfile.prod
-docker build -t <usuario>/umlpilot-web:1.0.0 ./umlpilot_web -f ./umlpilot_web/Dockerfile.prod
-docker build -t <usuario>/umlpilot-nginx:1.0.0 ./nginx -f ./nginx/Dockerfile
+docker build -t sebastiandevjs/umlpilot-api:latest ./umlpilot_api -f ./umlpilot_api/Dockerfile.prod
+docker build -t sebastiandevjs/umlpilot-web:latest ./umlpilot_web -f ./umlpilot_web/Dockerfile.prod
 
-docker push <usuario>/umlpilot-api:1.0.0
-docker push <usuario>/umlpilot-web:1.0.0
-docker push <usuario>/umlpilot-nginx:1.0.0
+docker push sebastiandevjs/umlpilot-api:latest
+docker push sebastiandevjs/umlpilot-web:latest
 ```
