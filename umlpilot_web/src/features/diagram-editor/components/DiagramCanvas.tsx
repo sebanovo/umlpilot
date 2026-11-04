@@ -26,6 +26,7 @@ interface DiagramCanvasProps {
   onCreateRelationship?: (sourceId: string, targetId: string, type: string) => void
   onActivateRelationship?: (type: string) => void
   onDropElement?: (type: string, x: number, y: number) => void
+  readOnly?: boolean
 }
 
 const nodeTypes: NodeTypes = {
@@ -81,6 +82,7 @@ export function DiagramCanvas({
   nodes, edges, onNodesChange, onEdgesChange, onNodeClick, onConnect, onReconnectRelationship,
   onEdgeClick, onPaneClick, onCursorMove, cursors,
   activeRelationship, selectMode, handTool, onCreateRelationship, onActivateRelationship, onDropElement,
+  readOnly = false,
 }: DiagramCanvasProps) {
   const { screenToFlowPosition } = useReactFlow()
   const [pendingSource, setPendingSource] = useState<string | null>(null)
@@ -105,7 +107,7 @@ export function DiagramCanvas({
   }, [onCursorMove, screenToFlowPosition])
 
   const handlePointerDown = useCallback((event: ReactPointerEvent) => {
-    if (!activeRelationship || !onCreateRelationship) return
+    if (readOnly || !activeRelationship || !onCreateRelationship) return
     const target = event.target as HTMLElement
     if (target.closest('.react-flow__handle, button, input, textarea, select, .nodrag')) return
     const id = nodeIdFromTarget(event.target)
@@ -114,7 +116,7 @@ export function DiagramCanvas({
     setPendingSource(id)
     setShowHandles(true)
     setPreviewCursor(screenToFlowPosition({ x: event.clientX, y: event.clientY }))
-  }, [activeRelationship, onCreateRelationship, screenToFlowPosition])
+  }, [activeRelationship, onCreateRelationship, readOnly, screenToFlowPosition])
 
   useEffect(() => {
     if (!pendingSource) return
@@ -142,11 +144,13 @@ export function DiagramCanvas({
   }, [pendingSource, activeRelationship, onCreateRelationship, screenToFlowPosition])
 
   const handleDragOver = useCallback((event: DragEvent) => {
+    if (readOnly) return
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
-  }, [])
+  }, [readOnly])
 
   const handleDrop = useCallback((event: DragEvent) => {
+    if (readOnly) return
     event.preventDefault()
     const nodeType = event.dataTransfer.getData('application/uml-node')
     const relType = event.dataTransfer.getData('application/uml-relationship')
@@ -156,7 +160,7 @@ export function DiagramCanvas({
     } else if (relType && onActivateRelationship) {
       onActivateRelationship(relType)
     }
-  }, [screenToFlowPosition, onDropElement, onActivateRelationship])
+  }, [screenToFlowPosition, onDropElement, onActivateRelationship, readOnly])
 
   return (
     <div
@@ -180,18 +184,19 @@ export function DiagramCanvas({
         onReconnect={handleReconnect}
         onReconnectStart={() => setShowHandles(true)}
         onReconnectEnd={() => setShowHandles(false)}
-        edgesReconnectable
+        edgesReconnectable={!readOnly}
+        nodesConnectable={!readOnly}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         colorMode="dark"
         fitView
         snapToGrid
         snapGrid={[15, 15]}
-        deleteKeyCode="Delete"
+        deleteKeyCode={readOnly ? null : 'Delete'}
         zoomOnDoubleClick={false}
-        nodesDraggable={handTool ? false : !activeRelationship}
-        panOnDrag={handTool ? true : (activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true))}
-        selectionOnDrag={!handTool && !!selectMode}
+        nodesDraggable={readOnly ? false : (handTool ? false : !activeRelationship)}
+        panOnDrag={readOnly ? true : (handTool ? true : (activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true)))}
+        selectionOnDrag={!readOnly && !handTool && !!selectMode}
       >
         <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#374151" />
         <Controls />

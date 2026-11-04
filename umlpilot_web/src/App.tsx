@@ -10,6 +10,7 @@ import { DiagramEditorPage } from './pages/DiagramEditorPage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RedirectPage } from './pages/RedirectPage'
+import { PublicDiagramPage } from './pages/PublicDiagramPage'
 import { Loader2 } from 'lucide-react'
 
 function FullPageLoader() {
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/redirect" element={<RedirectPage />} />
+      <Route path="/share/:token" element={<PublicDiagramPage />} />
       <Route path="/" element={<HomeRoute />} />
       <Route path="/projects" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />

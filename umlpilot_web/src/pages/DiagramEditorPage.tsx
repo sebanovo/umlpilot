@@ -11,11 +11,12 @@ import { RelationshipPanel } from '../features/diagram-editor/components/Relatio
 import { AiChatPanel } from '../features/diagram-editor/components/AiChatPanel'
 import { useAiChat } from '../features/diagram-editor/hooks/useAiChat'
 import { buildXmi } from '../features/diagram-editor/lib/xmi'
+import { ShareDiagramDialog } from '../features/collaboration/components/ShareDiagramDialog'
 import { backendGenerationApi, projectsApi, xmiImportApi, type Collaborator } from '../shared/api/client'
 import { colorFor } from '../shared/lib/useWebSocket'
 import { useToast } from '../shared/ui/toast/useToast'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
-import { ArrowLeft, Download, Upload, Sparkles, Package, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, Upload, Sparkles, Package, Trash2, Share2 } from 'lucide-react'
 
 export function DiagramEditorPage() {
   const { id: projectId, diagramId } = useParams<{ id: string; diagramId: string }>()
@@ -30,7 +31,7 @@ export function DiagramEditorPage() {
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
     addParameter, deleteParameter,
-    attributes, methods, relationships, rebuildDiagram, deleteAllElements,
+    attributes, methods, relationships, rebuildDiagram, deleteAllElements, loadError,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
   const { toast } = useToast()
@@ -49,6 +50,7 @@ export function DiagramEditorPage() {
   const [importingXmi, setImportingXmi] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const xmiFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -68,6 +70,9 @@ export function DiagramEditorPage() {
 
   const nameByIdRef = useRef(nameById)
   useEffect(() => { nameByIdRef.current = nameById }, [nameById])
+
+  const currentRole = collaborators.find((collaborator) => collaborator.userId === user?.id)?.role
+  const isViewer = currentRole === 'viewer'
 
   const presenceList = useMemo<PresenceUser[]>(() => {
     const self: PresenceUser[] = user
@@ -254,6 +259,16 @@ export function DiagramEditorPage() {
     </div>
   )
 
+  if (loadError) return (
+    <div className="h-screen flex flex-col items-center justify-center gap-3 bg-gray-950 px-6 text-center">
+      <p className="text-lg font-semibold text-gray-100">No puedes abrir este diagrama</p>
+      <p className="max-w-sm text-sm text-gray-400">{loadError}</p>
+      <Link to="/projects" className="text-sm font-medium text-blue-400 hover:text-blue-300">
+        Volver a mis proyectos
+      </Link>
+    </div>
+  )
+
   return (
     <ReactFlowProvider>
       <div className="h-screen flex flex-col font-sans bg-gray-950">
@@ -272,58 +287,80 @@ export function DiagramEditorPage() {
           </div>
           <div className="flex items-center gap-4">
             <PresenceBar users={presenceList} connected={connected} />
-            <button onClick={() => setAiOpen((v) => !v)} title="Asistente IA"
-              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors cursor-pointer ${aiOpen ? 'border-blue-500 bg-blue-950/60 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
-              <Sparkles className="w-3.5 h-3.5" />
-              Asistente
-            </button>
+            {isViewer && (
+              <span className="rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs text-gray-300">
+                Solo lectura
+              </span>
+            )}
+            {!isViewer && (
+              <button onClick={() => setAiOpen((v) => !v)} title="Asistente IA"
+                className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors cursor-pointer ${aiOpen ? 'border-blue-500 bg-blue-950/60 text-blue-300' : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+                <Sparkles className="w-3.5 h-3.5" />
+                Asistente
+              </button>
+            )}
+            {!isViewer && (
+              <button onClick={() => setShareOpen(true)} title="Compartir diagrama"
+                className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors cursor-pointer">
+                <Share2 className="w-3.5 h-3.5" />
+                Compartir
+              </button>
+            )}
             <button onClick={handleExportXmi} title="Exportar a XMI 2.5.1 (UML)"
               className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors cursor-pointer">
               <Download className="w-3.5 h-3.5" />
               Exportar XMI
             </button>
-            <button onClick={() => xmiFileInputRef.current?.click()} disabled={importingXmi}
-              title="Importar un diagrama desde un archivo XMI 2.5.1 (se añade al diagrama actual)"
-              className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${importingXmi ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
-              <Upload className="w-3.5 h-3.5" />
-              {importingXmi ? 'Importando…' : 'Importar XMI'}
-            </button>
-            <input ref={xmiFileInputRef} type="file" accept=".xmi,.xml" className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ''
-                if (file) handleImportXmi(file)
-              }} />
-            <button onClick={handleGenerateBackend} disabled={generatingBackend}
-              title="Generar backend Spring Boot (.zip) a partir del diagrama"
-              className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${generatingBackend ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
-              <Package className="w-3.5 h-3.5" />
-              {generatingBackend ? 'Generando…' : 'Generar backend'}
-            </button>
-            <button onClick={() => setConfirmClearOpen(true)} disabled={elements.length === 0}
-              title="Elimina todos los elementos y relaciones del diagrama"
-              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors ${elements.length === 0
-                ? 'cursor-not-allowed border-gray-800 bg-gray-900 text-gray-600'
-                : 'cursor-pointer border-red-900 bg-red-950/40 text-red-300 hover:bg-red-900/40 hover:text-red-200'}`}>
-              <Trash2 className="w-3.5 h-3.5" />
-              Eliminar todo
-            </button>
+            {!isViewer && (
+              <>
+                <button onClick={() => xmiFileInputRef.current?.click()} disabled={importingXmi}
+                  title="Importar un diagrama desde un archivo XMI 2.5.1 (se añade al diagrama actual)"
+                  className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${importingXmi ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+                  <Upload className="w-3.5 h-3.5" />
+                  {importingXmi ? 'Importando…' : 'Importar XMI'}
+                </button>
+                <input ref={xmiFileInputRef} type="file" accept=".xmi,.xml" className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (file) handleImportXmi(file)
+                  }} />
+                <button onClick={handleGenerateBackend} disabled={generatingBackend}
+                  title="Generar backend Spring Boot (.zip) a partir del diagrama"
+                  className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${generatingBackend ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+                  <Package className="w-3.5 h-3.5" />
+                  {generatingBackend ? 'Generando…' : 'Generar backend'}
+                </button>
+                <button onClick={() => setConfirmClearOpen(true)} disabled={elements.length === 0}
+                  title="Elimina todos los elementos y relaciones del diagrama"
+                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors ${elements.length === 0
+                    ? 'cursor-not-allowed border-gray-800 bg-gray-900 text-gray-600'
+                    : 'cursor-pointer border-red-900 bg-red-950/40 text-red-300 hover:bg-red-900/40 hover:text-red-200'}`}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Eliminar todo
+                </button>
+              </>
+            )}
             <span className="text-gray-400 text-xs">{user?.firstName}</span>
           </div>
         </header>
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <Toolbox
-            onAddElement={createElement}
-            activeRelationship={activeRelationship}
-            onSelectRelationship={(type) => { setActiveRelationship(type); if (type) { setSelectMode(false); setHandTool(false) } }}
-            selectMode={selectMode}
-            onToggleSelectMode={() => { setSelectMode((v) => !v); setHandTool(false); setActiveRelationship(null) }}
-            handTool={handTool}
-            onToggleHandTool={() => { setHandTool((v) => !v); setSelectMode(false); setActiveRelationship(null) }}
-            width={toolboxWidth}
-          />
-          <div onPointerDown={startResize('toolbox')} title="Redimensionar"
-            className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
+          {!isViewer && (
+            <Toolbox
+              onAddElement={createElement}
+              activeRelationship={activeRelationship}
+              onSelectRelationship={(type) => { setActiveRelationship(type); if (type) { setSelectMode(false); setHandTool(false) } }}
+              selectMode={selectMode}
+              onToggleSelectMode={() => { setSelectMode((v) => !v); setHandTool(false); setActiveRelationship(null) }}
+              handTool={handTool}
+              onToggleHandTool={() => { setHandTool((v) => !v); setSelectMode(false); setActiveRelationship(null) }}
+              width={toolboxWidth}
+            />
+          )}
+          {!isViewer && (
+            <div onPointerDown={startResize('toolbox')} title="Redimensionar"
+              className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
+          )}
           <div className="flex-1 min-w-0">
             <DiagramCanvas
               nodes={nodes} edges={edges}
@@ -338,45 +375,59 @@ export function DiagramEditorPage() {
               onReconnectRelationship={reconnectRelationship}
               onActivateRelationship={setActiveRelationship}
               onDropElement={createElement}
+              readOnly={isViewer}
             />
           </div>
-          <div onPointerDown={startResize('panel')} title="Redimensionar"
-            className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
-          {aiOpen ? (
-            <AiChatPanel
-              messages={aiChat.messages}
-              loading={aiChat.loading}
-              error={aiChat.error}
-              onSend={aiChat.send}
-              onReset={aiChat.reset}
-              onClose={() => setAiOpen(false)}
-              onTranscribe={aiChat.transcribeAudio}
-              onImage={aiChat.buildFromImage}
-              onBuildText={aiChat.buildFromText}
-              width={panelWidth}
-            />
-          ) : selectedRelationship ? (
-            <RelationshipPanel
-              relationship={selectedRelationship}
-              multiplicities={relationshipMultiplicities}
-              onUpdateName={updateRelationshipName}
-              onUpdateMultiplicity={updateMultiplicity}
-              width={panelWidth}
-            />
-          ) : (
-            <PropertiesPanel
-              element={selectedElement ? { ...selectedElement, elementType: selectedElement.elementType as 'class' | 'interface' | 'enumeration' | 'note' } : null}
-              attributes={selectedAttributes.map((a) => ({ ...a }))}
-              methods={selectedMethods.map((m) => ({ ...m }))}
-              onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
-              onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
-              onAddParameter={addParameter} onDeleteParameter={deleteParameter}
-              onDelete={selectedElement ? () => deleteElement(selectedElement.id) : undefined}
-              width={panelWidth}
-            />
+          {!isViewer && (
+            <>
+              <div onPointerDown={startResize('panel')} title="Redimensionar"
+                className="w-1.5 shrink-0 cursor-col-resize bg-gray-800 hover:bg-blue-500 active:bg-blue-500 transition-colors" />
+              {aiOpen ? (
+                <AiChatPanel
+                  messages={aiChat.messages}
+                  loading={aiChat.loading}
+                  error={aiChat.error}
+                  onSend={aiChat.send}
+                  onReset={aiChat.reset}
+                  onClose={() => setAiOpen(false)}
+                  onTranscribe={aiChat.transcribeAudio}
+                  onImage={aiChat.buildFromImage}
+                  onBuildText={aiChat.buildFromText}
+                  width={panelWidth}
+                />
+              ) : selectedRelationship ? (
+                <RelationshipPanel
+                  relationship={selectedRelationship}
+                  multiplicities={relationshipMultiplicities}
+                  onUpdateName={updateRelationshipName}
+                  onUpdateMultiplicity={updateMultiplicity}
+                  width={panelWidth}
+                />
+              ) : (
+                <PropertiesPanel
+                  element={selectedElement ? { ...selectedElement, elementType: selectedElement.elementType as 'class' | 'interface' | 'enumeration' | 'note' } : null}
+                  attributes={selectedAttributes.map((a) => ({ ...a }))}
+                  methods={selectedMethods.map((m) => ({ ...m }))}
+                  onUpdate={updateElement} onAddAttribute={addAttribute} onAddMethod={addMethod}
+                  onDeleteAttribute={deleteAttribute} onDeleteMethod={deleteMethod}
+                  onAddParameter={addParameter} onDeleteParameter={deleteParameter}
+                  onDelete={selectedElement ? () => deleteElement(selectedElement.id) : undefined}
+                  width={panelWidth}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {!isViewer && projectId && diagramId && (
+        <ShareDiagramDialog
+          projectId={projectId}
+          diagramId={diagramId}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmClearOpen}

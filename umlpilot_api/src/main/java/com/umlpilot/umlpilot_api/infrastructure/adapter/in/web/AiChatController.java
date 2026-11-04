@@ -46,7 +46,7 @@ public class AiChatController {
             return ResponseEntity.badRequest().body(Map.of("error", "El mensaje es requerido"));
         }
 
-        if (diagramMissing(projectId, diagramId)) {
+        if (diagramMissing(projectId, diagramId, true)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
         }
 
@@ -78,7 +78,7 @@ public class AiChatController {
         if (request == null || request.prompt() == null || request.prompt().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "La descripción es requerida"));
         }
-        if (diagramMissing(projectId, diagramId)) {
+        if (diagramMissing(projectId, diagramId, true)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
         }
         try {
@@ -98,7 +98,7 @@ public class AiChatController {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "El audio es requerido"));
         }
-        if (diagramMissing(projectId, diagramId)) {
+        if (diagramMissing(projectId, diagramId, true)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
         }
         try {
@@ -118,7 +118,7 @@ public class AiChatController {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "La imagen es requerida"));
         }
-        if (diagramMissing(projectId, diagramId)) {
+        if (diagramMissing(projectId, diagramId, true)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Diagrama no encontrado"));
         }
         try {
@@ -132,9 +132,13 @@ public class AiChatController {
         }
     }
 
-    private boolean diagramMissing(String projectId, String diagramId) {
+    private boolean diagramMissing(String projectId, String diagramId, boolean requireEdit) {
         try {
-            diagramService.getDiagram(projectId, diagramId);
+            if (requireEdit) {
+                diagramService.requireEditor(projectId, diagramId, SecurityUtils.getCurrentUserId());
+            } else {
+                diagramService.getDiagram(projectId, diagramId, SecurityUtils.getCurrentUserId());
+            }
             return false;
         } catch (DomainException e) {
             return true;

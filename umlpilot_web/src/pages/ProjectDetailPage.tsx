@@ -6,7 +6,7 @@ import { useAuth } from '../features/auth/useAuth'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
 import { NotificationBell } from '../features/notifications/components/NotificationBell'
 import { InviteCollaboratorForm } from '../features/collaboration/components/InviteCollaboratorForm'
-import { ArrowLeft, Plus, Trash2, Share2, Check, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -20,7 +20,6 @@ export function ProjectDetailPage() {
   const [diagramName, setDiagramName] = useState('')
   const [diagramType, setDiagramType] = useState('class')
   const [creatingDiagram, setCreatingDiagram] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [showCollaborators, setShowCollaborators] = useState(true)
   const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null)
   const [removingCollaborator, setRemovingCollaborator] = useState<Collaborator | null>(null)
@@ -30,20 +29,9 @@ export function ProjectDetailPage() {
     if (!id) return
     Promise.all([projectsApi.get(id), projectsApi.getCollaborators(id), diagramsApi.list(id)])
       .then(([p, c, d]) => { setProject(p); setCollaborators(c); setDiagrams(d) })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [id])
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/projects/${id}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      toast({ title: 'Enlace copiado', description: 'Compártelo para invitar a tu equipo', variant: 'success' })
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      prompt('Copia esta URL:', url)
-    }
-  }
 
   const handleCreateDiagram = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -161,11 +149,6 @@ export function ProjectDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
-            <button onClick={handleShare}
-              className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:border-gray-600 transition-all cursor-pointer">
-              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
-              {copied ? 'Copiado!' : 'Copiar enlace'}
-            </button>
           </div>
         </div>
       </header>

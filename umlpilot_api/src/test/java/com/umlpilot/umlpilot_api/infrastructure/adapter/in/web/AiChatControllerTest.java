@@ -36,14 +36,14 @@ class AiChatControllerTest {
 
     @Test
     void missingDiagramReturns404() {
-        when(diagramService.getDiagram("p1", "d1")).thenThrow(new DomainException("not found"));
+        doThrow(new DomainException("not found")).when(diagramService).requireEditor(eq("p1"), eq("d1"), any());
         ResponseEntity<?> res = controller.chat("p1", "d1", new UmlAiChatRequest("hola", null));
         assertEquals(HttpStatus.NOT_FOUND, res.getStatusCode());
     }
 
     @Test
     void providerFailureReturns503() {
-        when(diagramService.getDiagram("p1", "d1")).thenReturn(null);
+        doNothing().when(diagramService).requireEditor(eq("p1"), eq("d1"), any());
         when(aiChatService.chat(any(), any(), any(), any(), any())).thenThrow(new LlmException("agotado", true));
 
         ResponseEntity<?> res = controller.chat("p1", "d1", new UmlAiChatRequest("hola", null));
@@ -53,7 +53,7 @@ class AiChatControllerTest {
 
     @Test
     void successReturnsReplyAndActions() {
-        when(diagramService.getDiagram("p1", "d1")).thenReturn(null);
+        doNothing().when(diagramService).requireEditor(eq("p1"), eq("d1"), any());
         when(aiChatService.chat(eq("p1"), eq("d1"), eq("u1"), eq("crea Cliente"), anyList()))
                 .thenReturn(new AiChatOutcome("Listo", List.of(Map.of("action", "create", "entity", "element"))));
 

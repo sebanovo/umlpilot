@@ -337,3 +337,72 @@ export const notificationsApi = {
       body: JSON.stringify({ action }),
     }),
 }
+
+/** Fetch sin Authorization: usado por las vistas públicas (enlaces compartidos). */
+async function publicFetch(path: string): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`)
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Error ${res.status}`)
+  }
+  return res.json()
+}
+
+export interface UmlLiteralApi {
+  id: string
+  elementId: string
+  name: string
+  value: string | null
+  orderIndex: number
+}
+
+export type SharedLinkRole = 'viewer' | 'editor'
+
+export interface PublicDiagramView {
+  projectId: string
+  diagramId: string
+  linkRole: SharedLinkRole
+  projectName: string
+  diagramName: string
+  diagramType: string
+  elements: UmlElementApi[]
+  relationships: UmlRelationshipApi[]
+  attributes: Record<string, UmlAttributeApi[]>
+  methods: Record<string, UmlMethodApi[]>
+  literals: Record<string, UmlLiteralApi[]>
+  multiplicities: Record<string, MultiplicityApi[]>
+}
+
+export interface ShareLinkState {
+  enabled: boolean
+  token: string | null
+  url: string | null
+  role: SharedLinkRole
+}
+
+export interface ShareJoinResult {
+  projectId: string
+  diagramId: string
+  role: 'owner' | 'editor' | 'viewer'
+}
+
+export const diagramShareApi = {
+  get: (projectId: string, diagramId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`) as Promise<ShareLinkState>,
+  enable: (projectId: string, diagramId: string, role: SharedLinkRole) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    }) as Promise<ShareLinkState>,
+  disable: (projectId: string, diagramId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`, { method: 'DELETE' }),
+}
+
+export const publicDiagramApi = {
+  get: (token: string) =>
+    publicFetch(`/api/v1/public/diagrams/${encodeURIComponent(token)}`) as Promise<PublicDiagramView>,
+  join: (token: string) =>
+    authFetch(`/api/v1/public/diagrams/${encodeURIComponent(token)}/join`, {
+      method: 'POST',
+    }) as Promise<ShareJoinResult>,
+}

@@ -68,4 +68,8 @@ El sistema SHALL exponer un endpoint `DELETE /api/v1/projects/{id}/collaborators
 
 #### Scenario: Colaborador eliminado
 - **WHEN** se envía DELETE con permisos adecuados
-- **THEN** el colaborador se elimina del proyecto
+- **THEN** el colaborador se elimina del proyecto y pierde el acceso de inmediato (REST y WebSocket)
+
+#### Scenario: Cancelar invitación pendiente
+- **WHEN** se elimina a un colaborador con invitación `pending`
+- **THEN** se elimina la invitación y su notificación de la bandeja

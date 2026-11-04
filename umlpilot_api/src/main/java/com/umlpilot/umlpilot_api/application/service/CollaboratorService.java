@@ -117,6 +117,40 @@ public class CollaboratorService {
                 .toList();
     }
 
+    /**
+     * Une a un usuario que abrió un enlace de compartir. Si ya es miembro conserva su rol;
+     * si tenía una invitación pendiente, la acepta; si la había rechazado, se reincorpora
+     * con el rol del enlace. Es idempotente.
+     */
+    @Transactional
+    public String joinByLink(String projectId, String userId, String role) {
+        validateMemberRole(role);
+        if (userId == null) throw new DomainException("No autenticado");
+        projectRepository.findById(ProjectId.from(projectId))
+                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+
+        var existing = collaboratorRepository.findByProjectIdAndUserId(projectId, userId);
+        if (existing.isPresent()) {
+            Collaborator collaborator = existing.get();
+            if ("accepted".equals(collaborator.getInvitationStatus())) {
+                return collaborator.getRole();
+            }
+            if ("pending".equals(collaborator.getInvitationStatus())) {
+                collaborator.accept();
+            } else {
+                collaborator.reinvite(role);
+                collaborator.accept();
+            }
+            collaboratorRepository.save(collaborator);
+            notificationRepository.markInvitationAsRead(userId, projectId);
+            return collaborator.getRole();
+        }
+
+        Collaborator collaborator = Collaborator.createAccepted(projectId, userId, role);
+        collaboratorRepository.save(collaborator);
+        return role;
+    }
+
     @Transactional
     public void acceptInvitation(String projectId, String userId) {
         Collaborator collaborator = collaboratorRepository.findByProjectIdAndUserId(projectId, userId)

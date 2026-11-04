@@ -64,7 +64,8 @@ public class DiagramImportController {
 
     private boolean diagramMissing(String projectId, String diagramId) {
         try {
-            diagramService.getDiagram(projectId, diagramId);
+            // Importar modifica el diagrama: se exige rol de edición.
+            diagramService.requireEditor(projectId, diagramId, SecurityUtils.getCurrentUserId());
             return false;
         } catch (DomainException e) {
             return true;

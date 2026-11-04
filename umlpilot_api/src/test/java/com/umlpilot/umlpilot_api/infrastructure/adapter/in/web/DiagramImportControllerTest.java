@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -85,7 +86,8 @@ class DiagramImportControllerTest {
 
     @Test
     void missingDiagramReturns404() throws Exception {
-        when(diagramService.getDiagram(anyString(), anyString())).thenThrow(new DomainException("Diagrama no encontrado"));
+        doThrow(new DomainException("Diagrama no encontrado"))
+                .when(diagramService).requireEditor(anyString(), anyString(), any());
 
         MockMultipartFile file = new MockMultipartFile("file", "diagram.xmi", "application/xml",
                 "<xmi/>".getBytes());

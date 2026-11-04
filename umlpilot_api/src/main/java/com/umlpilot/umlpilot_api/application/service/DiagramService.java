@@ -4,11 +4,7 @@ import com.umlpilot.umlpilot_api.application.dto.CreateDiagramCommand;
 import com.umlpilot.umlpilot_api.application.dto.DiagramResult;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.Diagram;
-import com.umlpilot.umlpilot_api.domain.model.DiagramId;
-import com.umlpilot.umlpilot_api.domain.model.ProjectId;
-import com.umlpilot.umlpilot_api.domain.repository.CollaboratorRepository;
 import com.umlpilot.umlpilot_api.domain.repository.DiagramRepository;
-import com.umlpilot.umlpilot_api.domain.repository.ProjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,19 +14,16 @@ import java.util.List;
 public class DiagramService {
 
     private final DiagramRepository diagramRepository;
-    private final ProjectRepository projectRepository;
-    private final CollaboratorRepository collaboratorRepository;
+    private final ProjectAccessService accessService;
 
-    public DiagramService(DiagramRepository diagramRepository, ProjectRepository projectRepository, CollaboratorRepository collaboratorRepository) {
+    public DiagramService(DiagramRepository diagramRepository, ProjectAccessService accessService) {
         this.diagramRepository = diagramRepository;
-        this.projectRepository = projectRepository;
-        this.collaboratorRepository = collaboratorRepository;
+        this.accessService = accessService;
     }
 
     @Transactional
     public DiagramResult createDiagram(CreateDiagramCommand command, String userId) {
-        projectRepository.findByIdAndUserId(command.projectId(), userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+        accessService.requireEditor(command.projectId(), userId);
 
         Diagram diagram = Diagram.create(command.projectId(), command.name(), command.type());
         if (command.description() != null) diagram.updateDescription(command.description());
@@ -39,9 +32,8 @@ public class DiagramService {
     }
 
     @Transactional(readOnly = true)
-    public List<DiagramResult> getDiagrams(String projectId) {
-        projectRepository.findById(ProjectId.from(projectId))
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+    public List<DiagramResult> getDiagrams(String projectId, String userId) {
+        accessService.requireMember(projectId, userId);
 
         return diagramRepository.findByProjectId(projectId).stream()
                 .map(this::toResult)
@@ -49,26 +41,20 @@ public class DiagramService {
     }
 
     @Transactional(readOnly = true)
-    public DiagramResult getDiagram(String projectId, String diagramId) {
-        projectRepository.findById(ProjectId.from(projectId))
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+    public DiagramResult getDiagram(String projectId, String diagramId, String userId) {
+        return toResult(accessService.requireDiagramMember(projectId, diagramId, userId));
+    }
 
-        Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))
-                .orElseThrow(() -> new DomainException("Diagrama no encontrado"));
-
-        if (!diagram.getProjectId().value().equals(projectId)) throw new DomainException("Diagrama no pertenece al proyecto");
-        return toResult(diagram);
+    /** Valida que el usuario pueda editar el diagrama (owner/editor del proyecto). */
+    @Transactional(readOnly = true)
+    public void requireEditor(String projectId, String diagramId, String userId) {
+        accessService.requireDiagramEditor(projectId, diagramId, userId);
     }
 
     @Transactional
     public DiagramResult updateDiagram(String projectId, String diagramId, String name, String description, String canvasData, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+        Diagram diagram = accessService.requireDiagramEditor(projectId, diagramId, userId);
 
-        Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))
-                .orElseThrow(() -> new DomainException("Diagrama no encontrado"));
-
-        if (!diagram.getProjectId().value().equals(projectId)) throw new DomainException("Diagrama no pertenece al proyecto");
         if (diagram.getIsLocked() && !diagram.getLockedByUserId().equals(userId)) throw new DomainException("El diagrama está bloqueado por otro usuario");
 
         diagram.updateName(name);
@@ -80,48 +66,21 @@ public class DiagramService {
 
     @Transactional
     public DiagramResult lockDiagram(String projectId, String diagramId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))
-                .orElseThrow(() -> new DomainException("Diagrama no encontrado"));
-
-        if (!diagram.getProjectId().value().equals(projectId)) throw new DomainException("Diagrama no pertenece al proyecto");
+        Diagram diagram = accessService.requireDiagramEditor(projectId, diagramId, userId);
         diagram.lock(userId);
-
         return toResult(diagramRepository.save(diagram));
     }
 
     @Transactional
     public DiagramResult unlockDiagram(String projectId, String diagramId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))
-                .orElseThrow(() -> new DomainException("Diagrama no encontrado"));
-
-        if (!diagram.getProjectId().value().equals(projectId)) throw new DomainException("Diagrama no pertenece al proyecto");
+        Diagram diagram = accessService.requireDiagramEditor(projectId, diagramId, userId);
         diagram.unlock(userId);
-
         return toResult(diagramRepository.save(diagram));
     }
 
     @Transactional
     public void deleteDiagram(String projectId, String diagramId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        var collaborator = collaboratorRepository.findAcceptedCollaborator(projectId, userId)
-                .orElseThrow(() -> new DomainException("Sin permisos para eliminar diagramas"));
-
-        if (!collaborator.getRole().equals("owner") && !collaborator.getRole().equals("editor")) {
-            throw new DomainException("Sin permisos para eliminar diagramas");
-        }
-
-        Diagram diagram = diagramRepository.findById(DiagramId.from(diagramId))
-                .orElseThrow(() -> new DomainException("Diagrama no encontrado"));
-
-        if (!diagram.getProjectId().value().equals(projectId)) throw new DomainException("Diagrama no pertenece al proyecto");
+        Diagram diagram = accessService.requireDiagramEditor(projectId, diagramId, userId);
         diagramRepository.delete(diagram.getId());
     }
 

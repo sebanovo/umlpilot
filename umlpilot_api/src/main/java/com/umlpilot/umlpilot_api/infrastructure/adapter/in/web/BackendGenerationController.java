@@ -66,7 +66,7 @@ public class BackendGenerationController {
 
     private boolean diagramMissing(String projectId, String diagramId) {
         try {
-            diagramService.getDiagram(projectId, diagramId);
+            diagramService.getDiagram(projectId, diagramId, SecurityUtils.getCurrentUserId());
             return false;
         } catch (DomainException e) {
             return true;

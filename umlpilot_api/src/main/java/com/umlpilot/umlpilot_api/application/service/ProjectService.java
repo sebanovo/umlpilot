@@ -19,11 +19,14 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final CollaboratorRepository collaboratorRepository;
     private final UserRepository userRepository;
+    private final ProjectAccessService accessService;
 
-    public ProjectService(ProjectRepository projectRepository, CollaboratorRepository collaboratorRepository, UserRepository userRepository) {
+    public ProjectService(ProjectRepository projectRepository, CollaboratorRepository collaboratorRepository,
+                          UserRepository userRepository, ProjectAccessService accessService) {
         this.projectRepository = projectRepository;
         this.collaboratorRepository = collaboratorRepository;
         this.userRepository = userRepository;
+        this.accessService = accessService;
     }
 
     @Transactional
@@ -44,33 +47,17 @@ public class ProjectService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ProjectResult getProject(String projectId, String userId) {
-        Project project = projectRepository.findById(ProjectId.from(projectId))
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        if (userId != null && !userId.equals(project.getCreatorId().value())) {
-            collaboratorRepository.findAcceptedCollaborator(projectId, userId)
-                    .orElseGet(() -> {
-                        Collaborator newCollab = Collaborator.createAccepted(projectId, userId, "viewer");
-                        return collaboratorRepository.save(newCollab);
-                    });
-        }
-
-        return toResult(project);
+        // Solo se accede por invitación aceptada; conocer el enlace no da acceso.
+        return toResult(accessService.requireMember(projectId, userId));
     }
 
     @Transactional
     public ProjectResult updateProject(String projectId, String name, String description, String userId) {
-        Project project = projectRepository.findByIdAndUserId(projectId, userId)
+        accessService.requireEditor(projectId, userId);
+        Project project = projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        Collaborator collaborator = collaboratorRepository.findAcceptedCollaborator(projectId, userId)
-                .orElseThrow(() -> new DomainException("Sin permisos para actualizar"));
-
-        if (!collaborator.getRole().equals("owner") && !collaborator.getRole().equals("editor")) {
-            throw new DomainException("Sin permisos para actualizar");
-        }
 
         project.updateName(name);
         project.updateDescription(description);
@@ -80,23 +67,15 @@ public class ProjectService {
 
     @Transactional
     public void deleteProject(String projectId, String userId) {
-        Project project = projectRepository.findByIdAndUserId(projectId, userId)
+        accessService.requireOwner(projectId, userId);
+        Project project = projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
-
-        Collaborator collaborator = collaboratorRepository.findAcceptedCollaborator(projectId, userId)
-                .orElseThrow(() -> new DomainException("Solo el owner puede eliminar el proyecto"));
-
-        if (!collaborator.getRole().equals("owner")) {
-            throw new DomainException("Solo el owner puede eliminar el proyecto");
-        }
-
         projectRepository.delete(project.getId());
     }
 
     @Transactional(readOnly = true)
     public List<CollaboratorResult> getCollaborators(String projectId, String userId) {
-        projectRepository.findByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
+        accessService.requireMember(projectId, userId);
 
         return collaboratorRepository.findByProjectId(projectId).stream()
                 .filter(c -> c.getInvitationStatus().equals("accepted"))
