@@ -162,6 +162,11 @@ export const projectsApi = {
   getCollaborators: (id: string) => authFetch(`/api/v1/projects/${id}/collaborators`) as Promise<Collaborator[]>,
   inviteCollaborator: (id: string, data: { email: string; role: string }) =>
     authFetch(`/api/v1/projects/${id}/collaborators`, { method: 'POST', body: JSON.stringify(data) }) as Promise<Collaborator>,
+  updateCollaboratorRole: (id: string, userId: string, role: 'editor' | 'viewer') =>
+    authFetch(`/api/v1/projects/${id}/collaborators/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
   removeCollaborator: (id: string, userId: string) =>
     authFetch(`/api/v1/projects/${id}/collaborators/${userId}`, { method: 'DELETE' }),
 }
@@ -293,4 +298,111 @@ export const xmiImportApi = {
       form,
     ) as Promise<ImportXmiResult>
   },
+}
+
+export interface UserSearchResult {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+}
+
+export const usersApi = {
+  search: (query: string) =>
+    authFetch(`/api/v1/users/search?q=${encodeURIComponent(query)}`) as Promise<UserSearchResult[]>,
+}
+
+export interface AppNotification {
+  id: string
+  type: string
+  title: string
+  message: string
+  projectId: string | null
+  role: string | null
+  read: boolean
+  readAt: string | null
+  createdAt: string
+  invitationStatus: 'pending' | 'accepted' | 'rejected' | null
+}
+
+export const notificationsApi = {
+  list: (unreadOnly = false) =>
+    authFetch(`/api/v1/notifications?unreadOnly=${unreadOnly}`) as Promise<AppNotification[]>,
+  unreadCount: () => authFetch('/api/v1/notifications/unread-count') as Promise<{ count: number }>,
+  markAsRead: (id: string) => authFetch(`/api/v1/notifications/${id}/read`, { method: 'PUT' }),
+  markAllAsRead: () => authFetch('/api/v1/notifications/read-all', { method: 'PUT' }),
+  respond: (id: string, action: 'accept' | 'reject') =>
+    authFetch(`/api/v1/notifications/${id}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
+}
+
+/** Fetch sin Authorization: usado por las vistas públicas (enlaces compartidos). */
+async function publicFetch(path: string): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`)
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Error ${res.status}`)
+  }
+  return res.json()
+}
+
+export interface UmlLiteralApi {
+  id: string
+  elementId: string
+  name: string
+  value: string | null
+  orderIndex: number
+}
+
+export type SharedLinkRole = 'viewer' | 'editor'
+
+export interface PublicDiagramView {
+  projectId: string
+  diagramId: string
+  linkRole: SharedLinkRole
+  projectName: string
+  diagramName: string
+  diagramType: string
+  elements: UmlElementApi[]
+  relationships: UmlRelationshipApi[]
+  attributes: Record<string, UmlAttributeApi[]>
+  methods: Record<string, UmlMethodApi[]>
+  literals: Record<string, UmlLiteralApi[]>
+  multiplicities: Record<string, MultiplicityApi[]>
+}
+
+export interface ShareLinkState {
+  enabled: boolean
+  token: string | null
+  url: string | null
+  role: SharedLinkRole
+}
+
+export interface ShareJoinResult {
+  projectId: string
+  diagramId: string
+  role: 'owner' | 'editor' | 'viewer'
+}
+
+export const diagramShareApi = {
+  get: (projectId: string, diagramId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`) as Promise<ShareLinkState>,
+  enable: (projectId: string, diagramId: string, role: SharedLinkRole) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    }) as Promise<ShareLinkState>,
+  disable: (projectId: string, diagramId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/share`, { method: 'DELETE' }),
+}
+
+export const publicDiagramApi = {
+  get: (token: string) =>
+    publicFetch(`/api/v1/public/diagrams/${encodeURIComponent(token)}`) as Promise<PublicDiagramView>,
+  join: (token: string) =>
+    authFetch(`/api/v1/public/diagrams/${encodeURIComponent(token)}/join`, {
+      method: 'POST',
+    }) as Promise<ShareJoinResult>,
 }

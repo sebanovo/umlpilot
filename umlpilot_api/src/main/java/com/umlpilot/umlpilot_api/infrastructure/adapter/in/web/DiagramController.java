@@ -25,13 +25,13 @@ public class DiagramController {
 
     @GetMapping
     public ResponseEntity<?> list(@PathVariable String projectId) {
-        try { return ResponseEntity.ok(diagramService.getDiagrams(projectId).stream().map(this::toResponse).toList()); }
+        try { return ResponseEntity.ok(diagramService.getDiagrams(projectId, SecurityUtils.getCurrentUserId()).stream().map(this::toResponse).toList()); }
         catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getById(@PathVariable String projectId, @PathVariable String id) {
-        try { return ResponseEntity.ok(toResponse(diagramService.getDiagram(projectId, id))); }
+        try { return ResponseEntity.ok(toResponse(diagramService.getDiagram(projectId, id, SecurityUtils.getCurrentUserId()))); }
         catch (DomainException e) { return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage())); }
     }
 

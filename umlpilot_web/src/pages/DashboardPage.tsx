@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { projectsApi, type Project } from '../shared/api/client'
 import { useAuth } from '../features/auth/useAuth'
 import { useToast } from '../shared/ui/toast/useToast'
+import { NotificationBell } from '../features/notifications/components/NotificationBell'
 import { Plus, LogOut, FolderOpen, Calendar, Loader2 } from 'lucide-react'
 
 export function DashboardPage() {
@@ -16,9 +17,13 @@ export function DashboardPage() {
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
 
-  useEffect(() => {
+  const loadProjects = useCallback(() => {
     projectsApi.list().then(setProjects).finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    loadProjects()
+  }, [loadProjects])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,6 +66,7 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell onInvitationAccepted={loadProjects} />
             {user && (
               <span className="text-sm text-gray-400">{user.firstName} {user.lastName}</span>
             )}

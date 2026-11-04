@@ -1,5 +1,7 @@
 package com.umlpilot.umlpilot_api.infrastructure.websocket;
 
+import com.umlpilot.umlpilot_api.application.service.ProjectAccessService;
+import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
 import com.umlpilot.umlpilot_api.infrastructure.security.JwtService;
 import org.springframework.context.ApplicationListener;
@@ -20,14 +22,17 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ProjectAccessService accessService;
     private final Map<String, Set<String>> diagramRooms = new ConcurrentHashMap<>();
     private final Map<String, String> sessionUserMap = new ConcurrentHashMap<>();
     private final Map<String, String> sessionDiagramMap = new ConcurrentHashMap<>();
 
-    public WebSocketHandler(JwtService jwtService, UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
+    public WebSocketHandler(JwtService jwtService, UserRepository userRepository,
+                            SimpMessagingTemplate messagingTemplate, ProjectAccessService accessService) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
+        this.accessService = accessService;
     }
 
     private String extractUserId(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
@@ -51,9 +56,15 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     @MessageMapping("/joinDiagram")
     public void joinDiagram(@Payload JoinDiagramMessage message, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         String userId = extractUserId(principal, headerAccessor);
-        if (userId == null) return;
+        if (userId == null || message.diagramId() == null) return;
 
         String diagramId = message.diagramId();
+        try {
+            accessService.requireDiagramMemberByDiagramId(diagramId, userId);
+        } catch (DomainException e) {
+            return;
+        }
+
         diagramRooms.computeIfAbsent(diagramId, k -> ConcurrentHashMap.newKeySet()).add(userId);
 
         String sessionId = headerAccessor.getSessionId();
@@ -78,7 +89,10 @@ public class WebSocketHandler implements ApplicationListener<SessionDisconnectEv
     @MessageMapping("/diagram/update")
     public void diagramUpdate(@Payload DiagramUpdateMessage message, Principal principal, SimpMessageHeaderAccessor headerAccessor) {
         String userId = extractUserId(principal, headerAccessor);
-        if (userId == null) return;
+        if (userId == null || message.diagramId() == null) return;
+
+        Set<String> room = diagramRooms.get(message.diagramId());
+        if (room == null || !room.contains(userId)) return;
 
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userId);

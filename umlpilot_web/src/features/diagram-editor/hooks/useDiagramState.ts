@@ -102,12 +102,14 @@ interface DiagramState {
   selectedAttributes: UmlAttributeApi[]
   selectedMethods: UmlMethodApi[]
   loading: boolean
+  loadError: string | null
 }
 
 export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) {
   const [state, setState] = useState<DiagramState>({
     nodes: [], edges: [], elements: [], attributes: {}, methods: {},
-    relationships: [], selectedElement: null, selectedAttributes: [], selectedMethods: [], loading: true,
+    relationships: [], selectedElement: null, selectedAttributes: [], selectedMethods: [],
+    loading: true, loadError: null,
   })
 
   const pendingChanges = useRef<Map<string, Record<string, unknown>>>(new Map())
@@ -179,7 +181,11 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       setState(prev => ({
         ...prev, nodes, edges, elements: els, attributes: attrMap, methods: methMap, relationships: rels, loading: false,
       }))
-    }).catch(() => setState(prev => ({ ...prev, loading: false })))
+    }).catch((error) => setState(prev => ({
+      ...prev,
+      loading: false,
+      loadError: error instanceof Error ? error.message : 'No tienes acceso a este diagrama',
+    })))
   }, [projectId, diagramId, handleDeleteEdge, handleNoteText, handleDeleteNode])
 
   // Rebuild nodes/edges from server (used when a remote change arrives)

@@ -99,7 +99,7 @@ class BackendGenerationControllerTest {
 
     @Test
     void missingDiagramReturns404() throws Exception {
-        when(diagramService.getDiagram("p1", "d1")).thenThrow(new DomainException("Diagrama no encontrado"));
+        when(diagramService.getDiagram("p1", "d1", null)).thenThrow(new DomainException("Diagrama no encontrado"));
 
         mockMvc.perform(get(URL))
                 .andExpect(status().isNotFound())
