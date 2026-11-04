@@ -36,24 +36,7 @@ public class Collaborator {
 
     public void accept() { this.invitationStatus = "accepted"; this.acceptanceDate = LocalDateTime.now(); }
     public void reject() { this.invitationStatus = "rejected"; }
-
-    /** Cambia el rol de un miembro. El rol de owner no se asigna desde aquí. */
-    public void changeRole(String role) {
-        if (!"editor".equals(role) && !"viewer".equals(role)) {
-            throw new DomainException("Rol inválido. Usa 'editor' o 'viewer'");
-        }
-        this.role = role;
-    }
-
-    /** Vuelve a invitar a un usuario que había rechazado (o perdido) la colaboración. */
-    public void reinvite(String role) {
-        if (!"editor".equals(role) && !"viewer".equals(role)) {
-            throw new DomainException("Rol inválido. Usa 'editor' o 'viewer'");
-        }
-        this.role = role;
-        this.invitationStatus = "pending";
-        this.acceptanceDate = null;
-    }
+    public void changeRole(String role) { this.role = role; }
 
     public String getProjectId() { return id.projectId(); }
     public String getUserId() { return id.userId(); }

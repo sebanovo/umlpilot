@@ -44,8 +44,6 @@ services:
       dockerfile: Dockerfile.prod
     image: sebastiandevjs/umlpilot-api:latest
     container_name: umlpilot_api
-    env_file:
-      - .env
     restart: unless-stopped
     environment:
       # Dentro de la red de compose la BD es el servicio, no localhost
@@ -54,6 +52,8 @@ services:
     depends_on:
       umlpilot-db:
         condition: service_healthy
+    env_file:
+      - .env
     networks:
       - umlpilot-net
 
@@ -63,8 +63,6 @@ services:
       context: ./umlpilot_web
       dockerfile: Dockerfile.prod
     image: sebastiandevjs/umlpilot-web:latest
-    env_file:
-      - .env
     container_name: umlpilot_web
     restart: unless-stopped
     depends_on:

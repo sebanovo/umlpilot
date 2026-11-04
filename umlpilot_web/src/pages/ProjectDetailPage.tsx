@@ -2,16 +2,11 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { projectsApi, diagramsApi, type Project, type Collaborator, type Diagram } from '../shared/api/client'
 import { useToast } from '../shared/ui/toast/useToast'
-import { useAuth } from '../features/auth/useAuth'
-import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
-import { NotificationBell } from '../features/notifications/components/NotificationBell'
-import { InviteCollaboratorForm } from '../features/collaboration/components/InviteCollaboratorForm'
 import { ArrowLeft, Plus, Trash2, Share2, Check, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { toast } = useToast()
-  const { user } = useAuth()
   const [project, setProject] = useState<Project | null>(null)
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [diagrams, setDiagrams] = useState<Diagram[]>([])
@@ -22,9 +17,6 @@ export function ProjectDetailPage() {
   const [creatingDiagram, setCreatingDiagram] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showCollaborators, setShowCollaborators] = useState(true)
-  const [changingRoleFor, setChangingRoleFor] = useState<string | null>(null)
-  const [removingCollaborator, setRemovingCollaborator] = useState<Collaborator | null>(null)
-  const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -63,63 +55,6 @@ export function ProjectDetailPage() {
     } finally { setCreatingDiagram(false) }
   }
 
-  const handleInvited = (collaborator: Collaborator) => {
-    setCollaborators((current) => [
-      ...current.filter((item) => item.userId !== collaborator.userId),
-      collaborator,
-    ])
-  }
-
-  const handleRemoveCollaborator = async () => {
-    if (!id || !removingCollaborator) return
-    const target = removingCollaborator
-    setRemoving(true)
-    try {
-      await projectsApi.removeCollaborator(id, target.userId)
-      setCollaborators((current) => current.filter((item) => item.userId !== target.userId))
-      setRemovingCollaborator(null)
-      toast({
-        title: target.invitationStatus === 'pending' ? 'Invitación cancelada' : 'Colaborador eliminado',
-        description: `${target.firstName} ${target.lastName} ya no tiene acceso al proyecto`,
-        variant: 'success',
-      })
-    } catch (err) {
-      toast({
-        title: 'No se pudo eliminar al colaborador',
-        description: err instanceof Error ? err.message : 'Error inesperado',
-        variant: 'error',
-      })
-    } finally {
-      setRemoving(false)
-    }
-  }
-
-  const handleRoleChange = async (userId: string, role: 'editor' | 'viewer') => {
-    if (!id) return
-    const previous = collaborators
-    setCollaborators((current) =>
-      current.map((item) => (item.userId === userId ? { ...item, role } : item)),
-    )
-    setChangingRoleFor(userId)
-    try {
-      await projectsApi.updateCollaboratorRole(id, userId, role)
-      toast({
-        title: 'Rol actualizado',
-        description: role === 'editor' ? 'Ahora puede editar el proyecto' : 'Ahora solo puede leerlo',
-        variant: 'success',
-      })
-    } catch (err) {
-      setCollaborators(previous)
-      toast({
-        title: 'No se pudo cambiar el rol',
-        description: err instanceof Error ? err.message : 'Error inesperado',
-        variant: 'error',
-      })
-    } finally {
-      setChangingRoleFor(null)
-    }
-  }
-
   const handleDeleteDiagram = async (diagramId: string) => {
     if (!id || !confirm('¿Eliminar este diagrama?')) return
     try {
@@ -142,10 +77,6 @@ export function ProjectDetailPage() {
   )
   if (!project) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-400">Proyecto no encontrado</div>
 
-  const currentRole = collaborators.find((item) => item.userId === user?.id)?.role
-  const canInvite = currentRole === 'owner' || currentRole === 'editor'
-  const canManageRoles = currentRole === 'owner'
-
   return (
     <div className="min-h-screen bg-gray-950">
       <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
@@ -159,14 +90,11 @@ export function ProjectDetailPage() {
               {project.description && <p className="text-xs text-gray-500 truncate max-w-md">{project.description}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <button onClick={handleShare}
-              className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:border-gray-600 transition-all cursor-pointer">
-              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
-              {copied ? 'Copiado!' : 'Copiar enlace'}
-            </button>
-          </div>
+          <button onClick={handleShare}
+            className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:border-gray-600 transition-all cursor-pointer">
+            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+            {copied ? 'Copiado!' : 'Compartir'}
+          </button>
         </div>
       </header>
 
@@ -275,73 +203,23 @@ export function ProjectDetailPage() {
                       <p className="text-sm font-medium text-gray-100 truncate">{c.firstName} {c.lastName}</p>
                       <p className="text-xs text-gray-500 truncate">{c.email}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {c.invitationStatus === 'pending' && (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-950 text-amber-300">
-                          Pendiente
-                        </span>
-                      )}
-                      {canManageRoles && c.role !== 'owner' ? (
-                        <select
-                          value={c.role}
-                          disabled={changingRoleFor === c.userId}
-                          onChange={(event) =>
-                            handleRoleChange(c.userId, event.target.value as 'editor' | 'viewer')
-                          }
-                          aria-label={`Rol de ${c.firstName} ${c.lastName}`}
-                          className="rounded-lg border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-100 outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50 cursor-pointer"
-                        >
-                          <option value="editor">Editor</option>
-                          <option value="viewer">Lector</option>
-                        </select>
-                      ) : (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          c.role === 'owner' ? 'bg-purple-950 text-purple-300' : 'bg-blue-950 text-blue-300'
-                        }`}>
-                          {c.role}
-                        </span>
-                      )}
-                    </div>
-                    {canManageRoles && c.role !== 'owner' && (
-                      <button
-                        type="button"
-                        onClick={() => setRemovingCollaborator(c)}
-                        title={c.invitationStatus === 'pending' ? 'Cancelar invitación' : 'Eliminar colaborador'}
-                        aria-label={c.invitationStatus === 'pending'
-                          ? `Cancelar invitación de ${c.firstName} ${c.lastName}`
-                          : `Eliminar a ${c.firstName} ${c.lastName}`}
-                        className="shrink-0 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-950/50 hover:text-red-400 cursor-pointer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      c.role === 'owner' ? 'bg-purple-950 text-purple-300' : 'bg-blue-950 text-blue-300'
+                    }`}>
+                      {c.role}
+                    </span>
                   </div>
                 ))}
-                {id && canInvite && (
-                  <InviteCollaboratorForm projectId={id} onInvited={handleInvited} />
-                )}
+                <button onClick={handleShare}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-700 px-4 py-3 text-sm text-gray-400 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-950/40 transition-all cursor-pointer">
+                  <Share2 className="w-4 h-4" />
+                  Compartir proyecto
+                </button>
               </div>
             )}
           </div>
         </div>
       </main>
-
-      <ConfirmDialog
-        open={removingCollaborator !== null}
-        title={removingCollaborator?.invitationStatus === 'pending' ? 'Cancelar invitación' : 'Eliminar colaborador'}
-        description={
-          removingCollaborator
-            ? removingCollaborator.invitationStatus === 'pending'
-              ? `${removingCollaborator.firstName} ${removingCollaborator.lastName} ya no podrá aceptar la invitación.`
-              : `${removingCollaborator.firstName} ${removingCollaborator.lastName} perderá el acceso al proyecto.`
-            : undefined
-        }
-        confirmLabel={removingCollaborator?.invitationStatus === 'pending' ? 'Cancelar invitación' : 'Eliminar'}
-        destructive
-        loading={removing}
-        onConfirm={handleRemoveCollaborator}
-        onCancel={() => { if (!removing) setRemovingCollaborator(null) }}
-      />
     </div>
   )
 }

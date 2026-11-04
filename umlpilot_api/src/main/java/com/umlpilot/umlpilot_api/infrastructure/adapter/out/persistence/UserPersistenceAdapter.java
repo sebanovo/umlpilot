@@ -2,10 +2,8 @@ package com.umlpilot.umlpilot_api.infrastructure.adapter.out.persistence;
 
 import com.umlpilot.umlpilot_api.domain.model.*;
 import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -51,13 +49,6 @@ public class UserPersistenceAdapter implements UserRepository {
     @Override
     public boolean existsByEmail(String email) {
         return jpaRepository.existsByEmail(email);
-    }
-
-    @Override
-    public List<User> search(String query, String excludeUserId, int limit) {
-        return jpaRepository.search(query, excludeUserId, PageRequest.of(0, limit)).stream()
-                .map(this::toDomain)
-                .toList();
     }
 
     private User toDomain(UserJpaEntity entity) {
