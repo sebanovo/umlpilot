@@ -1,109 +1,94 @@
 ## Context
 
-Ver `proposal.md` - Why. El punto de partida es `umlpilot_mobile`: hoy solo contiene un `main.dart`, un tema oscuro y un chat que llama directo a Ollama. No hay auth, proyectos, diagramas ni cliente del backend. El backend (`umlpilot_api`) ya expone todo lo necesario por REST y STOMP, y la web es la referencia funcional.
+Ver `proposal.md` - Why. El punto de partida es `umlpilot_mobile`: solo contiene un `main.dart`, un tema oscuro y un chat que llama directo a Ollama. No hay auth, proyectos ni cliente del backend. El backend (`umlpilot_api`) ya expone REST y STOMP; la web es la referencia funcional. Esta entrega móvil es **solo lectura de diagramas**: no se implementa edición, IA, XMI ni generación de backend.
 
 Restricciones:
-- Seguir `docs/architecture/mobile-mvvm.md` (MVVM + capas Clean: datos → dominio → presentación, flujo unidireccional).
-- Seguir `docs/design-system.md` (tokens de color, tipografía, espaciado, radios, sombras) y la estética oscura del editor web.
-- Configuración por `umlpilot_mobile/.env` (`API_BASE_URL`, `APP_NAME`). Sin Ollama.
-- El proyecto Android ya existe; no hay carpeta `ios/`.
+- Seguir `docs/architecture/mobile-mvvm.md` (MVVM + capas Clean).
+- Seguir `docs/design-system.md` y la estética oscura del editor web.
+- Configuración por `.env` (`API_BASE_URL`, `APP_NAME`, `WEB_BASE_URL`). Sin Ollama.
+- Objetivo Android/web de Flutter; el código es cross-platform.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Cliente Flutter con paridad funcional con la web sobre el mismo backend.
-- Capas desacopladas y testeables: entidades y contratos en `domain`, implementaciones en `data`, estado en `presentation` (ViewModels).
-- Editor UML táctil usable: seleccionar, mover, crear elementos/relaciones, editar propiedades.
-- Reutilizar contratos existentes; cero cambios de backend en este cambio.
+- Cliente Flutter con autenticación, proyectos, colaboradores, notificaciones y compartir.
+- Visor UML de solo lectura con renderizado fiel (tipos de relación, clases de asociación, recursivas, multiplicidades).
+- Canvas con límites dinámicos (sin recortes) y zoom/pan/fit.
+- Actualización en tiempo real por STOMP (presencia y cambios remotos).
+- Capas desacopladas y testeables; sin cambios de backend.
 
 **Non-Goals:**
-- Inferencia local o cualquier uso de Ollama.
-- Push notifications nativas o modo offline con base de datos local.
-- Configuración/build de iOS (el código será cross-platform, pero el scaffolding iOS queda para otro cambio).
-- Target Flutter web; el objetivo de este cambio es Android (mobile). El almacenamiento seguro se diseña para móvil.
-- Edición colaborativa CRDT; se mantiene el modelo de la web (última escritura gana + refresco completo).
+- Edición del diagrama desde el móvil (elementos, relaciones, propiedades, bloqueo).
+- Asistente IA, importación/exportación XMI y generación de backend en el móvil.
+- Push notifications nativas y modo offline con base de datos local.
+- Scaffolding/build de iOS.
+- CRDT: se mantiene el modelo de la web (última escritura gana + refresco completo).
 
 ## Decisions
 
 ### D1. Estructura por capas y features
 `lib/core`, `lib/features/<feature>/{data,domain,presentation}`, `lib/injection`, `lib/routes`, `lib/theme`, `lib/main.dart`.
-Cada feature sigue el flujo `View → ViewModel → UseCase → Repository (interfaz) → DataSource → API`.
+Features: `auth`, `projects`, `collaborators`, `notifications`, `diagrams`, `diagram-editor` (modelos y repositorios de UML), `diagram-viewer` (UI de solo lectura), `sharing`.
+Flujo: `View → ViewModel → UseCase → Repository (interfaz) → DataSource → API`.
 
-Alternativas: una sola carpeta `screens/` (descartada: no escala ni permite testear dominio); Clean Architecture completa con `entities/` global (descartada: el doc recomienda empezar simple y crecer).
+Alternativa: una carpeta `screens/` (descartada: no escala); Clean Architecture completa con `entities/` global (descartada: el doc recomienda empezar simple).
 
 ### D2. Estado con `provider` + `ChangeNotifier`
-Se mantiene `provider` (ya en `pubspec`) y se usa un ViewModel por pantalla/flujo. El ViewModel expone estado inmutable (`loading`, `error`, listas) y métodos de intención; la Vista solo consume.
+Un ViewModel por pantalla/flujo. Expone estado inmutable (`loading`, `error`, listas) y métodos de intención; la vista solo consume.
 
-Alternativas: BLoC/Cubit (más boilerplate para un equipo pequeño; el doc lo sugiere para apps medianas, pero `provider` ya está y es suficiente); Riverpod (no está en el proyecto).
+Alternativas: BLoC/Cubit (más boilerplate; el proyecto ya usa `provider`), Riverpod (no está en el proyecto).
 
 ### D3. DI con `get_it`
-Registro de `Dio`, almacenamiento seguro, data sources, repositorios y use cases en `injection/injection.dart`, y `ChangeNotifierProvider` a nivel de ruta/pantalla para ViewModels.
+Registro de `Dio`, almacenamiento seguro, data sources, repositorios y ViewModels en `injection/injection.dart`. `AuthViewModel` y `NotificationsViewModel` son singletons; los ViewModels de pantalla son factories.
 
-Alternativa: service locator manual o `provider` para todo (descartada: mezcla responsabilidades).
+### D4. HTTP con `dio`
+Cliente central `ApiClient` con `Authorization: Bearer`, refresh **single-flight** ante 401, reintento único y traducción de errores a `ServerException`/`NetworkException`/`UnauthorizedException`/`ForbiddenException`.
 
-### D4. HTTP con `dio` e interceptores
-- `AuthInterceptor`: agrega `Authorization: Bearer`.
-- `RefreshInterceptor`: ante 401 intenta refresh **una sola vez** (single-flight con cola) y reintenta; si falla, limpia sesión y emite `SessionExpired`.
-- `ErrorInterceptor`: mapea `{ "error": ... }` a `ServerException`.
-- Timeouts explícitos.
-
-Alternativas: `http` (ya presente) no trae interceptores ni descarga con progreso, necesarios para ZIP/XMI.
+Alternativa: `http` no trae interceptores ni descarga con progreso.
 
 ### D5. Sesión en `flutter_secure_storage`
-Access token, refresh token y usuario serializado. Restauración en arranque antes de decidir la ruta inicial.
-
-Alternativa: `shared_preferences` (descartada por seguridad). En Flutter web `flutter_secure_storage` usa WebCrypto con limitaciones: si se ejecuta en web, degradar a memoria + `localStorage` documentado.
+Access token, refresh token y usuario serializado. Restauración al arrancar (en `main` y en el splash) para que los enlaces directos conozcan el estado de autenticación.
 
 ### D6. Ruteo con `go_router`
-Rutas: `/login`, `/register`, `/projects`, `/projects/:id`, `/projects/:id/diagrams/:diagramId`, `/share/:token`.
-`redirect` global: sin sesión, rutas protegidas → `/login?from=...`; con sesión, `/login|/register` → `/projects`.
-`/share/:token` es pública (preview) y su acción "Unirme" requiere sesión.
+Rutas: `/splash`, `/login`, `/register`, `/projects`, `/projects/:projectId`, `/projects/:projectId/diagrams/:diagramId`, `/share/:token`.
+`redirect` global: sin sesión, rutas protegidas → `/login?from=...`; autenticado en login/register/splash → `from` o `/projects`; `/share/:token` es pública.
+Si la sesión no se restauró, se envía a `/splash`.
 
-Alternativa: `Navigator 2.0` manual (descartada por complejidad).
+### D7. Modelos manuales
+Entidades con `fromJson` explícito. Se evita codegen (`json_serializable`) para reducir dependencias y tiempo de build; el contrato se mantiene igual.
 
-### D7. Modelos `json_serializable` + mappers
-DTOs con `json_serializable` (build_runner en dev) y mappers explícitos DTO ↔ entidad de dominio. Los ViewModels nunca ven JSON.
+### D8. Canvas de solo lectura con límites dinámicos
+Composición: `InteractiveViewer` (pan/zoom) → `GridPaper` (cuadrícula) → `Stack` con `Clip.none`; nodos como widgets `Positioned` y aristas en `CustomPaint`.
+- **Límites dinámicos**: se calcula el rectángulo que contiene todos los nodos (con su tamaño estimado), se le añade un margen de 260 px y se traslada el origen. Así se soportan posiciones negativas y no se recortan elementos, etiquetas ni bucles (el problema del lienzo fijo de 4000 px).
+- **Tamaño de nodo determinista**: `nodeSizeFor` estima alto/ancho (cabecera + filas de 18 px + divisores) y el nodo se fuerza a ese tamaño con `Positioned(width, height)`, de modo que las aristas y marcadores coinciden con el borde real.
+- **Aristas**: línea entre los puntos de intersección con los rectángulos; marcador por tipo:
+  - generalización/realización: triángulo hueco; realización con línea discontinua.
+  - agregación: rombo hueco; composición: rombo lleno.
+  - asociación/clase de asociación: flecha llena.
+  - clase de asociación: línea discontinua desde el punto medio de la asociación hasta el nodo de la clase, con punto en el ancla.
+  - recursiva: bucle Bézier a la derecha del nodo, dentro del margen del canvas.
+  - multiplicidades y nombre con `TextPainter`.
+- **Interacción**: tap en nodo para seleccionar; tap en arista (distancia a segmento < 18 px) para seleccionar; detalles en `showModalBottomSheet` de solo lectura; "Ajustar vista" calcula la matriz con el contenido.
 
-Alternativa: `freezed` (más dependencias; no está en el proyecto).
-
-### D8. Canvas UML propio
-Composición: `InteractiveViewer` (pan/zoom) → `Stack` con `Positioned` para nodos → `CustomPaint` debajo para aristas/flechas/multiplicidades.
-- Coordenadas del servidor (`positionX`, `positionY`) en el espacio del canvas; conversión pantalla→canvas con la transformación de `InteractiveViewer`.
-- Nodos: widgets con ancho mínimo fijo, alto automático; selección por tap; drag con `GestureDetector` y snap a 15 px.
-- Relaciones: se crean con taps (origen → destino) en lugar de arrastrar handles (ergonomía táctil); se dibujan con `CustomPaint` y estilos por tipo (asociación, herencia, realización, agregación, composición, clase de asociación).
-- Propiedades en `showModalBottomSheet` para no robar ancho al canvas en móvil.
-
-Alternativas: paquetes de grafos (poca personalización UML, mantenimiento incierto); `flame` (motor de juegos, sobredimensionado).
+Alternativas: paquete de grafos (poca personalización UML); `flame` (sobredimensionado). Un canvas fijo grande (descartado: recorta y consume memoria).
 
 ### D9. Tiempo real con `stomp_dart_client`
-Conexión a `{wsBase}/ws` con `Authorization`; `joinDiagram`/`leaveDiagram`, suscripción a `/topic/diagram/{id}/presence` y `/changes`; los cambios locales se publican en `/app/diagram/update`.
-Ante un cambio remoto se hace `rebuild` desde REST (como la web) en lugar de aplicar parches locales; reconexión con backoff.
-
-Alternativa: websockets crudos (fuera de contrato con el backend).
+Conexión a `{wsBase}/ws` con `Authorization`; `joinDiagram`/`leaveDiagram`, suscripción a presencia y cambios. Ante un cambio remoto se hace un refresco REST con debounce (400 ms). El servicio expone streams y un flag `_disposed`: tras `dispose()` ignora callbacks y no escribe en streams cerrados (evita `Cannot add new events after calling close`).
 
 ### D10. Design system en Flutter
-`AppColors`, `AppTypography`, `AppSpacing`, `AppRadius`, `AppShadows` traducen los tokens de `docs/design-system.md`.
-Tema: `ThemeData` con `blue-600` como primario y semánticos (`green-500`, `red-500`, `yellow-500`). El workspace/editor usa fondo oscuro (`gray-950`, nodos `gray-900`) para igualar la web; login/registro pueden usar superficies claras del design system.
-Componentes compartidos en `core/widgets`: `AppButton`, `AppTextField`, `AppCard`, `EmptyState`, `ErrorState`, `LoadingState`, `ConfirmDialog`, `AppSnackBar`.
+`AppColors`, `AppTypography`, `AppSpacing`, `AppRadius`, `AppShadows` traducen los tokens de `docs/design-system.md`. Tema oscuro (`gray-950`/`gray-900`, primario `blue-600`) para igualar el workspace web. Componentes compartidos: `AppButton`, `AppTextField`, `AppCard`, `LoadingState`, `EmptyState`, `ErrorState`, `showConfirmDialog`, `showAppSnackBar`.
 
 ### D11. Entorno
-`flutter_dotenv` carga `.env`. `ApiConstants` lee `API_BASE_URL` y `APP_NAME`; `WsConstants` deriva `ws/wss` desde `API_BASE_URL` + `/ws`. Se eliminan `OLLAMA_URL`, `OLLAMA_MODEL`, `lib/features/chat/**` y cualquier referencia a Ollama en `pubspec`, README y `.env`.
+`flutter_dotenv` carga `.env`. `ApiConstants` lee `API_BASE_URL`, `APP_NAME` y `WEB_BASE_URL`; `wsUrl` deriva `ws/wss` desde la API. Se eliminan Ollama, `features/chat` y sus variables.
 
-### D12. Archivos, exportación y voz
-- XMI import: `file_picker` (`.xmi`, `.xml`) → multipart a `/import/xmi`.
-- XMI export: generación local del XML (misma lógica que la web) → `share_plus`/guardado.
-- Backend ZIP: `dio.download` a `path_provider.temp` → `share_plus`.
-- Imagen para IA: `file_picker` (galería/cámara) → multipart.
-- Voz: `record` → archivo temporal (`.m4a`/`.wav`) → multipart a `/ai/transcribe`.
+### D12. Compartir
+`SharingRepository` gestiona estado/rol del enlace, activar/desactivar, vista pública y unión. La hoja de compartir muestra el rol, permite copiar/compartir la URL web (`WEB_BASE_URL + /share/token`) e invitar por email. La vista `/share/:token` es pública y de solo lectura; "Unirme" requiere sesión.
 
 ### D13. Errores y permisos
-`exceptions.dart` (data) → `failures.dart` (dominio) → estado del ViewModel. 401 con refresh fallido → logout; 403 → mensaje de permisos y, en el editor, cambio a solo lectura o salida. Nunca se muestra un error crudo de red.
+Excepciones de datos → fallos de dominio → estado del ViewModel. 401 con refresh fallido → logout; 403 → mensaje de permisos y salida del visor. Nunca se muestra un error crudo de red.
 
 ### D14. Pruebas
-- Unitarias: ViewModels y use cases con repositorios falsos (`mocktail`).
-- Widget: login, listas, diálogos y estados de error/vacío.
-- Integración: login → crear proyecto → abrir/editar diagrama → compartir (con backend de prueba o `DioAdapter` mock).
-- `flutter analyze` y `flutter test` como puertas de calidad.
+Unitarias de ViewModels y sesión con repositorios falsos; widget tests de estados compartidos. `flutter analyze` y `flutter test` como puertas de calidad. La ejecución y compilación manual del target queda a cargo del usuario.
 
 ### Contrato de API consumido
 | Área | Endpoints |
@@ -113,33 +98,27 @@ Componentes compartidos en `core/widgets`: `AppButton`, `AppTextField`, `AppCard
 | Colaboradores | `GET/POST /projects/{id}/collaborators`, `PUT /{userId}`, `DELETE /{userId}` |
 | Notificaciones | `GET /notifications`, `/unread-count`, `PUT /{id}/read`, `/read-all`, `POST /{id}/respond` |
 | Usuarios | `GET /api/v1/users/search?q=` |
-| Diagramas | `GET/POST /projects/{id}/diagrams`, `GET/PUT/DELETE /{diagramId}`, lock/unlock |
-| Elementos | `/elements` + atributos, métodos, parámetros, literales |
-| Relaciones | `/relationships` + multiplicidades |
-| IA | `/ai/chat`, `/ai/transcribe`, `/ai/diagram-from-text`, `/ai/diagram-from-image` |
-| XMI / ZIP | `POST /import/xmi`, `GET /generate/backend` |
+| Diagramas | `GET/POST /projects/{id}/diagrams`, `GET/DELETE /{diagramId}`, lock/unlock |
+| Elementos (lectura) | `GET /elements`, `/{id}/attributes`, `/{id}/methods`, `/{id}/literals` |
+| Relaciones (lectura) | `GET /relationships`, `/{id}/multiplicities` |
 | Compartir | `GET/POST/DELETE /diagrams/{id}/share`, `GET /public/diagrams/{token}`, `POST /public/diagrams/{token}/join` |
 
 ## Risks / Trade-offs
 
-- **Editor visual complejo** → se implementa por fases (render → interacción → propiedades → tiempo real) con pruebas de widget y un modo de solo lectura temprano para validar el layout.
-- **Rendimiento con muchos nodos** → `CustomPaint` para aristas, `RepaintBoundary` por nodo, evitar reconstrucciones globales; refresco completo solo ante cambios remotos.
-- **Conflictos de colaboración** → última escritura gana y refresco completo; igual que la web. Sin CRDT en este cambio.
-- **Refresh token concurrente** → refresco single-flight y cola de peticiones pendientes.
-- **`flutter_secure_storage` en web** → limitaciones conocidas; se documenta y se usa memoria como fallback si el target web se mantiene.
-- **Cleartext HTTP en Android** → solo desarrollo (`10.0.2.2`/`localhost`); producción debe usar HTTPS. Se configura `usesCleartextTraffic` para dev y se documenta.
-- **Sin carpeta `ios/`** → se implementa Android-first con código cross-platform; el scaffolding iOS queda como seguimiento.
+- **Renderizado de aristas** → tamaños deterministas y margen dinámico; se valida visualmente en web/Android.
+- **Rendimiento con muchos nodos** → `CustomPaint` para aristas y `RepaintBoundary` cuando haga falta; el lienzo solo crece con el contenido.
+- **STOMP en web** → WebSocket sin cabeceras personalizadas; la autenticación viaja en los headers STOMP (`Authorization`). El backend ya valida la membresía.
+- **Cierre del cliente** → flag `_disposed` y comprobaciones en todos los callbacks antes de emitir en streams.
+- **Refresh concurrente** → single-flight con cola de reintento.
+- **Sin carpeta `ios/`** → Android/web primero; el código es cross-platform.
 
 ## Migration Plan
 
-1. Actualizar `pubspec.yaml` (dependencias nuevas) y `.env`/`.env.sample` (quitar Ollama; mantener `API_BASE_URL`/`APP_NAME`).
-2. Crear la base (`core`, `theme`, `routes`, `injection`) y eliminar `features/chat` y sus referencias a Ollama.
-3. Implementar auth y el shell de navegación (login → proyectos).
-4. Implementar proyectos, colaboradores, notificaciones y compartir.
-5. Implementar diagramas y el editor por fases.
-6. Añadir tiempo real, XMI, generación y asistente IA.
-7. Ejecutar `flutter analyze`, `flutter test` y build Android.
+1. Dependencias y `.env` (sin Ollama; añadir `WEB_BASE_URL`).
+2. Base (`core`, `theme`, `routes`, `injection`) y eliminación de `features/chat`.
+3. Auth y shell de navegación.
+4. Proyectos, colaboradores, notificaciones y compartir.
+5. Diagramas y visor de solo lectura con tiempo real.
+6. `flutter analyze` y `flutter test`; ejecución manual del usuario.
 
-Rollback: revertir el commit del cambio; `API_BASE_URL` y `APP_NAME` ya existen, por lo que el `.env` sigue siendo válido. El backend no se modifica.
-
-
+Rollback: revertir el commit del cambio; `API_BASE_URL`/`APP_NAME` siguen siendo válidos. El backend no se modifica.

@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
-import 'core/constants/app_constants.dart';
-import 'features/home/presentation/pages/home_page.dart';
+import 'core/constants/api_constants.dart';
+import 'features/auth/presentation/viewmodels/auth_viewmodel.dart';
+import 'features/notifications/presentation/viewmodels/notifications_viewmodel.dart';
 import 'injection/injection.dart';
+import 'routes/app_router.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _loadEnv();
-  await configureDependencies();
-  runApp(const UmlPilotApp());
-}
-
-/// Carga el `.env`; si no existe, se usan los valores por defecto.
-Future<void> _loadEnv() async {
   try {
     await dotenv.load();
   } catch (_) {
-    // ApiConstants aplica valores por defecto cuando el .env no está disponible.
+    // Sin .env la app usa los valores por defecto de ApiConstants.
   }
+  await configureDependencies();
+  // Restaura la sesión antes de construir el router para que los enlaces
+  // directos (por ejemplo /share/:token) conozcan el estado de autenticación.
+  await getIt<AuthViewModel>().restore();
+  runApp(const UmlPilotApp());
 }
 
 class UmlPilotApp extends StatelessWidget {
@@ -27,11 +28,17 @@ class UmlPilotApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      home: const HomePage(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthViewModel>.value(value: getIt<AuthViewModel>()),
+        ChangeNotifierProvider<NotificationsViewModel>.value(value: getIt<NotificationsViewModel>()),
+      ],
+      child: MaterialApp.router(
+        title: ApiConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        routerConfig: getIt<AppRouter>().router,
+      ),
     );
   }
 }

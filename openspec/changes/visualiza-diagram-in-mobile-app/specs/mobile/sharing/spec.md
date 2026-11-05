@@ -85,13 +85,13 @@ La app SHALL permitir invitar por email desde el diálogo de compartir, con bús
 - **WHEN** el owner/editor invita a un usuario desde el diálogo
 - **THEN** la invitación queda pendiente y el invitado recibe la notificación
 
-### Requirement: Rol resultante en el editor
-Tras unirse, la app SHALL aplicar el rol obtenido: el lector ve el editor en solo lectura y el editor puede modificar el diagrama.
+### Requirement: Rol conservado para la web
+La app móvil SHALL mostrar siempre el diagrama en modo solo lectura. El rol obtenido con el enlace (`viewer` o `editor`) MUST conservarse en la membresía para que aplique en la web.
 
 #### Scenario: Unión como lector
 - **WHEN** el usuario se une con un enlace de lector
-- **THEN** el editor se abre en solo lectura
+- **THEN** el visor móvil abre el diagrama en solo lectura y el rol queda guardado como lector
 
 #### Scenario: Unión como editor
 - **WHEN** el usuario se une con un enlace de editor
-- **THEN** el editor permite modificar el diagrama
+- **THEN** el rol queda guardado como editor para la web y el visor móvil sigue en solo lectura
