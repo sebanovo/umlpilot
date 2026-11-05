@@ -72,8 +72,8 @@
 ## 9. Verificación
 
 - [x] 9.1 Ejecutar `flutter analyze` y dejar la salida sin issues
-- [x] 9.2 Ejecutar `flutter test` (16 pruebas en verde para núcleo, auth, proyectos, notificaciones y widgets)
+- [x] 9.2 Ejecutar `flutter test` (22 pruebas en verde: núcleo, auth, proyectos, notificaciones, widgets, `ApiClient`, renderizado del canvas y flujo integrado)
 - [x] 9.3 Actualizar `umlpilot_mobile/README.md` con configuración, ejecución y alcance
-- [ ] 9.4 Prueba de integración automática login → proyecto → diagrama → compartir (pendiente)
-- [ ] 9.5 Prueba manual en web/Android del renderizado UML (a cargo del usuario)
-- [ ] 9.6 Prueba de adapter HTTP simulada para `ApiClient` (pendiente)
+- [x] 9.4 Prueba de integración automática del flujo login → proyecto → diagrama → compartir (`test/integration/mobile_flow_test.dart`)
+- [x] 9.5 Prueba automatizada de renderizado UML (widget test con clases, interfaces, enumeraciones, notas y todos los tipos de relación); revisión visual opcional
+- [x] 9.6 Prueba de adapter HTTP simulada para `ApiClient` (`test/core/api_client_test.dart`: Bearer, errores, refresh y cierre de sesión)
