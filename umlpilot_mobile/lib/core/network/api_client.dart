@@ -13,8 +13,7 @@ class ApiClient {
     required String baseUrl,
     required SessionController session,
     Dio? dio,
-  })  : _baseUrl = baseUrl,
-        _session = session,
+  })  : _session = session,
         _dio = dio ??
             Dio(
               BaseOptions(
@@ -24,7 +23,6 @@ class ApiClient {
               ),
             );
 
-  final String _baseUrl;
   final SessionController _session;
   final Dio _dio;
   Future<bool>? _refreshing;
@@ -104,14 +102,9 @@ class ApiClient {
     try {
       final refreshToken = _session.refreshToken;
       if (refreshToken == null || refreshToken.isEmpty) return false;
-      final refreshDio = Dio(
-        BaseOptions(
-          baseUrl: _baseUrl,
-          connectTimeout: AppConstants.connectTimeout,
-          receiveTimeout: AppConstants.receiveTimeout,
-        ),
-      );
-      final response = await refreshDio.post('/api/v1/auth/refresh', data: {'refreshToken': refreshToken});
+      // Se usa el mismo Dio (sin interceptores) para reutilizar el adapter
+      // inyectado en pruebas y la conexión en producción.
+      final response = await _dio.post('/api/v1/auth/refresh', data: {'refreshToken': refreshToken});
       final data = response.data;
       if (data is! Map) return false;
       final access = data['accessToken'] as String?;
