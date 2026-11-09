@@ -20,9 +20,11 @@ spring:
       max-lifetime: 1800000
 
   # MongoDB: almacén exclusivo del chat grupal (PostgreSQL sigue siendo la fuente de verdad)
+  # Spring Boot 4: la URI vive en spring.mongodb.uri; auto-index-creation sigue en spring.data.mongodb.
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/umlpilot_chat}
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/umlpilot_chat}
       auto-index-creation: false
 
   # Configuración de JPA
