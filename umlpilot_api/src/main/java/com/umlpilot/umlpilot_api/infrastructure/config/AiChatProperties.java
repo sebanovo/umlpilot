@@ -10,17 +10,14 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.ai.chat")
 public class AiChatProperties {
 
-    /** URL base OpenAI-compatible (por defecto OpenRouter). */
-    private String baseUrl = "https://openrouter.ai/api/v1";
+    /** URL base OpenAI-compatible de OpenRouter. */
+    private String openrouterBaseUrl = "https://openrouter.ai/api/v1";
 
     /** URL base OpenAI-compatible de Google Gemini. */
     private String geminiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
 
-    /**
-     * Proveedor a usar: {@code openrouter} o {@code gemini}. Si está vacío se toma el
-     * primero configurado de {@code app.ai.provider-order}.
-     */
-    private String provider = "";
+    /** URL base OpenAI-compatible de DeepSeek. */
+    private String deepseekBaseUrl = "https://api.deepseek.com";
 
     /** Máximo de llamadas a tools dentro de un turno (cota del bucle de tool calling). */
     private int maxToolCalls = 12;
@@ -28,14 +25,14 @@ public class AiChatProperties {
     /** Timeout en segundos para cada llamada al proveedor. */
     private long timeoutSeconds = 60;
 
-    public String getBaseUrl() { return baseUrl; }
-    public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+    public String getOpenrouterBaseUrl() { return openrouterBaseUrl; }
+    public void setOpenrouterBaseUrl(String openrouterBaseUrl) { this.openrouterBaseUrl = openrouterBaseUrl; }
 
     public String getGeminiBaseUrl() { return geminiBaseUrl; }
     public void setGeminiBaseUrl(String geminiBaseUrl) { this.geminiBaseUrl = geminiBaseUrl; }
 
-    public String getProvider() { return provider; }
-    public void setProvider(String provider) { this.provider = provider; }
+    public String getDeepSeekBaseUrl() { return deepseekBaseUrl; }
+    public void setDeepSeekBaseUrl(String deepseekBaseUrl) { this.deepseekBaseUrl = deepseekBaseUrl; }
 
     public int getMaxToolCalls() { return maxToolCalls; }
     public void setMaxToolCalls(int maxToolCalls) { this.maxToolCalls = maxToolCalls; }

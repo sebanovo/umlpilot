@@ -1,7 +1,7 @@
 # Rotación de proveedores y modelos de IA (asistente)
 
 Este documento describe cómo el asistente de IA del editor elige y **rota automáticamente**
-entre proveedores (OpenRouter, Google Gemini), API keys y modelos cuando uno falla, se
+entre proveedores (DeepSeek, OpenRouter, Google Gemini), API keys y modelos cuando uno falla, se
 satura o agota su cuota. Aplica al chat con *function calling* y a la construcción del
 diagrama desde una imagen.
 
@@ -28,7 +28,7 @@ diagrama desde una imagen.
 | `AiChatProperties` | `infrastructure/config/AiChatProperties.java` | Config `app.ai.chat.*` (proveedor, URLs, límites) |
 
 > El antiguo `AiOrchestrator` (usado por `/api/v1/ai/chat` para generación de código) es
-> un sistema aparte y no interviene aquí.
+> un sistema aparte; también soporta DeepSeek mediante `DeepSeekProvider`.
 
 ## 3. Construcción del registro
 
@@ -41,12 +41,13 @@ Para cada proveedor en el orden efectivo (ver §4):
 
 ```text
 para cada providerId en providerOrder:
-    config   = app.ai.<providerId>            # openrouter | gemini
+    config   = app.ai.<providerId>            # deepseek | openrouter | gemini
     keys     = config.api-keys                # lista separada por comas (se filtran vacíos)
     models   = modoVisión ? visionModelsFor(providerId, config)
                           : config.models
-    baseUrl  = providerId == "gemini" ? chat.gemini-base-url
-                                      : chat.base-url
+    baseUrl  = providerId == "gemini"   ? chat.gemini-base-url
+             : providerId == "deepseek" ? chat.deepseek-base-url
+                                        : chat.openrouter-base-url
 
     para cada key en keys:
         keyRef = hex(key.hashCode())
@@ -65,7 +66,7 @@ para cada providerId en providerOrder:
 
 - Si `config.vision-models` tiene valores → se usan esos.
 - Si no, y el proveedor es **gemini** → se usan `config.models` (todos aceptan imagen).
-- Si no, y el proveedor es **openrouter** → **ninguno** (sus modelos de texto no aceptan
+- Si no, y el proveedor es **openrouter** o **deepseek** -> **ninguno** (solo los declarados en `vision-models` aceptan imagen).
   imagen; así se evita el error `No endpoints found that support image input`).
 
 ### 3.1 Modelo por entrada
@@ -84,21 +85,11 @@ lo que estas son las únicas instancias de modelo.
 
 ## 4. Orden de proveedores
 
-El orden efectivo lo define `providerOrder(...)`:
+El orden efectivo lo define `app.ai.provider-order` (`AI_PROVIDER_ORDER`, por defecto
+`openrouter,gemini,deepseek`), sin duplicados. El primer proveedor configurado con keys y
+modelos es el que se usa inicialmente; el cursor recuerda el último que funcionó.
 
-1. Si `app.ai.chat.provider` (`AI_CHAT_PROVIDER`) tiene valor → ese proveedor va **primero**.
-2. Después, el resto de `app.ai.provider-order` (`AI_PROVIDER_ORDER`, por defecto
-   `openrouter,gemini`), sin duplicados.
-
-Ejemplos:
-
-| `AI_CHAT_PROVIDER` | `AI_PROVIDER_ORDER` | Orden efectivo |
-|---|---|---|
-| *(vacío)* | `openrouter,gemini` | openrouter → gemini |
-| `gemini` | `openrouter,gemini` | **gemini → openrouter** |
-| `openrouter` | `gemini,openrouter` | openrouter → gemini |
-
-Dentro de cada proveedor, el orden es **key₁×modelo₁, key₁×modelo₂, …, key₂×modelo₁, …**.
+Dentro de cada proveedor, el orden es **key1xmodelo1, key1xmodelo2, ..., key2xmodelo1, ...**.
 
 ## 5. Algoritmo de rotación
 
@@ -154,7 +145,7 @@ Observaciones:
 - Los cooldowns son **en memoria y por instancia** de la aplicación; se reinician al
   reiniciar el backend.
 
-Los segundos se toman de `app.ai.openrouter.*` / `app.ai.gemini.*`:
+Los segundos se toman de `app.ai.deepseek.*` / `app.ai.openrouter.*` / `app.ai.gemini.*`:
 `quota-cooldown-seconds` (`AI_QUOTA_COOLDOWN_SECONDS`, por defecto 300) y
 `error-cooldown-seconds` (`AI_ERROR_COOLDOWN_SECONDS`, por defecto 30).
 
@@ -162,16 +153,19 @@ Los segundos se toman de `app.ai.openrouter.*` / `app.ai.gemini.*`:
 
 | Variable | Propiedad | Por defecto | Descripción |
 |---|---|---|---|
-| `AI_PROVIDER_ORDER` | `app.ai.provider-order` | `openrouter,gemini` | Orden base de proveedores |
-| `AI_CHAT_PROVIDER` | `app.ai.chat.provider` | *(vacío)* | Proveedor preferido (va primero). `openrouter`\|`gemini` |
+| `AI_PROVIDER_ORDER` | `app.ai.provider-order` | `openrouter,gemini,deepseek` | Orden base de proveedores |
 | `OPENROUTER_API_KEYS` | `app.ai.openrouter.api-keys` | — | Keys de OpenRouter (coma). Rota entre ellas |
 | `OPENROUTER_MODELS` | `app.ai.openrouter.models` | — | Modelos de texto (coma) |
 | `OPENROUTER_VISION_MODELS` | `app.ai.openrouter.vision-models` | — | Modelos con imagen+tools (coma) |
 | `GEMINI_API_KEYS` | `app.ai.gemini.api-keys` | — | Keys de Gemini (coma). Rota entre ellas |
 | `GEMINI_MODELS` | `app.ai.gemini.models` | — | Modelos de texto e imagen (coma) |
 | `GEMINI_VISION_MODELS` | `app.ai.gemini.vision-models` | — | Si vacío, usa `GEMINI_MODELS` |
-| `AI_CHAT_BASE_URL` | `app.ai.chat.base-url` | `https://openrouter.ai/api/v1` | Endpoint OpenAI-compatible de OpenRouter |
-| `AI_CHAT_GEMINI_BASE_URL` | `app.ai.chat.gemini-base-url` | `https://generativelanguage.googleapis.com/v1beta/openai` | Endpoint OpenAI-compatible de Gemini |
+| `DEEPSEEK_API_KEY` | `app.ai.deepseek.api-keys` | - | Keys de DeepSeek (coma). Rota entre ellas |
+| `DEEPSEEK_MODELS` | `app.ai.deepseek.models` | - | Modelos de texto e imagen (coma) |
+| `DEEPSEEK_VISION_MODELS` | `app.ai.deepseek.vision-models` | - | Modelos con imagen+tools (coma); si vacio no se usa para vision |
+| `DEEPSEEK_BASE_URL` | `app.ai.deepseek.base-url` / `app.ai.chat.deepseek-base-url` | `https://api.deepseek.com` | Endpoint OpenAI-compatible de DeepSeek (chat y orquestador) |
+| `OPENROUTER_BASE_URL` | `app.ai.chat.openrouter-base-url` | `https://openrouter.ai/api/v1` | Endpoint OpenAI-compatible de OpenRouter |
+| `GEMINI_BASE_URL` | `app.ai.chat.gemini-base-url` | `https://generativelanguage.googleapis.com/v1beta/openai` | Endpoint OpenAI-compatible de Gemini |
 | `AI_CHAT_MAX_TOOL_CALLS` | `app.ai.chat.max-tool-calls` | `12` | Cota de llamadas a tools por turno |
 | `AI_CHAT_TIMEOUT_SECONDS` | `app.ai.chat.timeout-seconds` | `60` | Timeout por llamada |
 | `AI_QUOTA_COOLDOWN_SECONDS` | `app.ai.*.quota-cooldown-seconds` | `300` | Cooldown por cuota/créditos |
@@ -204,7 +198,7 @@ flowchart TD
 
 ## 9. Escenarios de ejemplo
 
-**A. `AI_CHAT_PROVIDER=gemini`, Gemini saturado, OpenRouter disponible**
+**A. Gemini primero (segun `AI_PROVIDER_ORDER`) y saturado, OpenRouter disponible**
 
 1. `gemini-3.8-flash` → `503 high demand` → fallo puntual → enfría esa entrada 30s.
 2. `gemini-3.7-flash` → `503` → enfría 30s.
@@ -247,7 +241,7 @@ flowchart TD
   `tools`).
 - **Añadir keys**: agrega keys separadas por comas en `OPENROUTER_API_KEYS` /
   `GEMINI_API_KEYS`. Se crean entradas por cada key.
-- **Cambiar prioridad**: define `AI_CHAT_PROVIDER` (`openrouter` o `gemini`). Reinicia el
+- **Cambiar prioridad**: cambia el orden en `AI_PROVIDER_ORDER` y reinicia el backend.
   backend para que `dotenv` recargue `.env`.
 - **Añadir otro proveedor OpenAI-compatible**: agrega un campo en `AiProperties`, un caso
   en `AiProperties.providerConfig`, su base URL en `AiChatConfiguration.buildRegistry` y

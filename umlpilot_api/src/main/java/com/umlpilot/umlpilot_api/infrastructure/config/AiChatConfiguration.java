@@ -22,8 +22,8 @@ import java.util.List;
 
 /**
  * Construye un modelo de chat OpenAI-compatible por cada combinación (proveedor, modelo)
- * configurada —OpenRouter y/o Google Gemini (endpoint OpenAI-compatible)— y los registra
- * en {@link AiChatProviderRegistry}. Hay dos registros: el de chat (texto) y el de visión
+ * configurada —DeepSeek, OpenRouter y/o Google Gemini (endpoints OpenAI-compatible)— y los
+ * registra en {@link AiChatProviderRegistry}. Hay dos registros: el de chat (texto) y el de visión
  * (imagen + tools, para construir el diagrama desde una imagen). El asistente rota entre
  * entradas cuando un modelo no está disponible o se agotan los créditos de un proveedor.
  * La autoconfiguración de OpenAI está deshabilitada en {@code application.yml} para no
@@ -59,7 +59,7 @@ public class AiChatConfiguration {
                                                  boolean vision) {
         List<AiChatProviderRegistry.Entry> entries = new ArrayList<>();
 
-        for (String providerId : providerOrder(aiProperties, chatProperties)) {
+        for (String providerId : providerOrder(aiProperties)) {
             AiProperties.Provider config = aiProperties.providerConfig(providerId);
             if (config == null) continue;
 
@@ -67,9 +67,11 @@ public class AiChatConfiguration {
             List<String> models = vision ? visionModelsFor(providerId, config) : nonBlank(config.getModels());
             if (keys.isEmpty() || models.isEmpty()) continue;
 
-            String baseUrl = "gemini".equalsIgnoreCase(providerId)
-                    ? chatProperties.getGeminiBaseUrl()
-                    : chatProperties.getBaseUrl();
+            String baseUrl = switch (providerId.toLowerCase()) {
+                case "gemini" -> chatProperties.getGeminiBaseUrl();
+                case "deepseek" -> chatProperties.getDeepSeekBaseUrl();
+                default -> chatProperties.getOpenrouterBaseUrl();
+            };
 
             for (String key : keys) {
                 String keyRef = Integer.toHexString(key.hashCode());
@@ -87,7 +89,7 @@ public class AiChatConfiguration {
     /**
      * Modelos con visión de un proveedor: su lista explícita {@code vision-models} si la
      * hay; si no, para Gemini se usan los modelos normales (todos aceptan imagen) y para
-     * OpenRouter ninguno (sus modelos gratuitos de texto no aceptan imagen).
+     * OpenRouter/DeepSeek ninguno (solo los declarados como visión aceptan imagen).
      */
     private static List<String> visionModelsFor(String providerId, AiProperties.Provider config) {
         List<String> explicit = nonBlank(config.getVisionModels());
@@ -121,16 +123,11 @@ public class AiChatConfiguration {
     }
 
     /**
-     * Orden de proveedores para la rotación: primero {@code app.ai.chat.provider} (si está
-     * definido) y luego el resto de {@code app.ai.provider-order}, sin duplicados.
+     * Orden de proveedores para la rotación: {@code app.ai.provider-order}
+     * ({@code AI_PROVIDER_ORDER}), sin duplicados.
      */
-    static List<String> providerOrder(AiProperties aiProperties, AiChatProperties chatProperties) {
+    static List<String> providerOrder(AiProperties aiProperties) {
         LinkedHashSet<String> order = new LinkedHashSet<>();
-
-        String chosen = chatProperties.getProvider();
-        if (chosen != null && !chosen.isBlank()) {
-            order.add(chosen.trim().toLowerCase());
-        }
 
         List<String> configuredOrder = aiProperties.getProviderOrder();
         if (configuredOrder != null) {
@@ -144,6 +141,7 @@ public class AiChatConfiguration {
         if (order.isEmpty()) {
             order.add("openrouter");
             order.add("gemini");
+            order.add("deepseek");
         }
         return new ArrayList<>(order);
     }
