@@ -6,7 +6,7 @@ import { useAuth } from '../features/auth/useAuth'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
 import { NotificationBell } from '../features/notifications/components/NotificationBell'
 import { InviteCollaboratorForm } from '../features/collaboration/components/InviteCollaboratorForm'
-import { ArrowLeft, Plus, Trash2, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Users, FileText, Lock, Loader2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 
 export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -148,6 +148,13 @@ export function ProjectDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              to={`/projects/${id}/ai`}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-900 bg-blue-950/60 px-3 py-1.5 text-xs font-medium text-blue-200 transition-colors hover:border-blue-500 hover:text-blue-100"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Modo IA
+            </Link>
             <NotificationBell />
           </div>
         </div>

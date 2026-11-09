@@ -2,7 +2,7 @@
 
 Permite crear, editar, mover y eliminar elementos UML (clases, interfaces, enumeraciones) dentro de un diagrama de clases.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Crear elemento UML
 El sistema SHALL exponer un endpoint `POST /api/v1/projects/{projectId}/diagrams/{diagramId}/elements` que cree un elemento con tipo (class, interface, enumeration), nombre, posición (x, y) y dimensiones (width, height).

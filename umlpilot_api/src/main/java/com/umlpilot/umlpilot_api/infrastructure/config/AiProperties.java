@@ -10,15 +10,17 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app.ai")
 public class AiProperties {
 
-    private List<String> providerOrder = new ArrayList<>(List.of("openrouter", "gemini"));
+    private List<String> providerOrder = new ArrayList<>(List.of("openrouter", "gemini", "deepseek"));
     private Provider openrouter = new Provider();
     private Provider gemini = new Provider();
+    private Provider deepseek = new Provider();
 
     public Provider providerConfig(String id) {
         if (id == null) return null;
         return switch (id.toLowerCase()) {
             case "openrouter" -> openrouter;
             case "gemini" -> gemini;
+            case "deepseek" -> deepseek;
             default -> null;
         };
     }
@@ -29,6 +31,8 @@ public class AiProperties {
     public void setOpenrouter(Provider openrouter) { this.openrouter = openrouter; }
     public Provider getGemini() { return gemini; }
     public void setGemini(Provider gemini) { this.gemini = gemini; }
+    public Provider getDeepseek() { return deepseek; }
+    public void setDeepseek(Provider deepseek) { this.deepseek = deepseek; }
 
     public static class Provider {
         private List<String> apiKeys = new ArrayList<>();

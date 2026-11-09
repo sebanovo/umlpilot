@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 import { Pencil, Trash2 } from 'lucide-react'

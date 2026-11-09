@@ -1,5 +1,6 @@
 package com.umlpilot.umlpilot_api.infrastructure.config;
 
+import com.umlpilot.umlpilot_api.infrastructure.websocket.ChatSubscriptionInterceptor;
 import com.umlpilot.umlpilot_api.infrastructure.websocket.WebSocketAuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -13,9 +14,12 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor authInterceptor;
+    private final ChatSubscriptionInterceptor chatSubscriptionInterceptor;
 
-    public WebSocketConfig(WebSocketAuthInterceptor authInterceptor) {
+    public WebSocketConfig(WebSocketAuthInterceptor authInterceptor,
+                           ChatSubscriptionInterceptor chatSubscriptionInterceptor) {
         this.authInterceptor = authInterceptor;
+        this.chatSubscriptionInterceptor = chatSubscriptionInterceptor;
     }
 
     @Override
@@ -31,6 +35,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(authInterceptor);
+        registration.interceptors(authInterceptor, chatSubscriptionInterceptor);
     }
 }

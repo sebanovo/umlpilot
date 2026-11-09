@@ -19,6 +19,14 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  # MongoDB: almacén exclusivo del chat grupal (PostgreSQL sigue siendo la fuente de verdad)
+  # Spring Boot 4: la URI vive en spring.mongodb.uri; auto-index-creation sigue en spring.data.mongodb.
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/umlpilot_chat}
+  data:
+    mongodb:
+      auto-index-creation: false
+
   # Configuración de JPA
   jpa:
     database: POSTGRESQL
@@ -104,10 +112,20 @@ springdoc:
 # ============================================================
 
 app:
-  # Configuración de IA (OpenRouter + Gemini con fallback automático)
+  # Configuración de IA (DeepSeek + OpenRouter + Gemini con fallback automático)
   ai:
     # Orden de proveedores. Cuando uno se agota (tokens/cuota), se pasa al siguiente
-    provider-order: ${AI_PROVIDER_ORDER:openrouter,gemini}
+    provider-order: ${AI_PROVIDER_ORDER:openrouter,gemini,deepseek}
+    deepseek:
+      # Endpoint OpenAI-compatible (chat con function calling y orquestador legacy)
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      # Listas separadas por comas
+      api-keys: ${DEEPSEEK_API_KEY:}
+      models: ${DEEPSEEK_MODELS:}
+      # Solo estos aceptan imagen; si está vacío no se usa para visión
+      vision-models: ${DEEPSEEK_VISION_MODELS:}
+      quota-cooldown-seconds: ${AI_QUOTA_COOLDOWN_SECONDS:300}
+      error-cooldown-seconds: ${AI_ERROR_COOLDOWN_SECONDS:30}
     openrouter:
       # Listas separadas por comas
       api-keys: ${OPENROUTER_API_KEYS:}
@@ -128,9 +146,10 @@ app:
     # Asistente de chat con function calling (Spring AI, OpenAI-compatible)
     # provider: openrouter | gemini (vacío = primero configurado en provider-order)
     chat:
-      provider: ${AI_CHAT_PROVIDER:}
-      base-url: ${AI_CHAT_BASE_URL:https://openrouter.ai/api/v1}
-      gemini-base-url: ${AI_CHAT_GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      # El orden de proveedores se toma de app.ai.provider-order (AI_PROVIDER_ORDER)
+      openrouter-base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+      gemini-base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      deepseek-base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       max-tool-calls: ${AI_CHAT_MAX_TOOL_CALLS:12}
       timeout-seconds: ${AI_CHAT_TIMEOUT_SECONDS:60}
 
@@ -140,6 +159,16 @@ app:
       model: ${GROQ_MODEL:whisper-large-v3}
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
       language: ${GROQ_LANGUAGE:}
+
+  # Chat grupal persistente por proyecto (MongoDB)
+  chat:
+    recent-messages: ${CHAT_RECENT_MESSAGES:40}
+    retrieval-limit: ${CHAT_RETRIEVAL_LIMIT:5}
+    summary-threshold: ${CHAT_SUMMARY_THRESHOLD:60}
+    summary-batch-size: ${CHAT_SUMMARY_BATCH_SIZE:40}
+    summary-interval-ms: ${CHAT_SUMMARY_INTERVAL_MS:60000}
+    index-initialization-enabled: ${CHAT_MONGO_INDEX_INIT:true}
+    timeout-seconds: ${CHAT_TIMEOUT_SECONDS:120}
 
 
   # Generación de backend Spring Boot a partir de un diagrama de clases

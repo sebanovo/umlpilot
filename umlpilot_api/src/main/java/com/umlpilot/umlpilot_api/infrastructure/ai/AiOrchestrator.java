@@ -120,7 +120,7 @@ public class AiOrchestrator {
     private List<String> providerOrder() {
         List<String> order = properties.getProviderOrder();
         if (order == null || order.isEmpty()) {
-            return List.of("openrouter", "gemini");
+            return List.of("openrouter", "gemini", "deepseek");
         }
         return order;
     }

@@ -1,18 +1,31 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-/// Configuración de servicios externos leída desde el archivo `.env`.
+/// Configuración leída desde el archivo `.env`.
 class ApiConstants {
   ApiConstants._();
 
-  static const String defaultOllamaUrl = 'http://localhost:11434';
-  static const String defaultOllamaModel = 'llama3.2';
+  static const String fallbackBaseUrl = 'http://localhost:8080';
+  static const String fallbackAppName = 'UML Pilot';
+  static const String fallbackWebBaseUrl = 'http://localhost:5173';
 
-  /// URL base del servidor Ollama (sin barra final).
-  static String get ollamaBaseUrl =>
-      _read('OLLAMA_URL', defaultOllamaUrl).replaceAll(RegExp(r'/+$'), '');
+  static String get baseUrl => _read('API_BASE_URL', fallbackBaseUrl).replaceAll(RegExp(r'/+$'), '');
 
-  /// Modelo de Ollama usado por el asistente.
-  static String get ollamaModel => _read('OLLAMA_MODEL', defaultOllamaModel);
+  static String get appName => _read('APP_NAME', fallbackAppName);
+
+  /// Origen de la web, usado para construir enlaces compartidos.
+  static String get webBaseUrl =>
+      _read('WEB_BASE_URL', fallbackWebBaseUrl).replaceAll(RegExp(r'/+$'), '');
+
+  /// URL STOMP derivada del backend (`http` → `ws`, `https` → `wss`).
+  static String get wsUrl {
+    final base = baseUrl;
+    final wsBase = base.startsWith('https://')
+        ? 'wss://${base.substring('https://'.length)}'
+        : base.startsWith('http://')
+            ? 'ws://${base.substring('http://'.length)}'
+            : 'ws://$base';
+    return '$wsBase/ws';
+  }
 
   static String _read(String key, String fallback) {
     if (!dotenv.isInitialized) return fallback;

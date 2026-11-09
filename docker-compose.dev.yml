@@ -35,6 +35,23 @@ services:
       timeout: 3s
       retries: 20
 
+  # ---------- MongoDB (chat grupal) ----------
+  umlpilot-mongo:
+    image: mongo:7
+    container_name: umlpilot_mongo_dev
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - umlpilot_mongo_dev_data:/data/db
+    networks:
+      - umlpilot-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # ---------- Backend (spring-boot:run + devtools) ----------
   umlpilot-api:
     build:
@@ -46,12 +63,15 @@ services:
     depends_on:
       umlpilot-db:
         condition: service_healthy
+      umlpilot-mongo:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       # Dentro de la red de compose la BD es el servicio, no localhost
       DB_HOST: umlpilot-db
       DB_PORT: "5432"
+      MONGODB_URI: mongodb://umlpilot-mongo:27017/umlpilot_chat
     volumes:
       - ./umlpilot_api:/app
       - maven_cache:/root/.m2
@@ -88,6 +108,7 @@ services:
 
 volumes:
   umlpilot_db_dev_data:
+  umlpilot_mongo_dev_data:
   maven_cache:
   node_modules:
 

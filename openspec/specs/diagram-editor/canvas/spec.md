@@ -2,7 +2,7 @@
 
 Proporciona un editor visual interactivo para diagramas de clases UML con canvas, toolbar y panel de propiedades.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Canvas interactivo
 El frontend SHALL renderizar un canvas donde los elementos UML se muestran como cajas interactivas que se pueden arrastrar, redimensionar y seleccionar.

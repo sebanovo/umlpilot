@@ -2,7 +2,7 @@
 
 Proporciona la interfaz de usuario para autenticación (login y registro) y gestiona el estado de sesión del usuario en el frontend.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Página de login
 El frontend SHALL exponer una página de login en `/login` con campos de email y password, y un botón para enviar.

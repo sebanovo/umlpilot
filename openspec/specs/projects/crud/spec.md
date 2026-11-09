@@ -2,7 +2,7 @@
 
 Permite a los usuarios crear, listar, actualizar y eliminar proyectos que contienen diagramas UML.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Crear proyecto
 El sistema SHALL exponer un endpoint `POST /api/v1/projects` que cree un proyecto nuevo con nombre, descripción. El usuario autenticado será el creador y owner del proyecto.

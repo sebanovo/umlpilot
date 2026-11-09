@@ -19,7 +19,10 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off'
+      '@typescript-eslint/no-explicit-any': 'off',
+      // El proyecto usa el patrón de cargar datos al montar y actualizar estado
+      // desde efectos; la regla nueva de React Compiler lo marca como error.
+      'react-hooks/set-state-in-effect': 'off',
     }
   },
 ])

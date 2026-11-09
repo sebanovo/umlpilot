@@ -1,20 +1,31 @@
 /// Excepciones lanzadas por la capa de datos.
-class ServerException implements Exception {
-  const ServerException(this.message, {this.statusCode});
+class AppException implements Exception {
+  const AppException(this.message);
 
   final String message;
-  final int? statusCode;
 
   @override
   String toString() => message;
 }
 
-/// Errores de conectividad (sin respuesta del servidor).
-class NetworkException implements Exception {
-  const NetworkException([this.message = 'No se pudo conectar con el servidor']);
+class ServerException extends AppException {
+  const ServerException(super.message, {this.statusCode});
 
-  final String message;
+  final int? statusCode;
+}
 
-  @override
-  String toString() => message;
+class NetworkException extends AppException {
+  const NetworkException([super.message = 'No se pudo conectar con el servidor']);
+}
+
+class UnauthorizedException extends AppException {
+  const UnauthorizedException([super.message = 'Tu sesión expiró. Inicia sesión de nuevo.']);
+}
+
+class ForbiddenException extends AppException {
+  const ForbiddenException([super.message = 'No tienes permisos para realizar esta acción']);
+}
+
+class ValidationException extends AppException {
+  const ValidationException(super.message);
 }

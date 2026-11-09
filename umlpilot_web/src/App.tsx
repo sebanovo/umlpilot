@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { DiagramEditorPage } from './pages/DiagramEditorPage'
+import { AiModePage } from './pages/AiModePage'
 import { LandingPage } from './pages/LandingPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { RedirectPage } from './pages/RedirectPage'
@@ -53,6 +54,7 @@ function AppRoutes() {
       <Route path="/" element={<HomeRoute />} />
       <Route path="/projects" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+      <Route path="/projects/:id/ai" element={<ProtectedRoute><AiModePage /></ProtectedRoute>} />
       <Route path="/projects/:id/diagrams/:diagramId" element={<ProtectedRoute><DiagramEditorPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
