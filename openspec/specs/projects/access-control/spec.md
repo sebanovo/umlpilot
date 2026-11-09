@@ -2,7 +2,7 @@
 
 Reglas de acceso a proyectos y diagramas. El acceso solo se obtiene por ser creador o colaborador con invitación aceptada; conocer el enlace de un proyecto no concede acceso. Los permisos se validan en todos los canales (REST, WebSocket y enlaces compartidos).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Acceso solo por membresía aceptada
 El sistema SHALL permitir leer un proyecto o diagrama únicamente al creador o a un colaborador con `invitation_status = accepted`.
