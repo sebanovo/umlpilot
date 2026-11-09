@@ -2,7 +2,7 @@
 
 Permite crear, editar y eliminar relaciones entre elementos UML con multiplicidades.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Crear relación
 El sistema SHALL exponer un endpoint `POST /api/v1/projects/{projectId}/diagrams/{diagramId}/relationships` que cree una relación con tipo (association, generalization, aggregation, composition, realization, association_class), elemento origen, elemento destino, nombre y dirección.

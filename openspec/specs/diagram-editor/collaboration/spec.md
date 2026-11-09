@@ -2,7 +2,7 @@
 
 Permite协作ación en tiempo real en el editor de diagramas — sincronización de operaciones de elementos, presencia de usuarios, y resolución de conflictos.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Sincronización de creación de elementos
 Cuando un usuario crea un elemento, el evento `element_created` se envía a todos los usuarios de la sala excepto al remitente, y el elemento aparece en el canvas de todos.

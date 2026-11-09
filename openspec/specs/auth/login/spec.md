@@ -2,7 +2,7 @@
 
 Permite a los usuarios autenticarse con email y password para obtener tokens de acceso.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Login con credenciales
 El sistema SHALL exponer un endpoint `POST /api/v1/auth/login` que acepte email y password, valide las credenciales contra la base de datos y retorne tokens JWT.

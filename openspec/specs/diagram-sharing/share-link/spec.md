@@ -4,7 +4,7 @@ Compartir diagramas como en Figma, con dos vías independientes:
 1. **Cualquiera con el enlace**: la persona puede previsualizar el diagrama (sin cuenta) y, al iniciar sesión, **unirse al proyecto** con el rol que defina el enlace (lector o editor). El enlace no añade miembros por sí solo.
 2. **Invitar por correo**: el owner/editor invita por email a un usuario registrado; recibe la propuesta en su bandeja de notificaciones para aceptar o rechazar.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Enlace con permiso configurable
 El sistema SHALL exponer `GET|POST|DELETE /api/v1/projects/{projectId}/diagrams/{diagramId}/share`. Solo `owner`/`editor` pueden gestionarlo. El enlace tiene un rol `viewer` (por defecto) o `editor`, configurable al activarlo o después.

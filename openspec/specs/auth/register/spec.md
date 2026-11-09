@@ -2,7 +2,7 @@
 
 Permite a nuevos usuarios crear una cuenta con rol USER predeterminado.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Registro de usuario
 El sistema SHALL exponer un endpoint `POST /api/v1/auth/register` que acepte email, password, firstName y lastName, cree un usuario con rol USER y retorne tokens JWT.

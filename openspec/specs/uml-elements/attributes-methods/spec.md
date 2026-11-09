@@ -2,7 +2,7 @@
 
 Permite gestionar atributos y métodos dentro de un elemento UML (clase, interfaz, enumeración).
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Crear atributo
 El sistema SHALL exponer un endpoint `POST /api/v1/projects/{projectId}/diagrams/{diagramId}/elements/{elementId}/attributes` que cree un atributo con nombre, tipo de dato, visibilidad, valor por defecto, y modifiers (static, final, transient, volatile).

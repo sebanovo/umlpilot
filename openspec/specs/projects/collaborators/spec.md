@@ -2,7 +2,7 @@
 
 Permite gestionar colaboradores en un proyecto — invitar usuarios, aceptar/rechazar invitaciones y cambiar roles.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Invitar colaborador
 El sistema SHALL exponer un endpoint `POST /api/v1/projects/{id}/collaborators` que invite a un usuario por email con un rol (editor o viewer). Solo owner y editor pueden invitar.

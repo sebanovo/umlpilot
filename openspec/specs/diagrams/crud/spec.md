@@ -2,7 +2,7 @@
 
 Permite crear, listar, actualizar y eliminar diagramas UML dentro de un proyecto, con control de bloqueo para edición.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Crear diagrama
 El sistema SHALL exponer un endpoint `POST /api/v1/projects/{projectId}/diagrams` que cree un diagrama con nombre y tipo (class, sequence, use_case, activity, state). Solo owner y editor pueden crear.

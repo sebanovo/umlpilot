@@ -2,7 +2,7 @@
 
 Genera, valida y refresca tokens JWT para mantener sesiones de usuario autenticadas de forma stateless.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Generación de access token
 El sistema SHALL generar un access token JWT al autenticar un usuario correctamente. El token SHALL contener el email, el rol y la fecha de expiración. El token SHALL estar firmado con el secret configurado en `app.security.jwt.secret`.

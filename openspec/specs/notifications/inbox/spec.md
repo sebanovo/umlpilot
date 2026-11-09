@@ -2,7 +2,7 @@
 
 Bandeja de notificaciones persistente para avisar al usuario de propuestas de colaboración. No usa push ni websockets: el cliente consulta el contador por polling ligero y al enfocar la ventana. Cada notificación puede marcarse como leída y, si es una invitación, responderse (aceptar/rechazar) desde la propia bandeja.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Bandeja de notificaciones
 El sistema SHALL exponer `GET /api/v1/notifications` que devuelva las notificaciones del usuario autenticado, más recientes primero, incluyendo `type`, `title`, `message`, `projectId`, `role`, `read`, `createdAt` e `invitationStatus`.
