@@ -82,6 +82,40 @@ El sistema SHALL mostrar en el editor de diagramas una acción para abrir el mod
 - **WHEN** un usuario con rol `viewer` abre el editor
 - **THEN** puede abrir el modo IA en modo lectura y sin acciones de mutación
 
+### Requirement: Menciones y composición tipo chat
+El sistema SHALL ofrecer un compositor tipo chat con autocompletado de menciones: al escribir `@` SHALL sugerir a `@Asistente IA` y a los integrantes del proyecto, y al seleccionar una sugerencia SHALL insertar la mención en el mensaje. Los mensajes SHALL resaltar las menciones y la interfaz SHALL indicar que la IA solo responde cuando se la menciona.
+
+#### Scenario: Autocompletar mención
+- **WHEN** el usuario escribe `@` en el compositor
+- **THEN** ve una lista con `@Asistente IA` y los integrantes del proyecto
+
+#### Scenario: Insertar mención
+- **WHEN** el usuario selecciona una sugerencia de mención
+- **THEN** la mención se inserta en el texto y el foco vuelve al compositor
+
+#### Scenario: Mención resaltada
+- **WHEN** un mensaje contiene `@Asistente IA` o el nombre de un integrante
+- **THEN** la mención se muestra resaltada dentro de la burbuja
+
+#### Scenario: IA solo con mención
+- **WHEN** el usuario escribe un mensaje sin `@asistente`
+- **THEN** la interfaz le recuerda que la IA responderá solo si la menciona
+
+### Requirement: Interfaz de conversación cómoda
+El sistema SHALL presentar la conversación con burbujas diferenciadas por autor, separadores de fecha, desplazamiento automático cuando el usuario está al final, botón para volver al final y un compositor que crece con el texto.
+
+#### Scenario: Burbujas y fechas
+- **WHEN** el usuario abre el chat
+- **THEN** los mensajes propios y ajenos se distinguen visualmente y se agrupan por día
+
+#### Scenario: Lectura de historial
+- **WHEN** el usuario sube a leer mensajes anteriores y llega uno nuevo
+- **THEN** la vista no salta al final y aparece una acción para volver al final
+
+#### Scenario: Compositor cómodo
+- **WHEN** el usuario escribe un mensaje largo
+- **THEN** el compositor crece hasta un límite y permite enviar con Enter o hacer un salto de línea con Shift+Enter
+
 ### Requirement: Vista dedicada de modo IA
 El sistema SHALL ofrecer una vista dedicada de modo IA por proyecto con la conversación grupal como elemento central, historial, campo de entrada, selector de diagrama y panel de contexto.
 

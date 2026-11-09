@@ -114,6 +114,10 @@ public class AiChatService {
             "create_element", "add_attribute", "add_method", "add_parameter", "create_relationship",
             "set_multiplicity");
 
+    /** Tools de solo lectura para viewers y contextos sin permiso de mutación. */
+    private static final Set<String> READ_ONLY_TOOLS = Set.of(
+            "list_elements", "list_attributes", "list_methods", "list_relationships", "get_diagram_state");
+
     private static final int SPEC_ATTEMPTS = 2;
 
     private final AiChatProviderInfo providerInfo;
@@ -123,6 +127,8 @@ public class AiChatService {
     private final DiagramEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final List<Provider> providers;
+    private final List<Provider> readOnlyProviders;
+    private final List<Provider> plainProviders;
     private final List<Provider> specProviders;
     private final List<Provider> imageProviders;
     private final List<Provider> visionSpecProviders;
@@ -142,9 +148,18 @@ public class AiChatService {
         ToolCallback[] buildCallbacks = Arrays.stream(allCallbacks)
                 .filter(callback -> BUILD_TOOLS.contains(callback.getToolDefinition().name()))
                 .toArray(ToolCallback[]::new);
+        ToolCallback[] readOnlyCallbacks = Arrays.stream(allCallbacks)
+                .filter(callback -> READ_ONLY_TOOLS.contains(callback.getToolDefinition().name()))
+                .toArray(ToolCallback[]::new);
 
         this.providers = registry.entries().stream()
                 .map(entry -> new Provider(entry, client(entry.model(), SYSTEM_PROMPT, allCallbacks)))
+                .toList();
+        this.readOnlyProviders = registry.entries().stream()
+                .map(entry -> new Provider(entry, client(entry.model(), SYSTEM_PROMPT, readOnlyCallbacks)))
+                .toList();
+        this.plainProviders = registry.entries().stream()
+                .map(entry -> new Provider(entry, client(entry.model(), "Eres un asistente útil y conciso.", null)))
                 .toList();
         this.specProviders = registry.entries().stream()
                 .map(entry -> new Provider(entry, client(entry.model(), JSON_SYSTEM_PROMPT, null)))
@@ -192,6 +207,45 @@ public class AiChatService {
         return execute(registry, providers, messages, context, recorder);
     }
 
+    /**
+     * Ejecuta el asistente con un historial ya construido por el chat grupal. Permite
+     * deshabilitar las mutaciones para viewers y las tools para tareas de resumen.
+     */
+    public AiChatResult chatWithContext(String projectId, String diagramId, String userId,
+                                        List<LlmMessage> history, boolean allowMutations,
+                                        boolean toolsEnabled) {
+        ensureConfigured();
+        ActionRecorder recorder = new ActionRecorder();
+        Map<String, Object> context = context(projectId, diagramId, userId, recorder);
+        List<Message> messages = history == null ? new ArrayList<>()
+                : history.stream().map(AiChatService::toMessage).toList();
+
+        List<Provider> selected;
+        if (!toolsEnabled) {
+            selected = plainProviders;
+        } else {
+            selected = allowMutations ? providers : readOnlyProviders;
+        }
+        Execution execution = executeContent(registry, selected, messages, context);
+        return new AiChatResult(execution.content() == null ? "" : execution.content(),
+                recorder.actions(), execution.provider(), execution.model());
+    }
+
+    static Set<String> readOnlyToolNames() {
+        return READ_ONLY_TOOLS;
+    }
+
+    private static Message toMessage(LlmMessage message) {
+        if (message == null || message.content() == null) {
+            return new UserMessage("");
+        }
+        return switch (message.role() == null ? "user" : message.role().toLowerCase()) {
+            case "assistant" -> new AssistantMessage(message.content());
+            case "system" -> new SystemMessage(message.content());
+            default -> new UserMessage(message.content());
+        };
+    }
+
     /** Construye el diagrama completo desde una descripción de texto. */
     public AiChatOutcome diagramFromText(String projectId, String diagramId, String userId, String prompt) {
         if (isBlank(prompt)) {
@@ -228,7 +282,7 @@ public class AiChatService {
         for (int attempt = 0; attempt < SPEC_ATTEMPTS; attempt++) {
             try {
                 List<Message> messages = specMessages(image, contentType, input, previousError);
-                String content = executeContent(specRegistry, specList, messages, context);
+                String content = executeContent(specRegistry, specList, messages, context).content();
                 DiagramSpec spec = parseSpec(content);
                 DiagramBuildResult result = diagramBuildService.build(diagramId, userId, spec);
                 eventPublisher.diagramChanged(diagramId, userId);
@@ -345,12 +399,12 @@ public class AiChatService {
 
     private AiChatOutcome execute(AiChatProviderRegistry providerRegistry, List<Provider> providerList,
                                   List<Message> messages, Map<String, Object> context, ActionRecorder recorder) {
-        String reply = executeContent(providerRegistry, providerList, messages, context);
-        return new AiChatOutcome(reply == null ? "" : reply, recorder.actions());
+        Execution execution = executeContent(providerRegistry, providerList, messages, context);
+        return new AiChatOutcome(execution.content() == null ? "" : execution.content(), recorder.actions());
     }
 
-    private String executeContent(AiChatProviderRegistry providerRegistry, List<Provider> providerList,
-                                  List<Message> messages, Map<String, Object> context) {
+    private Execution executeContent(AiChatProviderRegistry providerRegistry, List<Provider> providerList,
+                                     List<Message> messages, Map<String, Object> context) {
         int size = providerList.size();
         int start = providerRegistry.cursor();
         List<String> errors = new ArrayList<>();
@@ -367,7 +421,7 @@ public class AiChatService {
                         .call()
                         .content();
                 providerRegistry.moveCursorTo(index);
-                return reply;
+                return new Execution(reply, provider.entry.id(), provider.entry.modelName());
             } catch (Exception e) {
                 if (QuotaErrors.isProviderWideQuota(e)) {
                     providerRegistry.coolDownProvider(provider.entry.id(), provider.entry.quotaCooldownSeconds());
@@ -384,6 +438,9 @@ public class AiChatService {
                 ? "todos en enfriamiento (" + providerRegistry.remainingCooldownSeconds() + "s)"
                 : String.join(" | ", errors);
         throw new LlmException("Ningún proveedor de IA disponible: " + detail, true);
+    }
+
+    private record Execution(String content, String provider, String model) {
     }
 
     private static boolean isBlank(String value) {

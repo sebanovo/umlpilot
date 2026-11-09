@@ -36,6 +36,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # ---------- MongoDB (chat grupal, solo red interna) ----------
+  umlpilot-mongo:
+    image: mongo:7
+    container_name: umlpilot_mongo
+    restart: unless-stopped
+    volumes:
+      - umlpilot_mongo_data:/data/db
+    networks:
+      - umlpilot-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ---------- Backend Spring Boot (solo red interna) ----------
   # No lleva `environment`: lee DB_HOST, JWT_SECRET, claves de IA, etc. del .env.
   umlpilot-api:
@@ -48,11 +63,14 @@ services:
       - .env
     restart: unless-stopped
     environment:
-      # Dentro de la red de compose la BD es el servicio, no localhost
+      # Dentro de la red de compose las bases son servicios, no localhost
       DB_HOST: umlpilot-db
       DB_PORT: "5432"
+      MONGODB_URI: mongodb://umlpilot-mongo:27017/umlpilot_chat
     depends_on:
       umlpilot-db:
+        condition: service_healthy
+      umlpilot-mongo:
         condition: service_healthy
     networks:
       - umlpilot-net
@@ -91,6 +109,7 @@ services:
 
 volumes:
   umlpilot_db_data:
+  umlpilot_mongo_data:
 
 networks:
   umlpilot-net:

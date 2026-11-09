@@ -64,6 +64,25 @@ El sistema SHALL garantizar que un mismo `clientMessageId` no cree mensajes dupl
 - **WHEN** dos integrantes envían mensajes casi al mismo tiempo
 - **THEN** ambos se persisten y la paginación los devuelve en un orden estable, sin omitirlos ni duplicarlos
 
+### Requirement: Menciones y activación explícita de la IA
+El sistema SHALL interpretar `@asistente` (y los alias `@ai`/`@ia`) como una mención a la IA y SHALL invocar la respuesta del asistente solo cuando el mensaje contenga esa mención. Las menciones a otros integrantes SHALL conservarse en el mensaje y no SHALL disparar por sí solas una respuesta de la IA.
+
+#### Scenario: Mensaje que menciona a la IA
+- **WHEN** un integrante envía un mensaje que contiene `@asistente`
+- **THEN** el sistema persiste y difunde el mensaje y dispara la respuesta de la IA
+
+#### Scenario: Mensaje para otro integrante
+- **WHEN** un integrante envía un mensaje que menciona a otra persona pero no a la IA
+- **THEN** el mensaje se persiste y difunde como chat grupal, sin invocar a la IA
+
+#### Scenario: Mensaje sin menciones
+- **WHEN** un integrante envía un mensaje sin menciones
+- **THEN** no se invoca a la IA y el mensaje queda como conversación del equipo
+
+#### Scenario: Alias y mayúsculas
+- **WHEN** el mensaje usa `@Asistente`, `@AI` o `@IA`
+- **THEN** el sistema lo reconoce como mención a la IA
+
 ### Requirement: Mensajes en tiempo real
 El sistema SHALL difundir por STOMP cada mensaje nuevo a todos los integrantes conectados al chat del proyecto, sin que tengan que recargar la página.
 

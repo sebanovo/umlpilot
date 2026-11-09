@@ -274,6 +274,85 @@ export const aiChatApi = {
     }) as Promise<AiChatResult>,
 }
 
+export type ChatAiStatus = 'none' | 'generating' | 'completed' | 'failed'
+
+export interface ChatCitation {
+  messageId: string
+  snippet: string
+  authorName: string
+  createdAt: string
+}
+
+export interface ChatAction {
+  action: string
+  entity: string
+  id: string
+  result: string
+}
+
+export interface ChatMessage {
+  id: string
+  conversationId: string
+  projectId: string
+  diagramId: string | null
+  authorType: 'user' | 'assistant' | 'system' | 'tool'
+  authorId: string | null
+  authorName: string
+  authorRole: string
+  content: string
+  clientMessageId: string | null
+  replyToId: string | null
+  citations: ChatCitation[]
+  actions: ChatAction[]
+  provider: string | null
+  model: string | null
+  aiStatus: ChatAiStatus
+  createdAt: string
+  pending?: boolean
+  failed?: boolean
+}
+
+export interface ChatConversation {
+  conversationId: string
+  projectId: string
+  title: string
+  summary: string | null
+  focusDiagramId: string | null
+  canMutate: boolean
+  lastMessageAt: string | null
+  unsummarizedCount: number
+}
+
+export interface ChatPage {
+  messages: ChatMessage[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export interface ChatSendResult {
+  message: ChatMessage
+  duplicate: boolean
+}
+
+export const groupChatApi = {
+  getConversation: (projectId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/chat`) as Promise<ChatConversation>,
+  getMessages: (projectId: string, before?: string | null, limit = 50) => {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (before) params.set('before', before)
+    return authFetch(`/api/v1/projects/${projectId}/chat/messages?${params.toString()}`) as Promise<ChatPage>
+  },
+  sendMessage: (projectId: string, data: { clientMessageId: string; content: string; diagramId?: string | null }) =>
+    authFetch(`/api/v1/projects/${projectId}/chat/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }) as Promise<ChatSendResult>,
+  retry: (projectId: string, messageId: string) =>
+    authFetch(`/api/v1/projects/${projectId}/chat/messages/${messageId}/retry`, {
+      method: 'POST',
+    }) as Promise<ChatSendResult>,
+}
+
 export const backendGenerationApi = {
   download: (projectId: string, diagramId: string) =>
     authDownload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/generate/backend`),

@@ -3,6 +3,11 @@
 #
 # NON_KEYWORDS=VALUE permite usar 'value' como columna (la tabla literal la usa).
 # La ruta del fichero es configurable con H2_DATA_PATH (por defecto ./data).
+app:
+  chat:
+    # En H2/tests no hay MongoDB; el chat queda deshabilitado hasta configurar MONGODB_URI
+    index-initialization-enabled: false
+
 spring:
   datasource:
     url: jdbc:h2:file:${H2_DATA_PATH:./data}/umlpilot_db;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE

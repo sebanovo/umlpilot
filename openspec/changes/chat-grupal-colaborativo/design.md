@@ -267,6 +267,14 @@ Reglas de respuesta:
 - Citas: se parsean los `[msg:<id>]` de la respuesta, se buscan los mensajes en Mongo y se devuelven solo las citas válidas; los IDs inválidos se descartan.
 - Presupuesto: máximo de mensajes recientes configurable y truncado por longitud; el resumen se regenera si crece demasiado.
 
+## Menciones y activación de la IA
+
+- La IA se activa solo con una mención explícita: `@asistente`, `@ai` o `@ia` (sin distinguir mayúsculas). Un mensaje que solo menciona a personas se persiste como chat grupal y no invoca al modelo.
+- El compositor detecta `@` antes del cursor y ofrece `@Asistente IA` y los integrantes del proyecto; la selección inserta la mención y devuelve el foco al compositor.
+- Las menciones se resaltan en la burbuja usando el mismo contenido persistido; no se modifica el texto ni se añaden metadatos obligatorios.
+- El backend decide la activación (`ChatMentions`), no el cliente: aunque un cliente manipule la UI, un mensaje sin mención no dispara IA.
+- La conversación usa burbujas propias/ajenas, separadores de fecha, desplazamiento condicionado al final, botón “Ir al final” y compositor autoajustable para una experiencia tipo WhatsApp.
+
 ## Frontend (FSD)
 
 - Nueva página `pages/AiModePage.tsx` con ruta `/projects/:id/ai` y query opcional `diagramId`.

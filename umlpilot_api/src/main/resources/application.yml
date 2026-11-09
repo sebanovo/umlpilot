@@ -19,6 +19,12 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
 
+  # MongoDB: almacén exclusivo del chat grupal (PostgreSQL sigue siendo la fuente de verdad)
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/umlpilot_chat}
+      auto-index-creation: false
+
   # Configuración de JPA
   jpa:
     database: POSTGRESQL
@@ -151,6 +157,16 @@ app:
       model: ${GROQ_MODEL:whisper-large-v3}
       base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
       language: ${GROQ_LANGUAGE:}
+
+  # Chat grupal persistente por proyecto (MongoDB)
+  chat:
+    recent-messages: ${CHAT_RECENT_MESSAGES:40}
+    retrieval-limit: ${CHAT_RETRIEVAL_LIMIT:5}
+    summary-threshold: ${CHAT_SUMMARY_THRESHOLD:60}
+    summary-batch-size: ${CHAT_SUMMARY_BATCH_SIZE:40}
+    summary-interval-ms: ${CHAT_SUMMARY_INTERVAL_MS:60000}
+    index-initialization-enabled: ${CHAT_MONGO_INDEX_INIT:true}
+    timeout-seconds: ${CHAT_TIMEOUT_SECONDS:120}
 
 
   # Generación de backend Spring Boot a partir de un diagrama de clases

@@ -3,11 +3,13 @@ package com.umlpilot.umlpilot_api.application.service;
 import com.umlpilot.umlpilot_api.application.dto.CollaboratorResult;
 import com.umlpilot.umlpilot_api.application.dto.CreateProjectCommand;
 import com.umlpilot.umlpilot_api.application.dto.ProjectResult;
+import com.umlpilot.umlpilot_api.application.event.ProjectDeletedEvent;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.*;
 import com.umlpilot.umlpilot_api.domain.repository.CollaboratorRepository;
 import com.umlpilot.umlpilot_api.domain.repository.ProjectRepository;
 import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,13 +22,16 @@ public class ProjectService {
     private final CollaboratorRepository collaboratorRepository;
     private final UserRepository userRepository;
     private final ProjectAccessService accessService;
+    private final ApplicationEventPublisher events;
 
     public ProjectService(ProjectRepository projectRepository, CollaboratorRepository collaboratorRepository,
-                          UserRepository userRepository, ProjectAccessService accessService) {
+                          UserRepository userRepository, ProjectAccessService accessService,
+                          ApplicationEventPublisher events) {
         this.projectRepository = projectRepository;
         this.collaboratorRepository = collaboratorRepository;
         this.userRepository = userRepository;
         this.accessService = accessService;
+        this.events = events;
     }
 
     @Transactional
@@ -71,6 +76,7 @@ public class ProjectService {
         Project project = projectRepository.findById(ProjectId.from(projectId))
                 .orElseThrow(() -> new DomainException("Proyecto no encontrado"));
         projectRepository.delete(project.getId());
+        events.publishEvent(new ProjectDeletedEvent(projectId));
     }
 
     @Transactional(readOnly = true)
