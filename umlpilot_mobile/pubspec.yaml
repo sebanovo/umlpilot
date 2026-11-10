@@ -19,6 +19,8 @@ dependencies:
   stomp_dart_client: ^2.0.0
   share_plus: ^10.1.4
   intl: ^0.20.2
+  record: ^7.1.2
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

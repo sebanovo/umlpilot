@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/network/api_client.dart';
+import '../core/realtime/chat_realtime_service.dart';
 import '../core/realtime/realtime_service.dart';
 import '../core/session/session_controller.dart';
 import '../core/storage/token_storage.dart';
@@ -13,6 +14,11 @@ import '../features/auth/presentation/viewmodels/auth_viewmodel.dart';
 import '../features/collaborators/data/datasources/collaborators_remote_datasource.dart';
 import '../features/collaborators/domain/repositories/collaborators_repository.dart';
 import '../features/collaborators/domain/usecases/collaborators_usecases.dart';
+import '../features/chat/data/datasources/chat_remote_datasource.dart';
+import '../features/chat/data/repositories/chat_repository_impl.dart';
+import '../features/chat/domain/repositories/chat_repository.dart';
+import '../features/chat/domain/usecases/chat_usecases.dart';
+import '../features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import '../features/diagram-editor/data/datasources/diagram_editor_remote_datasource.dart';
 import '../features/diagram-editor/domain/repositories/diagram_editor_repository.dart';
 import '../features/diagram-editor/presentation/viewmodels/diagram_viewer_viewmodel.dart';
@@ -98,6 +104,25 @@ Future<void> configureDependencies() async {
       markRead: MarkNotificationReadUseCase(getIt()),
       markAllRead: MarkAllNotificationsReadUseCase(getIt()),
       respond: RespondNotificationUseCase(getIt()),
+    ),
+  );
+
+  // Chat grupal por proyecto
+  getIt.registerLazySingleton<ChatRemoteDataSource>(() => ChatRemoteDataSource(getIt()));
+  getIt.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl(getIt()));
+  getIt.registerFactory<ChatRealtimeService>(() => ChatRealtimeService(getIt()));
+  getIt.registerFactory<ChatViewModel>(
+    () => ChatViewModel(
+      getProject: GetProjectUseCase(getIt()),
+      getConversation: GetChatConversationUseCase(getIt()),
+      getMessages: GetChatMessagesUseCase(getIt()),
+      sendMessage: SendChatMessageUseCase(getIt()),
+      retryMessage: RetryChatMessageUseCase(getIt()),
+      transcribeAudio: TranscribeChatAudioUseCase(getIt()),
+      getDiagrams: GetDiagramsUseCase(getIt()),
+      getCollaborators: GetCollaboratorsUseCase(getIt()),
+      session: getIt(),
+      realtime: getIt(),
     ),
   );
 

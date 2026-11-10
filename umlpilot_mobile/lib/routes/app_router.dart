@@ -6,6 +6,8 @@ import '../core/session/session_controller.dart';
 import '../features/auth/presentation/pages/login_page.dart';
 import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/splash_page.dart';
+import '../features/chat/presentation/pages/chat_page.dart';
+import '../features/chat/presentation/viewmodels/chat_viewmodel.dart';
 import '../features/diagram-editor/presentation/viewmodels/diagram_viewer_viewmodel.dart';
 import '../features/diagram-viewer/presentation/pages/diagram_viewer_page.dart';
 import '../features/projects/presentation/pages/project_detail_page.dart';
@@ -42,6 +44,13 @@ class AppRouter {
         builder: (_, _) => ChangeNotifierProvider<ProjectDetailViewModel>(
           create: (_) => getIt<ProjectDetailViewModel>(),
           child: const ProjectDetailPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/projects/:projectId/chat',
+        builder: (_, _) => ChangeNotifierProvider<ChatViewModel>(
+          create: (_) => getIt<ChatViewModel>(),
+          child: const ChatPage(),
         ),
       ),
       GoRoute(
