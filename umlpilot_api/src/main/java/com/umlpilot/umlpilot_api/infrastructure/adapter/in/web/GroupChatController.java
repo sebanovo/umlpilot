@@ -5,8 +5,11 @@ import com.umlpilot.umlpilot_api.application.dto.SendChatMessageCommand;
 import com.umlpilot.umlpilot_api.application.service.GroupChatService;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.SendChatMessageRequest;
+import com.umlpilot.umlpilot_api.infrastructure.ai.GroqTranscriptionService;
+import com.umlpilot.umlpilot_api.infrastructure.ai.LlmException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -23,9 +27,12 @@ import java.util.Map;
 public class GroupChatController {
 
     private final GroupChatService chatService;
+    private final GroqTranscriptionService transcriptionService;
 
-    public GroupChatController(GroupChatService chatService) {
+    public GroupChatController(GroupChatService chatService,
+                               GroqTranscriptionService transcriptionService) {
         this.chatService = chatService;
+        this.transcriptionService = transcriptionService;
     }
 
     @GetMapping
@@ -86,6 +93,29 @@ public class GroupChatController {
             return error(e);
         } catch (DataAccessException e) {
             return unavailable(e);
+        }
+    }
+
+    @PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> transcribe(@PathVariable String projectId,
+                                        @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El audio es requerido"));
+        }
+        try {
+            chatService.requireMember(projectId, SecurityUtils.getCurrentUserId());
+            String text = transcriptionService.transcribe(file.getBytes(), file.getOriginalFilename());
+            return ResponseEntity.ok(Map.of("text", text));
+        } catch (LlmException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (DomainException e) {
+            return error(e);
+        } catch (DataAccessException e) {
+            return unavailable(e);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "No se pudo transcribir el audio"));
         }
     }
 

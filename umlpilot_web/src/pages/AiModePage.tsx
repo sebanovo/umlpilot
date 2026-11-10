@@ -216,6 +216,7 @@ export function AiModePage() {
           onCitationClick={handleCitationClick}
           onOpenDiagram={openDiagram}
           onTyping={sendTyping}
+          onTranscribe={chat.transcribeAudio}
           onClearError={chat.clearError}
         />
 

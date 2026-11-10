@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { AtSign, Bot, Send, Sparkles, UserRound } from 'lucide-react'
+import { AtSign, Bot, Loader2, Mic, Send, Sparkles, Square, UserRound } from 'lucide-react'
 import type { MentionOption } from '../model/mentions'
 
 interface ChatComposerProps {
@@ -9,6 +9,7 @@ interface ChatComposerProps {
   mentionOptions: MentionOption[]
   onSend: (content: string) => void
   onTyping: (typing: boolean) => void
+  onTranscribe?: (audio: Blob) => Promise<string>
 }
 
 export function ChatComposer({
@@ -18,17 +19,29 @@ export function ChatComposer({
   mentionOptions,
   onSend,
   onTyping,
+  onTranscribe,
 }: ChatComposerProps) {
   const [input, setInput] = useState('')
   const [mentionOpen, setMentionOpen] = useState(false)
   const [mentionQuery, setMentionQuery] = useState('')
   const [mentionStart, setMentionStart] = useState<number | null>(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingTimer = useRef<number | null>(null)
+  const blurTimer = useRef<number | null>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
 
   useEffect(() => () => {
     if (typingTimer.current) window.clearTimeout(typingTimer.current)
+    if (blurTimer.current) window.clearTimeout(blurTimer.current)
+    const recorder = recorderRef.current
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stream.getTracks().forEach((track) => track.stop())
+    }
   }, [])
 
   const filteredMentions = useMemo(() => {
@@ -42,6 +55,13 @@ export function ChatComposer({
     if (typingTimer.current) window.clearTimeout(typingTimer.current)
     if (typing) {
       typingTimer.current = window.setTimeout(() => onTyping(false), 1500)
+    }
+  }
+
+  const clearBlurTimer = () => {
+    if (blurTimer.current) {
+      window.clearTimeout(blurTimer.current)
+      blurTimer.current = null
     }
   }
 
@@ -66,6 +86,7 @@ export function ChatComposer({
   }
 
   const insertText = (text: string) => {
+    clearBlurTimer()
     const textarea = textareaRef.current
     const cursor = textarea?.selectionStart ?? input.length
     const start = mentionStart ?? cursor
@@ -84,24 +105,84 @@ export function ChatComposer({
   }
 
   const openMentionButton = () => {
+    clearBlurTimer()
     const textarea = textareaRef.current
     const cursor = textarea?.selectionStart ?? input.length
     const before = input.slice(0, cursor)
     const needsSpace = before.length > 0 && !/\s$/.test(before)
     const insertion = `${needsSpace ? ' ' : ''}@`
     const next = before + insertion + input.slice(cursor)
+    const atPosition = before.length + (needsSpace ? 1 : 0)
+
     setInput(next)
-    const position = before.length + insertion.length
+    setMentionStart(atPosition)
+    setMentionQuery('')
+    setMentionOpen(true)
+    setActiveIndex(0)
+
     requestAnimationFrame(() => {
       textareaRef.current?.focus()
+      const position = atPosition + 1
       textareaRef.current?.setSelectionRange(position, position)
-      detectMention(next, position)
     })
+  }
+
+  const appendTranscription = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setInput((previous) => {
+      const base = previous.replace(/\s+$/, '')
+      return base ? `${base} ${trimmed}` : trimmed
+    })
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current
+      if (!textarea) return
+      textarea.focus()
+      const end = textarea.value.length
+      textarea.setSelectionRange(end, end)
+    })
+  }
+
+  const toggleRecording = async () => {
+    if (!onTranscribe || transcribing) return
+    if (recording) {
+      recorderRef.current?.stop()
+      return
+    }
+    setVoiceError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop())
+        setRecording(false)
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        if (blob.size === 0) return
+        setTranscribing(true)
+        try {
+          const text = await onTranscribe(blob)
+          appendTranscription(text)
+        } catch (error) {
+          setVoiceError(error instanceof Error ? error.message : 'No se pudo transcribir el audio')
+        } finally {
+          setTranscribing(false)
+        }
+      }
+      recorder.start()
+      recorderRef.current = recorder
+      setRecording(true)
+    } catch {
+      setVoiceError('No se pudo acceder al micrófono')
+    }
   }
 
   const submit = () => {
     const text = input.trim()
-    if (!text || sending || disabled) return
+    if (!text || sending || disabled || transcribing) return
     onSend(text)
     setInput('')
     closeMentions()
@@ -198,12 +279,17 @@ export function ChatComposer({
             disabled={disabled}
             onChange={(event) => onChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
             onKeyDown={onKeyDown}
-            onBlur={() => window.setTimeout(closeMentions, 120)}
+            onFocus={clearBlurTimer}
+            onBlur={() => {
+              clearBlurTimer()
+              blurTimer.current = window.setTimeout(closeMentions, 120)
+            }}
             placeholder="Escribe un mensaje… usa @asistente para preguntarle a la IA o @persona para mencionar a alguien"
-            className="min-h-[52px] w-full resize-none rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 disabled:opacity-50"
+            className="min-h-[52px] w-full resize-none rounded-2xl border border-gray-700 bg-gray-900 px-3 py-2.5 pr-12 text-sm text-gray-100 placeholder-gray-500 outline-none transition-colors focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 disabled:opacity-50"
           />
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={openMentionButton}
             disabled={disabled}
             title="Mencionar a la IA o a un integrante"
@@ -213,16 +299,47 @@ export function ChatComposer({
           </button>
         </div>
 
+        {onTranscribe && (
+          <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={disabled || transcribing}
+            title={recording ? 'Detener grabación' : 'Dictar por voz y convertir a texto'}
+            className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              recording
+                ? 'border-red-500 bg-red-600 text-white hover:bg-red-500'
+                : 'border-gray-700 bg-gray-900 text-gray-300 hover:border-emerald-500 hover:text-emerald-300'
+            }`}
+          >
+            {transcribing ? <Loader2 className="h-5 w-5 animate-spin" />
+              : recording ? <Square className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={submit}
-          disabled={!input.trim() || sending || disabled}
+          disabled={!input.trim() || sending || disabled || transcribing}
           className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/30 transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
           title="Enviar mensaje"
         >
           {sending ? <Sparkles className="h-5 w-5 animate-pulse" /> : <Send className="h-5 w-5" />}
         </button>
       </div>
+
+      {(recording || transcribing || voiceError) && (
+        <div className="mx-auto mt-1.5 max-w-4xl text-[11px]">
+          {recording && (
+            <span className="text-red-300">Grabando… pulsa el micrófono para detener.</span>
+          )}
+          {transcribing && !recording && (
+            <span className="text-blue-300">Transcribiendo audio…</span>
+          )}
+          {voiceError && !recording && !transcribing && (
+            <span className="text-red-300">{voiceError}</span>
+          )}
+        </div>
+      )}
 
       <div className="mx-auto mt-1.5 flex max-w-4xl items-center justify-between gap-3 text-[11px] text-gray-500">
         <span>

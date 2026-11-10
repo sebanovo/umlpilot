@@ -22,6 +22,7 @@ interface AiConversationProps {
   onCitationClick: (messageId: string) => void
   onOpenDiagram: (diagramId: string) => void
   onTyping: (typing: boolean) => void
+  onTranscribe?: (audio: Blob) => Promise<string>
   onClearError: () => void
 }
 
@@ -44,6 +45,7 @@ export function AiConversation({
   onCitationClick,
   onOpenDiagram,
   onTyping,
+  onTranscribe,
   onClearError,
 }: AiConversationProps) {
   return (
@@ -80,6 +82,7 @@ export function AiConversation({
         mentionOptions={mentionOptions}
         onSend={onSend}
         onTyping={onTyping}
+        onTranscribe={onTranscribe}
       />
     </section>
   )

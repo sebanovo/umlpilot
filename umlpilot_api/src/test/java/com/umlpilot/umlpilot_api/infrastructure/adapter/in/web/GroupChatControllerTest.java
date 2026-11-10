@@ -8,11 +8,13 @@ import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.ChatAuthor;
 import com.umlpilot.umlpilot_api.domain.model.ConversationMessage;
 import com.umlpilot.umlpilot_api.infrastructure.adapter.in.web.request.SendChatMessageRequest;
+import com.umlpilot.umlpilot_api.infrastructure.ai.GroqTranscriptionService;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.Instant;
 
@@ -25,7 +27,8 @@ import static org.mockito.Mockito.when;
 class GroupChatControllerTest {
 
     private final GroupChatService service = mock(GroupChatService.class);
-    private final GroupChatController controller = new GroupChatController(service);
+    private final GroqTranscriptionService transcriptionService = mock(GroqTranscriptionService.class);
+    private final GroupChatController controller = new GroupChatController(service, transcriptionService);
 
     @Test
     void conversationReturns200() {
@@ -116,6 +119,21 @@ class GroupChatControllerTest {
             ResponseEntity<?> response = controller.conversation("p1");
 
             assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        }
+    }
+
+    @Test
+    void transcribesVoiceForMember() {
+        MockMultipartFile audio = new MockMultipartFile(
+                "file", "audio.webm", "audio/webm", "audio".getBytes());
+        when(transcriptionService.transcribe(any(byte[].class), any())).thenReturn("Hola equipo");
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn("u1");
+            ResponseEntity<?> response = controller.transcribe("p1", audio);
+
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertEquals("Hola equipo", ((java.util.Map<?, ?>) response.getBody()).get("text"));
         }
     }
 

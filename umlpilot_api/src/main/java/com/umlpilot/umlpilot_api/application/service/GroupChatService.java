@@ -48,6 +48,11 @@ public class GroupChatService {
         this.eventPublisher = eventPublisher;
     }
 
+    /** Valida la membresía en PostgreSQL para canales auxiliares del chat (p. ej. voz). */
+    public void requireMember(String projectId, String userId) {
+        accessService.requireMember(projectId, userId);
+    }
+
     public ChatConversationResult getOrCreateConversation(String projectId, String userId) {
         Project project = accessService.requireMember(projectId, userId);
         GroupConversation conversation = chatRepository.getOrCreate(projectId, userId);

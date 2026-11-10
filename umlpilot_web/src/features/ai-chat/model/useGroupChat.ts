@@ -176,6 +176,13 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
     }
   }, [projectId])
 
+  const transcribeAudio = useCallback(async (audio: Blob): Promise<string> => {
+    if (!projectId) throw new Error('Proyecto no disponible')
+    const ext = audio.type.includes('mp4') ? 'mp4' : audio.type.includes('ogg') ? 'ogg' : 'webm'
+    const result = await groupChatApi.transcribe(projectId, audio, `audio.${ext}`)
+    return result.text
+  }, [projectId])
+
   const applyAiStatus = useCallback((messageId: string, status: ChatAiStatus, statusError?: string) => {
     setMessages((prev) => prev.map((message) =>
       message.id === messageId ? { ...message, aiStatus: status, failed: status === 'failed' } : message))
@@ -197,6 +204,7 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
     refresh,
     sendMessage,
     retryMessage,
+    transcribeAudio,
     clearError: () => setError(null),
   }
 }
