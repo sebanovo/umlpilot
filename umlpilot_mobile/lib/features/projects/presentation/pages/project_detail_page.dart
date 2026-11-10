@@ -202,6 +202,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       appBar: AppBar(
         title: Text(project.name, overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            tooltip: 'Chat del equipo',
+            icon: const Icon(Icons.forum_outlined),
+            onPressed: () => context.push('/projects/${project.id}/chat'),
+          ),
           NotificationBell(onInvitationAccepted: _refresh),
           if (viewModel.canEdit)
             IconButton(tooltip: 'Editar proyecto', icon: const Icon(Icons.edit_outlined), onPressed: _openEditProject),
@@ -302,6 +307,15 @@ class _ProjectHeader extends StatelessWidget {
                 style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: () => context.push('/projects/${project.id}/chat'),
+              icon: const Icon(Icons.forum_outlined, size: 18),
+              label: const Text('Chat del equipo'),
+            ),
           ),
         ],
       ),

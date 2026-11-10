@@ -351,6 +351,11 @@ export const groupChatApi = {
     authFetch(`/api/v1/projects/${projectId}/chat/messages/${messageId}/retry`, {
       method: 'POST',
     }) as Promise<ChatSendResult>,
+  transcribe: (projectId: string, audio: Blob, filename: string) => {
+    const form = new FormData()
+    form.append('file', audio, filename)
+    return authUpload(`/api/v1/projects/${projectId}/chat/transcribe`, form) as Promise<{ text: string }>
+  },
 }
 
 export const backendGenerationApi = {
