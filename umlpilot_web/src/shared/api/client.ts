@@ -308,6 +308,7 @@ export interface ChatMessage {
   model: string | null
   aiStatus: ChatAiStatus
   createdAt: string
+  previewUrl?: string
   pending?: boolean
   failed?: boolean
 }
@@ -351,6 +352,14 @@ export const groupChatApi = {
     authFetch(`/api/v1/projects/${projectId}/chat/messages/${messageId}/retry`, {
       method: 'POST',
     }) as Promise<ChatSendResult>,
+  sendImage: (projectId: string, data: { file: File; diagramId?: string | null; instructions?: string; clientMessageId: string }) => {
+    const form = new FormData()
+    form.append('file', data.file)
+    if (data.diagramId) form.append('diagramId', data.diagramId)
+    if (data.instructions) form.append('instructions', data.instructions)
+    form.append('clientMessageId', data.clientMessageId)
+    return authUpload(`/api/v1/projects/${projectId}/chat/messages/image`, form) as Promise<ChatSendResult>
+  },
   transcribe: (projectId: string, audio: Blob, filename: string) => {
     const form = new FormData()
     form.append('file', audio, filename)

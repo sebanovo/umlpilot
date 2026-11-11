@@ -217,6 +217,7 @@ export function AiModePage() {
           onOpenDiagram={openDiagram}
           onTyping={sendTyping}
           onTranscribe={chat.transcribeAudio}
+          onSendImage={(file, instructions) => chat.sendImage(file, selectedDiagramId, instructions)}
           onClearError={chat.clearError}
         />
 

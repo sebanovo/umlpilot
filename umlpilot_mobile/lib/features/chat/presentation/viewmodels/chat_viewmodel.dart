@@ -22,6 +22,7 @@ class ChatViewModel extends ChangeNotifier {
     required GetChatConversationUseCase getConversation,
     required GetChatMessagesUseCase getMessages,
     required SendChatMessageUseCase sendMessage,
+    required SendChatImageUseCase sendImage,
     required RetryChatMessageUseCase retryMessage,
     required TranscribeChatAudioUseCase transcribeAudio,
     required GetDiagramsUseCase getDiagrams,
@@ -32,6 +33,7 @@ class ChatViewModel extends ChangeNotifier {
         _getConversation = getConversation,
         _getMessages = getMessages,
         _sendMessage = sendMessage,
+        _sendImage = sendImage,
         _retryMessage = retryMessage,
         _transcribeAudio = transcribeAudio,
         _getDiagrams = getDiagrams,
@@ -46,6 +48,7 @@ class ChatViewModel extends ChangeNotifier {
   final GetChatConversationUseCase _getConversation;
   final GetChatMessagesUseCase _getMessages;
   final SendChatMessageUseCase _sendMessage;
+  final SendChatImageUseCase _sendImage;
   final RetryChatMessageUseCase _retryMessage;
   final TranscribeChatAudioUseCase _transcribeAudio;
   final GetDiagramsUseCase _getDiagrams;
@@ -273,6 +276,73 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> sendImage({
+    required Uint8List image,
+    required String filename,
+    String? instructions,
+  }) async {
+    final projectId = _projectId;
+    final diagramId = _selectedDiagramId;
+    if (projectId == null || image.isEmpty || _sending) return;
+    if (!canMutate) {
+      _error = 'Solo owner/editor pueden construir desde una imagen';
+      _notify();
+      return;
+    }
+    if (diagramId == null) {
+      _error = 'Selecciona un diagrama de contexto para construir desde la imagen';
+      _notify();
+      return;
+    }
+
+    final clientMessageId = _newClientMessageId();
+    final prompt = (instructions ?? '').trim().isEmpty
+        ? 'Construye el diagrama a partir de la imagen'
+        : instructions!.trim();
+    final optimistic = ChatMessage(
+      id: 'pending-$clientMessageId',
+      conversationId: _conversation?.conversationId ?? '',
+      projectId: projectId,
+      diagramId: diagramId,
+      authorType: 'user',
+      authorId: currentUserId,
+      authorName: currentUserName,
+      authorRole: currentRole ?? 'viewer',
+      content: '[Imagen: $filename] $prompt',
+      clientMessageId: clientMessageId,
+      aiStatus: ChatAiStatus.generating,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+      previewBytes: image,
+      pending: true,
+    );
+
+    _messages = _sorted([..._messages, optimistic]);
+    _sending = true;
+    _error = null;
+    _notify();
+    try {
+      final result = await _sendImage(
+        projectId,
+        clientMessageId: clientMessageId,
+        image: image,
+        filename: filename,
+        diagramId: diagramId,
+        instructions: prompt,
+      );
+      _mergeMessage(result.message);
+    } catch (e) {
+      _messages = _messages
+          .map((message) => message.clientMessageId == clientMessageId
+              ? message.copyWith(pending: false, failed: true, aiStatus: ChatAiStatus.failed)
+              : message)
+          .toList();
+      _error = messageForError(e);
+    } finally {
+      _sending = false;
+      _notify();
+    }
+  }
+
   Future<void> retryMessage(String messageId) async {
     final projectId = _projectId;
     if (projectId == null) return;
@@ -286,6 +356,11 @@ class ChatViewModel extends ChangeNotifier {
       }
     }
     if (pending != null) {
+      if (pending.previewBytes != null) {
+        _error = 'Vuelve a adjuntar la imagen para reintentar';
+        _notify();
+        return;
+      }
       _messages = _messages.where((message) => message.id != messageId).toList();
       _notify();
       await sendMessage(pending.content);

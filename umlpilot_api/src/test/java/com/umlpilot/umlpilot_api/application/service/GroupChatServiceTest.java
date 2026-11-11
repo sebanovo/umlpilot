@@ -6,6 +6,7 @@ import com.umlpilot.umlpilot_api.application.dto.ChatSendResult;
 import com.umlpilot.umlpilot_api.application.dto.SendChatMessageCommand;
 import com.umlpilot.umlpilot_api.application.port.out.ChatEventPublisher;
 import com.umlpilot.umlpilot_api.application.port.out.GroupChatRepository;
+import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.ChatAuthor;
 import com.umlpilot.umlpilot_api.domain.model.Collaborator;
 import com.umlpilot.umlpilot_api.domain.model.ConversationMessage;
@@ -26,10 +27,12 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -114,6 +117,18 @@ class GroupChatServiceTest {
         assertEquals("none", result.message().aiStatus());
         verify(replyService, never()).generate(any(), any(), anyBoolean());
         verify(eventPublisher).messageCreated(eq("p1"), any());
+    }
+
+    @Test
+    void imageBuildRequiresEditor() {
+        when(accessService.requireMember("p1", "u2")).thenReturn(project);
+        doThrow(new DomainException("No tienes permisos para editar este proyecto"))
+                .when(accessService).requireDiagramEditor("p1", "d1", "u2");
+
+        assertThrows(DomainException.class, () -> service.sendImageMessage(
+                "p1", "u2", "client-image", "d1", "Construye", "diagrama.png",
+                new byte[] { 1, 2 }, "image/png"));
+        verify(chatRepository, never()).saveMessage(any());
     }
 
     @Test

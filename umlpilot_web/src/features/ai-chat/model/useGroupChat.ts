@@ -39,6 +39,10 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
         message.id === incoming.id
         || (incoming.clientMessageId && message.clientMessageId === incoming.clientMessageId))
       if (existing >= 0) {
+        const replaced = prev[existing]
+        if (replaced.previewUrl && !incoming.previewUrl) {
+          URL.revokeObjectURL(replaced.previewUrl)
+        }
         const next = [...prev]
         next[existing] = { ...incoming, pending: false, failed: false }
         return sortMessages(next)
@@ -162,8 +166,61 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
     }
   }, [projectId, sending, conversation, currentUser, mergeMessage])
 
+  const sendImage = useCallback(async (file: File, diagramId: string | null, instructions: string) => {
+    if (!projectId || sending) return
+    const clientMessageId = newClientMessageId()
+    const prompt = instructions.trim() || 'Construye el diagrama a partir de la imagen'
+    const previewUrl = URL.createObjectURL(file)
+    const optimistic: ChatMessage = {
+      id: `pending-${clientMessageId}`,
+      conversationId: conversation?.conversationId ?? '',
+      projectId,
+      diagramId,
+      authorType: 'user',
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorRole: currentUser.role,
+      content: `[Imagen: ${file.name}] ${prompt}`,
+      clientMessageId,
+      replyToId: null,
+      citations: [],
+      actions: [],
+      provider: null,
+      model: null,
+      aiStatus: 'generating',
+      createdAt: new Date().toISOString(),
+      previewUrl,
+      pending: true,
+    }
+    setMessages((prev) => sortMessages([...prev, optimistic]))
+    setSending(true)
+    setError(null)
+    try {
+      const result = await groupChatApi.sendImage(projectId, {
+        file,
+        diagramId,
+        instructions: prompt,
+        clientMessageId,
+      })
+      mergeMessage(result.message)
+    } catch (e) {
+      setMessages((prev) => prev.map((message) =>
+        message.clientMessageId === clientMessageId
+          ? { ...message, pending: false, failed: true, aiStatus: 'failed' }
+          : message))
+      setError(e instanceof Error ? e.message : 'No se pudo enviar la imagen')
+    } finally {
+      setSending(false)
+    }
+  }, [projectId, sending, conversation, currentUser, mergeMessage])
+
   const retryMessage = useCallback(async (messageId: string) => {
     if (!projectId) return
+    const target = messages.find((message) => message.id === messageId)
+    if (target?.previewUrl) {
+      setError('Vuelve a adjuntar la imagen para reintentar')
+      return
+    }
     setError(null)
     setMessages((prev) => prev.map((message) =>
       message.id === messageId ? { ...message, failed: false, aiStatus: 'generating' } : message))
@@ -174,7 +231,7 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
         message.id === messageId ? { ...message, failed: true, aiStatus: 'failed' } : message))
       setError(e instanceof Error ? e.message : 'No se pudo reintentar la respuesta')
     }
-  }, [projectId])
+  }, [projectId, messages])
 
   const transcribeAudio = useCallback(async (audio: Blob): Promise<string> => {
     if (!projectId) throw new Error('Proyecto no disponible')
@@ -203,6 +260,7 @@ export function useGroupChat(projectId: string | undefined, currentUser: ChatUse
     loadUntilMessage,
     refresh,
     sendMessage,
+    sendImage,
     retryMessage,
     transcribeAudio,
     clearError: () => setError(null),

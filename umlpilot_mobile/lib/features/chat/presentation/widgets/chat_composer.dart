@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -19,6 +20,7 @@ class ChatComposer extends StatefulWidget {
     required this.onSend,
     required this.onTyping,
     required this.onTranscribe,
+    this.onSendImage,
   });
 
   final bool sending;
@@ -27,6 +29,7 @@ class ChatComposer extends StatefulWidget {
   final ValueChanged<String> onSend;
   final ValueChanged<bool> onTyping;
   final Future<String> Function(Uint8List audio) onTranscribe;
+  final void Function(Uint8List image, String filename, String? instructions)? onSendImage;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -39,6 +42,10 @@ class _ChatComposerState extends State<ChatComposer> {
   Timer? _typingTimer;
   bool _hasText = false;
   bool _recording = false;
+  final ImagePicker _imagePicker = ImagePicker();
+  Uint8List? _imageBytes;
+  String? _imageName;
+  String? _imageError;
   bool _transcribing = false;
   String? _voiceError;
 
@@ -63,12 +70,77 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _send() {
     final text = _controller.text.trim();
-    if (text.isEmpty || widget.sending || _transcribing) return;
+    if (widget.sending || _transcribing) return;
+    if (_imageBytes != null && widget.onSendImage != null) {
+      widget.onSendImage!(_imageBytes!, _imageName ?? 'diagrama.jpg', text.isEmpty ? null : text);
+      _controller.clear();
+      setState(() {
+        _hasText = false;
+        _imageBytes = null;
+        _imageName = null;
+        _imageError = null;
+      });
+      _notifyTyping(false);
+      _focusNode.requestFocus();
+      return;
+    }
+    if (text.isEmpty) return;
     widget.onSend(text);
     _controller.clear();
     setState(() => _hasText = false);
     _notifyTyping(false);
     _focusNode.requestFocus();
+  }
+
+  Future<void> _pickImage() async {
+    if (!widget.canMutate) return;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.surface,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Elegir de la galería'),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Tomar una foto'),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1800,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _imageBytes = bytes;
+        _imageName = picked.name.isEmpty ? 'diagrama.jpg' : picked.name;
+        _imageError = null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _imageError = 'No se pudo seleccionar la imagen');
+    }
+  }
+
+  void _clearImage() {
+    setState(() {
+      _imageBytes = null;
+      _imageName = null;
+      _imageError = null;
+    });
   }
 
   Future<void> _toggleRecording() async {
@@ -223,6 +295,54 @@ class _ChatComposerState extends State<ChatComposer> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_imageBytes != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.sm, 0, AppSpacing.sm, AppSpacing.sm),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          child: Image.memory(
+                            _imageBytes!,
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _imageName ?? 'Imagen',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 12),
+                              ),
+                              const Text(
+                                'Se construirá el diagrama seleccionado.',
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Quitar imagen',
+                          onPressed: _clearImage,
+                          icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -231,6 +351,17 @@ class _ChatComposerState extends State<ChatComposer> {
                     onPressed: _insertMention,
                     icon: const Icon(Icons.alternate_email, color: AppColors.textSecondary),
                   ),
+                  if (widget.onSendImage != null)
+                    IconButton(
+                      tooltip: widget.canMutate
+                          ? 'Adjuntar imagen del diagrama'
+                          : 'Solo owner/editor pueden construir desde imagen',
+                      onPressed: widget.canMutate ? _pickImage : null,
+                      icon: Icon(
+                        Icons.image_outlined,
+                        color: widget.canMutate ? AppColors.textSecondary : AppColors.textMuted,
+                      ),
+                    ),
                   Expanded(
                     child: TextField(
                       controller: _controller,
@@ -289,7 +420,9 @@ class _ChatComposerState extends State<ChatComposer> {
                   const SizedBox(width: AppSpacing.xs),
                   IconButton.filled(
                     tooltip: 'Enviar mensaje',
-                    onPressed: widget.sending || _transcribing || !_hasText ? null : _send,
+                    onPressed: widget.sending || _transcribing || (!_hasText && _imageBytes == null)
+                        ? null
+                        : _send,
                     icon: widget.sending
                         ? const SizedBox(
                             width: 18,
@@ -311,12 +444,13 @@ class _ChatComposerState extends State<ChatComposer> {
                       ? 'Grabando… pulsa el micrófono para detener.'
                       : _transcribing
                           ? 'Transcribiendo audio…'
-                          : _voiceError ??
+                          : _imageError ??
+                              _voiceError ??
                               (widget.canMutate
                                   ? 'La IA puede consultar y modificar el diagrama seleccionado.'
                                   : 'Modo lectura: puedes conversar, pero la IA no modificará el diagrama.'),
                   style: TextStyle(
-                    color: _voiceError != null || _recording
+                    color: _imageError != null || _voiceError != null || _recording
                         ? AppColors.danger
                         : _transcribing
                             ? AppColors.primaryLight

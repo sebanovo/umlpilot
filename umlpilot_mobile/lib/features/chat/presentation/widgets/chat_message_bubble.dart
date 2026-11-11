@@ -171,6 +171,18 @@ class ChatMessageBubble extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 3),
+              if (message.previewBytes != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: Image.memory(
+                    message.previewBytes!,
+                    width: double.infinity,
+                    height: 180,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
               Text.rich(
                 TextSpan(
                   style: TextStyle(color: textColor, fontSize: 14, height: 1.35),

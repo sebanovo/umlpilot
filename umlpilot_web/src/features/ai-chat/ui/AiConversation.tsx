@@ -23,6 +23,7 @@ interface AiConversationProps {
   onOpenDiagram: (diagramId: string) => void
   onTyping: (typing: boolean) => void
   onTranscribe?: (audio: Blob) => Promise<string>
+  onSendImage?: (file: File, instructions: string) => void
   onClearError: () => void
 }
 
@@ -46,6 +47,7 @@ export function AiConversation({
   onOpenDiagram,
   onTyping,
   onTranscribe,
+  onSendImage,
   onClearError,
 }: AiConversationProps) {
   return (
@@ -83,6 +85,7 @@ export function AiConversation({
         onSend={onSend}
         onTyping={onTyping}
         onTranscribe={onTranscribe}
+        onSendImage={onSendImage}
       />
     </section>
   )

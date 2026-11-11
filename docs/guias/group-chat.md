@@ -64,6 +64,7 @@ Base: `/api/v1/projects/{projectId}/chat`.
 | `GET` | `/` | Obtiene o crea la conversación principal del proyecto. |
 | `GET` | `/messages?before=<cursor>&limit=50` | Historial paginado, más reciente primero. |
 | `POST` | `/messages` | Envía `{ clientMessageId, content, diagramId? }`; responde `202` (o `200` si es duplicado). |
+| `POST` | `/messages/image` | Multipart con `file`, `diagramId`, `instructions?` y `clientMessageId`; construye el diagrama desde una imagen. Solo `owner`/`editor`. |
 | `POST` | `/messages/{messageId}/retry` | Reintenta la respuesta de IA de un mensaje fallido. |
 | `POST` | `/transcribe` | Convierte audio a texto con Groq/Whisper y lo devuelve al compositor sin enviar el mensaje. |
 
@@ -84,6 +85,7 @@ Los errores usan `400` (petición inválida), `403` (sin membresía), `404` (pro
 - La IA solo responde cuando el mensaje menciona `@asistente` (o `@ai`/`@ia`, sin distinguir mayúsculas).
 - Un mensaje que solo menciona a una persona se guarda y se difunde como chat grupal, sin invocar al modelo.
 - El compositor ofrece autocompletado al escribir `@`: `@Asistente IA` y los integrantes del proyecto. El botón `@` inserta la mención sin perder el foco del cuadro.
+- El botón de imagen permite adjuntar una foto de un diagrama; la IA la analiza y construye el modelo sobre el diagrama seleccionado. Solo `owner`/`editor` pueden usar esta acción.
 - El botón de micrófono graba audio, lo envía a Groq/Whisper y coloca la transcripción en el cuadro de texto; no envía el mensaje automáticamente.
 - Las menciones se resaltan en las burbujas; la interfaz recuerda que la IA necesita la mención.
 - La conversación usa burbujas propias/ajenas, separadores de fecha, scroll condicionado al final, botón “Ir al final” y compositor autoajustable.
@@ -95,6 +97,7 @@ La app Flutter incluye el mismo chat grupal por proyecto:
 - Ruta `/projects/:projectId/chat`, accesible desde el detalle del proyecto.
 - Historial y envío por REST; mensajes, estado de IA, escritura y presencia por STOMP.
 - Menciones con `@` mediante selector de `@Asistente IA` e integrantes.
+- Adjuntar una imagen desde galería o cámara para que la IA construya el diagrama seleccionado. Solo `owner`/`editor`.
 - Dictado por voz con Groq/Whisper: graba audio, lo transcribe y coloca el texto en el compositor sin enviar el mensaje.
 - Selector de diagrama de contexto y panel de participantes.
 - La app sigue siendo de solo lectura para el diagrama; el chat no edita directamente el modelo.
