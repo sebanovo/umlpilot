@@ -10,27 +10,22 @@ WORKDIR /build
 
 # Cachea las dependencias (si falla un artefacto opcional, el package lo reportará)
 COPY pom.xml .
-RUN mvn -B -DskipTests dependency:go-offline || true
+RUN mvn -B -DskipTests -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline || true
 
 COPY src ./src
-RUN mvn -B -DskipTests clean package
+RUN mvn -B -DskipTests -Dmaven.wagon.http.retryHandler.count=5 clean package
 
 # ---------- Etapa 2: runtime ----------
-FROM eclipse-temurin:25-jre
+# Alpine incluye wget (BusyBox): no se necesita apt-get ni curl en runtime.
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
-
-# curl para el healthcheck de Docker Compose
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/target/umlpilot_api-0.0.1-SNAPSHOT.jar app.jar
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
-    CMD curl -fsS http://localhost:8080/actuator/health || exit 1
+    CMD wget -qO- http://localhost:8080/health >/dev/null || exit 1
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
