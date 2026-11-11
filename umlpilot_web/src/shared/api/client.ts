@@ -365,6 +365,12 @@ export const groupChatApi = {
     form.append('file', audio, filename)
     return authUpload(`/api/v1/projects/${projectId}/chat/transcribe`, form) as Promise<{ text: string }>
   },
+  getMessageImage: async (projectId: string, messageId: string): Promise<Blob> => {
+    const file = await authDownload(
+      `/api/v1/projects/${projectId}/chat/messages/${messageId}/image`,
+    )
+    return file.blob
+  },
 }
 
 export const backendGenerationApi = {

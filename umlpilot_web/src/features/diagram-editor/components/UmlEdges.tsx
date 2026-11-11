@@ -1,4 +1,4 @@
-import { EdgeLabelRenderer, getBezierPath, useInternalNode, type EdgeProps } from '@xyflow/react'
+import { EdgeLabelRenderer, getStraightPath, useInternalNode, type EdgeProps } from '@xyflow/react'
 
 const EDGE_COLOR = '#9ca3af'
 const EDGE_SELECTED = '#60a5fa'
@@ -27,17 +27,45 @@ const TARGET_DIR: Record<string, [number, number]> = {
   top: [0, 1], bottom: [0, -1], left: [1, 0], right: [-1, 0],
 }
 
-function edgeGeometry(props: EdgeProps): { path: string; labelX: number; labelY: number } {
-  const { source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
+function hashString(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
+  }
+  return hash
+}
 
-  // Recursive relationship: orthogonal loop with extra room
+function edgeGeometry(props: EdgeProps): { path: string; labelX: number; labelY: number } {
+  const { id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition } = props
+
+  // Recursive relationship: rectangular loop made only of straight segments.
+  // Each self-relation uses a different external lane so multiple loops do not overlap.
   if (source === target) {
-    const d = 170
-    const path = `M ${sourceX},${sourceY} L ${sourceX + d},${sourceY} L ${sourceX + d},${targetY} L ${targetX},${targetY}`
-    return { path, labelX: sourceX + d, labelY: (sourceY + targetY) / 2 }
+    const side = sourcePosition ?? targetPosition ?? 'right'
+    const lane = 110 + (hashString(id) % 4) * 28
+
+    if (side === 'left') {
+      const x = Math.min(sourceX, targetX) - lane
+      const path = `M ${sourceX},${sourceY} L ${x},${sourceY} L ${x},${targetY} L ${targetX},${targetY}`
+      return { path, labelX: x, labelY: (sourceY + targetY) / 2 }
+    }
+    if (side === 'top') {
+      const y = Math.min(sourceY, targetY) - lane
+      const path = `M ${sourceX},${sourceY} L ${sourceX},${y} L ${targetX},${y} L ${targetX},${targetY}`
+      return { path, labelX: (sourceX + targetX) / 2, labelY: y }
+    }
+    if (side === 'bottom') {
+      const y = Math.max(sourceY, targetY) + lane
+      const path = `M ${sourceX},${sourceY} L ${sourceX},${y} L ${targetX},${y} L ${targetX},${targetY}`
+      return { path, labelX: (sourceX + targetX) / 2, labelY: y }
+    }
+
+    const x = Math.max(sourceX, targetX) + lane
+    const path = `M ${sourceX},${sourceY} L ${x},${sourceY} L ${x},${targetY} L ${targetX},${targetY}`
+    return { path, labelX: x, labelY: (sourceY + targetY) / 2 }
   }
 
-  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition })
+  const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY })
   return { path, labelX, labelY }
 }
 

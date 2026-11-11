@@ -65,6 +65,7 @@ Base: `/api/v1/projects/{projectId}/chat`.
 | `GET` | `/messages?before=<cursor>&limit=50` | Historial paginado, más reciente primero. |
 | `POST` | `/messages` | Envía `{ clientMessageId, content, diagramId? }`; responde `202` (o `200` si es duplicado). |
 | `POST` | `/messages/image` | Multipart con `file`, `diagramId`, `instructions?` y `clientMessageId`; construye el diagrama desde una imagen. Solo `owner`/`editor`. |
+| `GET` | `/messages/{messageId}/image` | Devuelve la imagen adjunta almacenada en GridFS; requiere membresía. |
 | `POST` | `/messages/{messageId}/retry` | Reintenta la respuesta de IA de un mensaje fallido. |
 | `POST` | `/transcribe` | Convierte audio a texto con Groq/Whisper y lo devuelve al compositor sin enviar el mensaje. |
 
@@ -86,6 +87,7 @@ Los errores usan `400` (petición inválida), `403` (sin membresía), `404` (pro
 - Un mensaje que solo menciona a una persona se guarda y se difunde como chat grupal, sin invocar al modelo.
 - El compositor ofrece autocompletado al escribir `@`: `@Asistente IA` y los integrantes del proyecto. El botón `@` inserta la mención sin perder el foco del cuadro.
 - El botón de imagen permite adjuntar una foto de un diagrama; la IA la analiza y construye el modelo sobre el diagrama seleccionado. Solo `owner`/`editor` pueden usar esta acción.
+- La imagen se guarda en GridFS y se sirve por un endpoint autenticado, por lo que la conversación la muestra también al recargar el historial.
 - El botón de micrófono graba audio, lo envía a Groq/Whisper y coloca la transcripción en el cuadro de texto; no envía el mensaje automáticamente.
 - Las menciones se resaltan en las burbujas; la interfaz recuerda que la IA necesita la mención.
 - La conversación usa burbujas propias/ajenas, separadores de fecha, scroll condicionado al final, botón “Ir al final” y compositor autoajustable.
