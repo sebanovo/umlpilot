@@ -327,6 +327,11 @@ class _ChatPageState extends State<ChatPage> {
             onSend: viewModel.sendMessage,
             onTyping: viewModel.sendTyping,
             onTranscribe: viewModel.transcribeAudio,
+            onSendImage: (bytes, filename, instructions) => viewModel.sendImage(
+              image: bytes,
+              filename: filename,
+              instructions: instructions,
+            ),
           ),
         ],
       ),

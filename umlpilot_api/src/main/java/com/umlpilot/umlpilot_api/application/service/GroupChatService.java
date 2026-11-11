@@ -130,6 +130,56 @@ public class GroupChatService {
         return new ChatSendResult(ChatMessageResult.from(saved), false);
     }
 
+    public ChatSendResult sendImageMessage(String projectId, String userId, String clientMessageId,
+                                           String diagramId, String instructions,
+                                           String filename, byte[] image, String contentType) {
+        if (image == null || image.length == 0) {
+            throw new DomainException("La imagen es requerida");
+        }
+        if (diagramId == null || diagramId.isBlank()) {
+            throw new DomainException("Selecciona un diagrama de contexto para construir desde la imagen");
+        }
+
+        Project project = accessService.requireMember(projectId, userId);
+        // Construir desde imagen muta el diagrama: solo owner/editor.
+        accessService.requireDiagramEditor(projectId, diagramId, userId);
+        String role = roleOf(project, userId);
+        GroupConversation conversation = chatRepository.getOrCreate(projectId, userId);
+
+        String clientId = (clientMessageId == null || clientMessageId.isBlank())
+                ? UUID.randomUUID().toString()
+                : clientMessageId;
+        var existing = chatRepository.findMessageByClientId(conversation.id(), clientId);
+        if (existing.isPresent()) {
+            return new ChatSendResult(ChatMessageResult.from(existing.get()), true);
+        }
+
+        conversation = chatRepository.save(conversation.withFocusDiagram(diagramId));
+        ChatAuthor author = new ChatAuthor(userId, authorName(userId), role);
+        String prompt = (instructions == null || instructions.isBlank())
+                ? "Construye el diagrama a partir de la imagen"
+                : instructions.trim();
+        String displayName = (filename == null || filename.isBlank()) ? "diagrama" : filename;
+        String display = "[Imagen: " + displayName + "] " + prompt;
+
+        ConversationMessage message = ConversationMessage.user(
+                conversation.id(),
+                projectId,
+                diagramId,
+                author,
+                display,
+                clientId)
+                .withStatus(ChatMessageStatus.GENERATING);
+        ConversationMessage saved = chatRepository.saveMessage(message);
+        chatRepository.incrementUnsummarized(conversation.id());
+        chatRepository.save(conversation.withLastMessage(saved.createdAt()));
+
+        eventPublisher.messageCreated(projectId, saved);
+        eventPublisher.aiStatus(projectId, saved.id(), ChatMessageStatus.GENERATING, null);
+        replyService.generateFromImage(conversation, saved, image, contentType, prompt);
+        return new ChatSendResult(ChatMessageResult.from(saved), false);
+    }
+
     public ChatSendResult retryMessage(String projectId, String messageId, String userId) {
         Project project = accessService.requireMember(projectId, userId);
         ConversationMessage message = chatRepository.findMessageById(messageId)

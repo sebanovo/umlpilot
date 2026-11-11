@@ -1,5 +1,6 @@
 package com.umlpilot.umlpilot_api.application.service;
 
+import com.umlpilot.umlpilot_api.application.dto.ChatAiImageRequest;
 import com.umlpilot.umlpilot_api.application.dto.ChatAiMessage;
 import com.umlpilot.umlpilot_api.application.dto.ChatAiRequest;
 import com.umlpilot.umlpilot_api.application.dto.ChatAiResult;
@@ -103,6 +104,48 @@ public class ChatReplyService {
                     ChatMessageStatus.COMPLETED, null);
         } catch (Exception e) {
             log.warn("No se pudo generar la respuesta del chat grupal: {}", e.getMessage());
+            chatRepository.updateMessageStatus(userMessage.id(), ChatMessageStatus.FAILED);
+            eventPublisher.aiStatus(conversation.projectId(), userMessage.id(),
+                    ChatMessageStatus.FAILED, e.getMessage());
+        }
+    }
+
+    @Async("chatTaskExecutor")
+    public void generateFromImage(GroupConversation conversation, ConversationMessage userMessage,
+                                  byte[] image, String contentType, String instructions) {
+        try {
+            ChatAiResult result = aiPort.replyWithImage(new ChatAiImageRequest(
+                    conversation.projectId(),
+                    userMessage.diagramId(),
+                    userMessage.author().userId(),
+                    userMessage.author().name(),
+                    userMessage.author().role(),
+                    image,
+                    contentType,
+                    instructions,
+                    true));
+
+            List<ChatAction> actions = result.actions() == null ? List.of()
+                    : result.actions().stream().map(this::toAction).toList();
+
+            ConversationMessage assistant = ConversationMessage.assistant(
+                    conversation.id(),
+                    conversation.projectId(),
+                    userMessage.diagramId(),
+                    result.reply(),
+                    userMessage.id(),
+                    List.of(),
+                    actions,
+                    result.provider(),
+                    result.model());
+            ConversationMessage saved = chatRepository.saveMessage(assistant);
+            chatRepository.updateMessageStatus(userMessage.id(), ChatMessageStatus.COMPLETED);
+
+            eventPublisher.messageCreated(conversation.projectId(), saved);
+            eventPublisher.aiStatus(conversation.projectId(), userMessage.id(),
+                    ChatMessageStatus.COMPLETED, null);
+        } catch (Exception e) {
+            log.warn("No se pudo construir el diagrama desde la imagen: {}", e.getMessage());
             chatRepository.updateMessageStatus(userMessage.id(), ChatMessageStatus.FAILED);
             eventPublisher.aiStatus(conversation.projectId(), userMessage.id(),
                     ChatMessageStatus.FAILED, e.getMessage());

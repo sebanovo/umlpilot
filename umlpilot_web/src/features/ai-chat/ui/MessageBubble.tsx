@@ -73,6 +73,14 @@ export function MessageBubble({
           )}
         </div>
 
+        {message.previewUrl && (
+          <img
+            src={message.previewUrl}
+            alt="Diagrama adjunto"
+            className="mb-2 max-h-56 w-full rounded-lg border border-white/10 object-contain"
+          />
+        )}
+
         <p className="whitespace-pre-wrap break-words">
           <MentionText content={message.content} labels={mentionNames} />
         </p>

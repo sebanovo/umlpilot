@@ -20,6 +20,7 @@ import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -134,6 +135,23 @@ class GroupChatControllerTest {
 
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertEquals("Hola equipo", ((java.util.Map<?, ?>) response.getBody()).get("text"));
+        }
+    }
+
+    @Test
+    void sendsImageToBuildDiagram() {
+        when(service.sendImageMessage(
+                eq("p1"), eq("u1"), eq("client-image"), eq("d1"), eq("Construye"),
+                eq("diagrama.png"), any(byte[].class), eq("image/png")))
+                .thenReturn(new ChatSendResult(message(), false));
+        MockMultipartFile image = new MockMultipartFile(
+                "file", "diagrama.png", "image/png", new byte[] { 1, 2 });
+
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn("u1");
+            ResponseEntity<?> response = controller.sendImage("p1", image, "d1", "Construye", "client-image");
+
+            assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
         }
     }
 

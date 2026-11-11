@@ -117,6 +117,7 @@ Future<void> configureDependencies() async {
       getConversation: GetChatConversationUseCase(getIt()),
       getMessages: GetChatMessagesUseCase(getIt()),
       sendMessage: SendChatMessageUseCase(getIt()),
+      sendImage: SendChatImageUseCase(getIt()),
       retryMessage: RetryChatMessageUseCase(getIt()),
       transcribeAudio: TranscribeChatAudioUseCase(getIt()),
       getDiagrams: GetDiagramsUseCase(getIt()),

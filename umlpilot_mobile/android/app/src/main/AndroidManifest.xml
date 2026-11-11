@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Dictado por voz del chat grupal (Groq/Whisper). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- Adjuntar una foto del diagrama desde la cámara. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="umlpilot_mobile"
         android:name="${applicationName}"

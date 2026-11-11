@@ -83,6 +83,40 @@ public class GroupChatController {
         }
     }
 
+    @PostMapping(value = "/messages/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> sendImage(@PathVariable String projectId,
+                                       @RequestParam("file") MultipartFile file,
+                                       @RequestParam(value = "diagramId", required = false) String diagramId,
+                                       @RequestParam(value = "instructions", required = false) String instructions,
+                                       @RequestParam(value = "clientMessageId", required = false) String clientMessageId) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "La imagen es requerida"));
+        }
+        try {
+            ChatSendResult result = chatService.sendImageMessage(
+                    projectId,
+                    SecurityUtils.getCurrentUserId(),
+                    clientMessageId,
+                    diagramId,
+                    instructions,
+                    file.getOriginalFilename(),
+                    file.getBytes(),
+                    file.getContentType());
+            return ResponseEntity.status(result.duplicate() ? HttpStatus.OK : HttpStatus.ACCEPTED)
+                    .body(result);
+        } catch (LlmException e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (DomainException e) {
+            return error(e);
+        } catch (DataAccessException e) {
+            return unavailable(e);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "No se pudo procesar la imagen"));
+        }
+    }
+
     @PostMapping("/messages/{messageId}/retry")
     public ResponseEntity<?> retry(@PathVariable String projectId,
                                    @PathVariable String messageId) {

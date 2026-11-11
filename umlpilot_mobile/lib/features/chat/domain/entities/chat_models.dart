@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 enum ChatAiStatus {
   none,
   generating,
@@ -122,6 +124,7 @@ class ChatMessage {
     this.provider,
     this.model,
     this.createdAt,
+    this.previewBytes,
     this.pending = false,
     this.failed = false,
   });
@@ -171,6 +174,7 @@ class ChatMessage {
   final String? model;
   final ChatAiStatus aiStatus;
   final String? createdAt;
+  final Uint8List? previewBytes;
   final bool pending;
   final bool failed;
 
@@ -202,6 +206,7 @@ class ChatMessage {
       model: model,
       aiStatus: aiStatus ?? this.aiStatus,
       createdAt: createdAt,
+      previewBytes: previewBytes,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
     );

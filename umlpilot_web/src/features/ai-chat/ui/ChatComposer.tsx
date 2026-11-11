@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { AtSign, Bot, Loader2, Mic, Send, Sparkles, Square, UserRound } from 'lucide-react'
+import { AtSign, Bot, ImagePlus, Loader2, Mic, Send, Sparkles, Square, UserRound, X } from 'lucide-react'
 import type { MentionOption } from '../model/mentions'
 
 interface ChatComposerProps {
@@ -10,6 +10,7 @@ interface ChatComposerProps {
   onSend: (content: string) => void
   onTyping: (typing: boolean) => void
   onTranscribe?: (audio: Blob) => Promise<string>
+  onSendImage?: (file: File, instructions: string) => void
 }
 
 export function ChatComposer({
@@ -20,6 +21,7 @@ export function ChatComposer({
   onSend,
   onTyping,
   onTranscribe,
+  onSendImage,
 }: ChatComposerProps) {
   const [input, setInput] = useState('')
   const [mentionOpen, setMentionOpen] = useState(false)
@@ -29,7 +31,10 @@ export function ChatComposer({
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const typingTimer = useRef<number | null>(null)
   const blurTimer = useRef<number | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -43,6 +48,10 @@ export function ChatComposer({
       recorder.stream.getTracks().forEach((track) => track.stop())
     }
   }, [])
+
+  useEffect(() => () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+  }, [imagePreviewUrl])
 
   const filteredMentions = useMemo(() => {
     const query = mentionQuery.trim().toLowerCase()
@@ -180,9 +189,38 @@ export function ChatComposer({
     }
   }
 
+  const clearImage = () => {
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(null)
+    setImagePreviewUrl(null)
+  }
+
+  const pickImage = () => {
+    if (!canMutate) return
+    fileInputRef.current?.click()
+  }
+
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+    setImageFile(file)
+    setImagePreviewUrl(URL.createObjectURL(file))
+  }
+
   const submit = () => {
     const text = input.trim()
-    if (!text || sending || disabled || transcribing) return
+    if ((!text && !imageFile) || sending || disabled || transcribing) return
+    if (imageFile && onSendImage) {
+      onSendImage(imageFile, text)
+      clearImage()
+      setInput('')
+      closeMentions()
+      notifyTyping(false)
+      return
+    }
+    if (!text) return
     onSend(text)
     setInput('')
     closeMentions()
@@ -230,6 +268,25 @@ export function ChatComposer({
 
   return (
     <div className="relative border-t border-gray-800 bg-gray-950/95 p-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFileChange}
+      />
+      {imagePreviewUrl && (
+        <div className="mx-auto mb-2 flex max-w-4xl items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 p-2">
+          <img src={imagePreviewUrl} alt={imageFile?.name ?? 'Imagen adjunta'} className="h-14 w-14 rounded-lg object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs text-gray-200">{imageFile?.name}</p>
+            <p className="text-[10px] text-gray-500">La IA construirá el diagrama desde esta imagen.</p>
+          </div>
+          <button type="button" onClick={clearImage} title="Quitar imagen" className="rounded p-1 text-gray-400 hover:bg-gray-800 hover:text-red-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div className="mx-auto flex max-w-4xl items-end gap-2">
         <div className="relative flex-1">
           {mentionOpen && (
@@ -299,6 +356,18 @@ export function ChatComposer({
           </button>
         </div>
 
+        {onSendImage && (
+          <button
+            type="button"
+            onClick={pickImage}
+            disabled={!canMutate || sending || disabled}
+            title={canMutate ? 'Adjuntar imagen de un diagrama' : 'Solo owner/editor pueden construir desde imagen'}
+            className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border border-gray-700 bg-gray-900 text-gray-300 transition-colors hover:border-emerald-500 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ImagePlus className="h-5 w-5" />
+          </button>
+        )}
+
         {onTranscribe && (
           <button
             type="button"
@@ -319,7 +388,7 @@ export function ChatComposer({
         <button
           type="button"
           onClick={submit}
-          disabled={!input.trim() || sending || disabled || transcribing}
+          disabled={(!input.trim() && !imageFile) || sending || disabled || transcribing}
           className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/30 transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
           title="Enviar mensaje"
         >
