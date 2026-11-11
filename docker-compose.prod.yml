@@ -41,6 +41,8 @@ services:
     image: mongo:7
     container_name: umlpilot_mongo
     restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
     volumes:
       - umlpilot_mongo_data:/data/db
     networks:
@@ -57,6 +59,8 @@ services:
     build:
       context: ./umlpilot_api
       dockerfile: Dockerfile.prod
+      # Evita fallos de DNS del builder aislado (Maven Central/apt) en Docker Desktop.
+      network: host
     image: sebastiandevjs/umlpilot-api:latest
     container_name: umlpilot_api
     env_file:
@@ -80,6 +84,7 @@ services:
     build:
       context: ./umlpilot_web
       dockerfile: Dockerfile.prod
+      network: host
     image: sebastiandevjs/umlpilot-web:latest
     env_file:
       - .env
