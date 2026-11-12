@@ -5,6 +5,7 @@ import com.umlpilot.umlpilot_api.application.dto.ChatPageResult;
 import com.umlpilot.umlpilot_api.application.dto.ChatSendResult;
 import com.umlpilot.umlpilot_api.application.dto.SendChatMessageCommand;
 import com.umlpilot.umlpilot_api.application.port.out.ChatEventPublisher;
+import com.umlpilot.umlpilot_api.application.port.out.ChatImageStore;
 import com.umlpilot.umlpilot_api.application.port.out.GroupChatRepository;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.ChatAuthor;
@@ -46,6 +47,7 @@ class GroupChatServiceTest {
     private GroupChatRepository chatRepository;
     private ChatReplyService replyService;
     private ChatEventPublisher eventPublisher;
+    private ChatImageStore imageStore;
     private GroupChatService service;
 
     private final Project project = Project.reconstitute(
@@ -61,8 +63,9 @@ class GroupChatServiceTest {
         chatRepository = mock(GroupChatRepository.class);
         replyService = mock(ChatReplyService.class);
         eventPublisher = mock(ChatEventPublisher.class);
+        imageStore = mock(ChatImageStore.class);
         service = new GroupChatService(accessService, collaboratorRepository, userRepository,
-                chatRepository, replyService, eventPublisher);
+                chatRepository, replyService, eventPublisher, imageStore);
     }
 
     @Test

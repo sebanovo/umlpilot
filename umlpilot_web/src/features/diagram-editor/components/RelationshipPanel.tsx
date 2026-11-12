@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { UmlRelationshipApi, MultiplicityApi } from '../../../shared/api/client'
-import { Check } from 'lucide-react'
+import { Check, Trash2 } from 'lucide-react'
 
 interface RelationshipPanelProps {
   relationship: UmlRelationshipApi | null
   multiplicities: MultiplicityApi[]
   onUpdateName: (name: string) => void
   onUpdateMultiplicity: (multiplicityId: string, min: number | null, max: number | null) => void
+  onDelete: () => void
   width?: number
 }
 
@@ -35,7 +36,7 @@ function multLabel(min: number | null, max: number | null): string {
   return `${min}..${max < 0 ? '*' : max}`
 }
 
-export function RelationshipPanel({ relationship, multiplicities, onUpdateName, onUpdateMultiplicity, width }: RelationshipPanelProps) {
+export function RelationshipPanel({ relationship, multiplicities, onUpdateName, onUpdateMultiplicity, onDelete, width }: RelationshipPanelProps) {
   const [name, setName] = useState('')
 
   useEffect(() => {
@@ -70,9 +71,15 @@ export function RelationshipPanel({ relationship, multiplicities, onUpdateName, 
 
   return (
     <div className="shrink-0 min-h-0 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden" style={width ? { width } : undefined}>
-      <div className="px-4 py-3 border-b border-gray-800">
-        <h3 className="text-sm font-semibold text-gray-100">Relación</h3>
-        <p className="text-xs text-blue-400 mt-0.5">{TYPE_LABELS[relationship.relationshipType] || relationship.relationshipType}</p>
+      <div className="px-4 py-3 border-b border-gray-800 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-100">Relación</h3>
+          <p className="text-xs text-blue-400 mt-0.5">{TYPE_LABELS[relationship.relationshipType] || relationship.relationshipType}</p>
+        </div>
+        <button onClick={onDelete} title="Eliminar relación"
+          className="rounded-md border border-red-900 bg-red-950/40 p-1.5 text-red-300 hover:bg-red-900/40 hover:text-red-200 cursor-pointer transition-colors">
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">

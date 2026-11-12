@@ -1,5 +1,6 @@
 package com.umlpilot.umlpilot_api.infrastructure.adapter.in.web;
 
+import com.umlpilot.umlpilot_api.application.dto.ChatImageData;
 import com.umlpilot.umlpilot_api.application.dto.ChatSendResult;
 import com.umlpilot.umlpilot_api.application.dto.SendChatMessageCommand;
 import com.umlpilot.umlpilot_api.application.service.GroupChatService;
@@ -114,6 +115,26 @@ public class GroupChatController {
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "No se pudo procesar la imagen"));
+        }
+    }
+
+    @GetMapping("/messages/{messageId}/image")
+    public ResponseEntity<?> image(@PathVariable String projectId,
+                                   @PathVariable String messageId) {
+        try {
+            ChatImageData image = chatService.getImage(
+                    projectId, messageId, SecurityUtils.getCurrentUserId());
+            MediaType type;
+            try {
+                type = MediaType.parseMediaType(image.contentType());
+            } catch (RuntimeException invalidType) {
+                type = MediaType.APPLICATION_OCTET_STREAM;
+            }
+            return ResponseEntity.ok().contentType(type).body(image.bytes());
+        } catch (DomainException e) {
+            return error(e);
+        } catch (DataAccessException e) {
+            return unavailable(e);
         }
     }
 

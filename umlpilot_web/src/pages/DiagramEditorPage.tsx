@@ -8,9 +8,8 @@ import { PresenceBar, type PresenceUser } from '../features/diagram-editor/compo
 import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
-import { buildXmi } from '../features/diagram-editor/lib/xmi'
 import { ShareDiagramDialog } from '../features/collaboration/components/ShareDiagramDialog'
-import { backendGenerationApi, projectsApi, xmiImportApi, type Collaborator } from '../shared/api/client'
+import { backendGenerationApi, projectsApi, xmiExportApi, xmiImportApi, type Collaborator } from '../shared/api/client'
 import { colorFor } from '../shared/lib/useWebSocket'
 import { useToast } from '../shared/ui/toast/useToast'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
@@ -26,11 +25,11 @@ export function DiagramEditorPage() {
     selectedElement, selectedAttributes, selectedMethods, loading,
     activeRelationship, setActiveRelationship, createRelationship, reconnectRelationship, handleNodeClick,
     selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
-    updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
+    updateRelationshipName, updateMultiplicity, deleteRelationship, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
     addParameter, deleteParameter,
-    attributes, methods, relationships, rebuildDiagram, deleteAllElements, loadError,
+    rebuildDiagram, deleteAllElements, loadError,
   } = useDiagramState({ projectId: projectId!, diagramId: diagramId! })
 
   const { toast } = useToast()
@@ -41,6 +40,7 @@ export function DiagramEditorPage() {
   const [panelWidth, setPanelWidth] = useState(288)
   const [generatingBackend, setGeneratingBackend] = useState(false)
   const [importingXmi, setImportingXmi] = useState(false)
+  const [exportingXmi, setExportingXmi] = useState(false)
   const [confirmClearOpen, setConfirmClearOpen] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
@@ -116,41 +116,29 @@ export function DiagramEditorPage() {
     window.addEventListener('pointerup', onUp)
   }
 
-  const handleExportXmi = () => {
-    const positions: Record<string, { x: number; y: number; width?: number; height?: number }> = {}
-    for (const n of nodes) {
-      positions[n.id] = {
-        x: n.position.x,
-        y: n.position.y,
-        width: n.measured?.width,
-        height: n.measured?.height,
-      }
+  const handleExportXmi = async () => {
+    if (exportingXmi) return
+    setExportingXmi(true)
+    try {
+      const { blob, filename } = await xmiExportApi.download(projectId!, diagramId!)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: 'Diagrama exportado', description: `Se descargó ${filename}`, variant: 'success' })
+    } catch (error) {
+      toast({
+        title: 'No se pudo exportar el XMI',
+        description: error instanceof Error ? error.message : 'Error inesperado',
+        variant: 'error',
+      })
+    } finally {
+      setExportingXmi(false)
     }
-    const multiplicities: Record<string, { source?: string; target?: string }> = {}
-    for (const e of edges) {
-      const d = (e.data || {}) as { sourceMultiplicity?: string; targetMultiplicity?: string }
-      multiplicities[e.id] = { source: d.sourceMultiplicity, target: d.targetMultiplicity }
-    }
-    const xml = buildXmi({
-      modelName: `Diagram_${diagramId}`,
-      diagramId: diagramId!,
-      elements,
-      attributes,
-      methods,
-      relationships,
-      positions,
-      multiplicities,
-    })
-    const blob = new Blob([xml], { type: 'application/xml' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `diagram_${diagramId}.xmi`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-    toast({ title: 'Diagrama exportado', description: 'Se descargó el archivo .xmi', variant: 'success' })
   }
 
   const handleGenerateBackend = async () => {
@@ -301,11 +289,11 @@ export function DiagramEditorPage() {
                 Compartir
               </button>
             )}
-            <button onClick={handleExportXmi} title="Exportar a XMI 2.5.1 (UML)"
-              className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors cursor-pointer">
-              <Download className="w-3.5 h-3.5" />
-              Exportar XMI
-            </button>
+                <button onClick={handleExportXmi} disabled={exportingXmi} title="Exportar a XMI 2.5.1 (UML)"
+                  className={`flex items-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs transition-colors ${exportingXmi ? 'cursor-wait text-gray-500' : 'cursor-pointer text-gray-300 hover:bg-gray-700 hover:text-gray-100'}`}>
+                  <Download className="w-3.5 h-3.5" />
+                  {exportingXmi ? 'Exportando...' : 'Exportar XMI'}
+                </button>
             {!isViewer && (
               <>
                 <button onClick={() => xmiFileInputRef.current?.click()} disabled={importingXmi}
@@ -314,7 +302,7 @@ export function DiagramEditorPage() {
                   <Upload className="w-3.5 h-3.5" />
                   {importingXmi ? 'Importando…' : 'Importar XMI'}
                 </button>
-                <input ref={xmiFileInputRef} type="file" accept=".xmi,.xml" className="hidden"
+                <input ref={xmiFileInputRef} type="file" accept=".xml,.xmi" className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     e.target.value = ''
@@ -383,6 +371,7 @@ export function DiagramEditorPage() {
                   multiplicities={relationshipMultiplicities}
                   onUpdateName={updateRelationshipName}
                   onUpdateMultiplicity={updateMultiplicity}
+                  onDelete={() => deleteRelationship(selectedRelationship.id)}
                   width={panelWidth}
                 />
               ) : (

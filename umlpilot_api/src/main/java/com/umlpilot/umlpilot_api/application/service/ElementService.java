@@ -38,12 +38,15 @@ public class ElementService {
     }
 
     @Transactional
-    public ElementResult updateElement(String diagramId, String elementId, String name, String visibility, Integer positionX, Integer positionY, Integer width, Integer height) {
+    public ElementResult updateElement(String diagramId, String elementId, String name, String visibility,
+                                       String stereotype, Integer positionX, Integer positionY,
+                                       Integer width, Integer height) {
         Element element = elementRepository.findById(ElementId.from(elementId))
                 .orElseThrow(() -> new DomainException("Element not found"));
         if (!element.getDiagramId().value().equals(diagramId)) throw new DomainException("Element not in diagram");
         element.updateName(name);
         element.updateVisibility(visibility);
+        if (stereotype != null) element.updateStereotype(stereotype);
         if (positionX != null && positionY != null) element.updatePosition(positionX, positionY);
         if (width != null && height != null) element.updateSize(width, height);
         return toResult(elementRepository.save(element));

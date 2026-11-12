@@ -4,6 +4,8 @@ import { applyNodeChanges, applyEdgeChanges } from '@xyflow/react'
 import { elementsApi, relationshipsApi } from '../../../shared/api/client'
 import type { UmlElementApi, UmlAttributeApi, UmlMethodApi, UmlRelationshipApi, MultiplicityApi, UmlParameterApi } from '../../../shared/api/client'
 import { useWebSocket } from '../../../shared/lib/useWebSocket'
+import { anchorStorageValue, edgeHandleFor, parseEdgeAnchor, type AnchorEnd, type AnchorSide, type EdgeAnchor } from '../lib/anchors'
+import { parseWaypoints, serializeWaypoints, type EdgeWaypoint } from '../lib/waypoints'
 
 const EDGE_TYPES = new Set([
   'association', 'association_class', 'generalization', 'realization',
@@ -22,20 +24,10 @@ function nodeTypeFor(elementType?: string): string {
   return 'class'
 }
 
-type HandleSide = 'top' | 'right' | 'bottom' | 'left'
-const SIDES: HandleSide[] = ['top', 'right', 'bottom', 'left']
+type AnchorChangeHandler = (relationshipId: string, end: AnchorEnd, anchor: EdgeAnchor) => void
+type WaypointChangeHandler = (relationshipId: string, waypoints: EdgeWaypoint[]) => void
 
-function normalizeHandle(handle: string | null | undefined, type: 'source' | 'target', fallback: HandleSide): string {
-  const prefix = type === 'source' ? 's-' : 't-'
-  if (handle && handle.length > 2) {
-    const side = handle.slice(handle.indexOf('-') + 1) as HandleSide
-    if (SIDES.includes(side)) return `${prefix}${side}`
-  }
-  if (handle && SIDES.includes(handle as HandleSide)) return `${prefix}${handle}`
-  return `${prefix}${fallback}`
-}
-
-function bestSides(source?: { position: { x: number; y: number } }, target?: { position: { x: number; y: number } }): { source: HandleSide; target: HandleSide } {
+function bestSides(source?: { position: { x: number; y: number } }, target?: { position: { x: number; y: number } }): { source: AnchorSide; target: AnchorSide } {
   const dx = (target?.position.x ?? 0) - (source?.position.x ?? 0)
   const dy = (target?.position.y ?? 0) - (source?.position.y ?? 0)
   if (Math.abs(dx) >= Math.abs(dy)) {
@@ -51,7 +43,7 @@ function formatMultiplicity(m?: MultiplicityApi): string {
   return `${m.min}..${maxLabel}`
 }
 
-async function buildEdges(projectId: string, diagramId: string, rels: UmlRelationshipApi[], onDelete: (id: string) => void): Promise<Edge[]> {
+async function buildEdges(projectId: string, diagramId: string, rels: UmlRelationshipApi[], onDelete: (id: string) => void, onAnchorChange: AnchorChangeHandler, onWaypointsChange: WaypointChangeHandler): Promise<Edge[]> {
   const entries = await Promise.all(rels.map(async (rel) => {
     try {
       const list = await relationshipsApi.getMultiplicities(projectId, diagramId, rel.id)
@@ -67,12 +59,18 @@ async function buildEdges(projectId: string, diagramId: string, rels: UmlRelatio
     const source = list.find((m) => m.end === 'source')
     const target = list.find((m) => m.end === 'target')
     const isSelfLoop = rel.sourceElementId === rel.targetElementId
+    let sourceAnchor: EdgeAnchor = parseEdgeAnchor(rel.sourceHandle, isSelfLoop ? 'right' : 'bottom')
+    let targetAnchor: EdgeAnchor = parseEdgeAnchor(rel.targetHandle, isSelfLoop ? 'right' : 'top')
+    if (isSelfLoop && sourceAnchor.side === targetAnchor.side && sourceAnchor.percent === targetAnchor.percent) {
+      sourceAnchor = { side: 'right', percent: 10 }
+      targetAnchor = { side: 'right', percent: 90 }
+    }
     return {
       id: rel.id,
       source: rel.sourceElementId,
       target: rel.targetElementId,
-      sourceHandle: isSelfLoop ? 's-right' : normalizeHandle(rel.sourceHandle, 'source', 'bottom'),
-      targetHandle: isSelfLoop ? 't-right' : normalizeHandle(rel.targetHandle, 'target', 'top'),
+      sourceHandle: edgeHandleFor(sourceAnchor, 'source'),
+      targetHandle: edgeHandleFor(targetAnchor, 'target'),
       type: edgeTypeFor(rel.relationshipType),
       data: {
         relationshipType: rel.relationshipType,
@@ -80,6 +78,11 @@ async function buildEdges(projectId: string, diagramId: string, rels: UmlRelatio
         associationClassElementId: rel.associationClassElementId || null,
         sourceMultiplicity: formatMultiplicity(source),
         targetMultiplicity: formatMultiplicity(target),
+        sourceAnchor,
+        targetAnchor,
+        waypoints: parseWaypoints(rel.waypoints),
+        onAnchorChange,
+        onWaypointsChange,
         onDelete: () => onDelete(rel.id),
       },
     }
@@ -150,6 +153,50 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     broadcastCursor(x, y, userName)
   }, [broadcastCursor, userName])
 
+  const rebuildDiagramRef = useRef<() => Promise<void>>(async () => {})
+
+  const updateRelationshipAnchor = useCallback(async (relationshipId: string, end: AnchorEnd, anchor: EdgeAnchor) => {
+    const handle = anchorStorageValue(anchor, end)
+    const anchorKey = end === 'source' ? 'sourceAnchor' : 'targetAnchor'
+
+    setState(prev => ({
+      ...prev,
+      relationships: prev.relationships.map((r) => r.id === relationshipId
+        ? (end === 'source' ? { ...r, sourceHandle: handle } : { ...r, targetHandle: handle })
+        : r),
+      edges: prev.edges.map((e) => e.id === relationshipId
+        ? { ...e, data: { ...(e.data || {}), [anchorKey]: anchor } }
+        : e),
+    }))
+
+    try {
+      const payload = end === 'source' ? { sourceHandle: handle } : { targetHandle: handle }
+      await relationshipsApi.update(projectId, diagramId, relationshipId, payload)
+      broadcastElementChange('relationship_updated', relationshipId)
+    } catch {
+      rebuildDiagramRef.current().catch(() => {})
+    }
+  }, [projectId, diagramId, broadcastElementChange])
+
+  const updateRelationshipWaypoints = useCallback(async (relationshipId: string, waypoints: EdgeWaypoint[]) => {
+    const value = serializeWaypoints(waypoints)
+
+    setState(prev => ({
+      ...prev,
+      relationships: prev.relationships.map((r) => r.id === relationshipId ? { ...r, waypoints: value } : r),
+      edges: prev.edges.map((e) => e.id === relationshipId
+        ? { ...e, data: { ...(e.data || {}), waypoints } }
+        : e),
+    }))
+
+    try {
+      await relationshipsApi.updateWaypoints(projectId, diagramId, relationshipId, value)
+      broadcastElementChange('relationship_updated', relationshipId)
+    } catch {
+      rebuildDiagramRef.current().catch(() => {})
+    }
+  }, [projectId, diagramId, broadcastElementChange])
+
   // Load initial data
   useEffect(() => {
     if (!projectId || !diagramId) return
@@ -176,7 +223,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
         data: { name: el.name, visibility: el.visibility, stereotype: el.stereotype, attributes: attrMap[el.id] || [], methods: methMap[el.id] || [], literals: [], onDeleteNode: handleDeleteNode, onRenameNode: handleNoteText },
       }))
 
-      const edges: Edge[] = await buildEdges(projectId, diagramId, rels, handleDeleteEdge)
+      const edges: Edge[] = await buildEdges(projectId, diagramId, rels, handleDeleteEdge, updateRelationshipAnchor, updateRelationshipWaypoints)
 
       setState(prev => ({
         ...prev, nodes, edges, elements: els, attributes: attrMap, methods: methMap, relationships: rels, loading: false,
@@ -186,7 +233,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       loading: false,
       loadError: error instanceof Error ? error.message : 'No tienes acceso a este diagrama',
     })))
-  }, [projectId, diagramId, handleDeleteEdge, handleNoteText, handleDeleteNode])
+  }, [projectId, diagramId, handleDeleteEdge, handleNoteText, handleDeleteNode, updateRelationshipAnchor, updateRelationshipWaypoints])
 
   // Rebuild nodes/edges from server (used when a remote change arrives)
   const rebuildDiagram = useCallback(async () => {
@@ -213,13 +260,17 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       data: { name: el.name, visibility: el.visibility, stereotype: el.stereotype, attributes: attrMap[el.id] || [], methods: methMap[el.id] || [], literals: [], onDeleteNode: handleDeleteNode, onRenameNode: handleNoteText },
     }))
 
-    const edges: Edge[] = await buildEdges(projectId, diagramId, rels, handleDeleteEdge)
+    const edges: Edge[] = await buildEdges(projectId, diagramId, rels, handleDeleteEdge, updateRelationshipAnchor, updateRelationshipWaypoints)
 
     setState(prev => ({
       ...prev, nodes, edges, elements: els, attributes: attrMap, methods: methMap, relationships: rels,
       selectedElement: prev.selectedElement ? els.find((e) => e.id === prev.selectedElement!.id) || prev.selectedElement : null,
     }))
-  }, [projectId, diagramId, handleDeleteEdge, handleNoteText, handleDeleteNode])
+  }, [projectId, diagramId, handleDeleteEdge, handleNoteText, handleDeleteNode, updateRelationshipAnchor, updateRelationshipWaypoints])
+
+  useEffect(() => {
+    rebuildDiagramRef.current = rebuildDiagram
+  }, [rebuildDiagram])
 
   // Delete relationship — optimistic + broadcast
   const deleteRelationship = useCallback(async (relationshipId: string) => {
@@ -479,13 +530,21 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
 
     const isSelf = sourceId === targetId
     const sides = isSelf
-      ? { source: 'right' as HandleSide, target: 'right' as HandleSide }
+      ? { source: 'right' as AnchorSide, target: 'right' as AnchorSide }
       : bestSides(
           state.nodes.find((n) => n.id === sourceId),
           state.nodes.find((n) => n.id === targetId),
         )
-    const srcHandle = isSelf ? 's-right' : normalizeHandle(sourceHandle, 'source', sides.source)
-    const tgtHandle = isSelf ? 't-right' : normalizeHandle(targetHandle, 'target', sides.target)
+    const sourceAnchor: EdgeAnchor = isSelf
+      ? { side: 'right', percent: 10 }
+      : parseEdgeAnchor(sourceHandle, sides.source)
+    const targetAnchor: EdgeAnchor = isSelf
+      ? { side: 'right', percent: 90 }
+      : parseEdgeAnchor(targetHandle, sides.target)
+    const srcHandle = edgeHandleFor(sourceAnchor, 'source')
+    const tgtHandle = edgeHandleFor(targetAnchor, 'target')
+    const srcAnchorValue = anchorStorageValue(sourceAnchor, 'source')
+    const tgtAnchorValue = anchorStorageValue(targetAnchor, 'target')
 
     let associationClassElementId: string | null = null
     if (relationshipType === 'association_class') {
@@ -497,7 +556,11 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       id: tempId, source: sourceId, target: targetId,
       sourceHandle: srcHandle, targetHandle: tgtHandle,
       type: edgeTypeFor(relationshipType),
-      data: { relationshipType, name: '', associationClassElementId, sourceMultiplicity: '', targetMultiplicity: '' },
+      data: {
+        relationshipType, name: '', associationClassElementId, sourceMultiplicity: '', targetMultiplicity: '',
+        sourceAnchor, targetAnchor, waypoints: [],
+        onAnchorChange: updateRelationshipAnchor, onWaypointsChange: updateRelationshipWaypoints,
+      },
     }
     setState(prev => ({ ...prev, edges: [...prev.edges, newEdge] }))
 
@@ -505,12 +568,29 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
       const rel = await relationshipsApi.create(projectId, diagramId, {
         sourceElementId: sourceId, targetElementId: targetId, relationshipType,
         associationClassElementId: associationClassElementId || undefined,
-        sourceHandle: srcHandle, targetHandle: tgtHandle,
+        sourceHandle: srcAnchorValue, targetHandle: tgtAnchorValue,
       })
+      const savedSourceAnchor = parseEdgeAnchor(rel.sourceHandle, sourceAnchor.side)
+      const savedTargetAnchor = parseEdgeAnchor(rel.targetHandle, targetAnchor.side)
       setState(prev => ({
         ...prev,
         edges: prev.edges.map((e) => e.id === tempId
-          ? { ...e, id: rel.id, sourceHandle: rel.sourceHandle || srcHandle, targetHandle: rel.targetHandle || tgtHandle, type: edgeTypeFor(rel.relationshipType), data: { relationshipType: rel.relationshipType, name: rel.name || '', associationClassElementId: rel.associationClassElementId || null, sourceMultiplicity: '', targetMultiplicity: '', onDelete: () => handleDeleteEdge(rel.id) } }
+          ? {
+              ...e,
+              id: rel.id,
+              sourceHandle: edgeHandleFor(savedSourceAnchor, 'source'),
+              targetHandle: edgeHandleFor(savedTargetAnchor, 'target'),
+              type: edgeTypeFor(rel.relationshipType),
+              data: {
+                relationshipType: rel.relationshipType, name: rel.name || '',
+                associationClassElementId: rel.associationClassElementId || null,
+                sourceMultiplicity: '', targetMultiplicity: '',
+                sourceAnchor: savedSourceAnchor, targetAnchor: savedTargetAnchor,
+                waypoints: parseWaypoints(rel.waypoints),
+                onAnchorChange: updateRelationshipAnchor, onWaypointsChange: updateRelationshipWaypoints,
+                onDelete: () => handleDeleteEdge(rel.id),
+              },
+            }
           : e),
         relationships: [...prev.relationships, rel],
       }))
@@ -519,19 +599,22 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     } catch {
       setState(prev => ({ ...prev, edges: prev.edges.filter((e) => e.id !== tempId) }))
     }
-  }, [projectId, diagramId, broadcastElementChange, handleDeleteEdge, createAssociationClassElement, state.nodes])
+  }, [projectId, diagramId, broadcastElementChange, handleDeleteEdge, createAssociationClassElement, state.nodes, updateRelationshipAnchor, updateRelationshipWaypoints])
 
-  // Connect via drag between handles
+  // Connect via drag between handles (only while a relationship tool is selected)
   const onConnect = useCallback((params: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => {
-    createRelationship(params.source, params.target, activeRelationship || 'association', params.sourceHandle ?? undefined, params.targetHandle ?? undefined)
+    if (!activeRelationship) return
+    createRelationship(params.source, params.target, activeRelationship, params.sourceHandle ?? undefined, params.targetHandle ?? undefined)
   }, [createRelationship, activeRelationship])
 
   // Reconnect (move) a relationship endpoint
   const reconnectRelationship = useCallback(async (relationshipId: string, connection: { source?: string | null; target?: string | null; sourceHandle?: string | null; targetHandle?: string | null }) => {
     const newSource = connection.source || undefined
     const newTarget = connection.target || undefined
-    const newSourceHandle = connection.sourceHandle ? normalizeHandle(connection.sourceHandle, 'source', 'bottom') : undefined
-    const newTargetHandle = connection.targetHandle ? normalizeHandle(connection.targetHandle, 'target', 'top') : undefined
+    const sourceAnchor = connection.sourceHandle ? parseEdgeAnchor(connection.sourceHandle, 'right') : undefined
+    const targetAnchor = connection.targetHandle ? parseEdgeAnchor(connection.targetHandle, 'left') : undefined
+    const newSourceHandle = sourceAnchor ? anchorStorageValue(sourceAnchor, 'source') : undefined
+    const newTargetHandle = targetAnchor ? anchorStorageValue(targetAnchor, 'target') : undefined
 
     setState(prev => ({
       ...prev,
@@ -539,8 +622,13 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
         ...e,
         source: newSource ?? e.source,
         target: newTarget ?? e.target,
-        sourceHandle: newSourceHandle ?? e.sourceHandle,
-        targetHandle: newTargetHandle ?? e.targetHandle,
+        sourceHandle: sourceAnchor ? edgeHandleFor(sourceAnchor, 'source') : e.sourceHandle,
+        targetHandle: targetAnchor ? edgeHandleFor(targetAnchor, 'target') : e.targetHandle,
+        data: {
+          ...(e.data || {}),
+          ...(sourceAnchor ? { sourceAnchor } : {}),
+          ...(targetAnchor ? { targetAnchor } : {}),
+        },
       } : e),
       relationships: prev.relationships.map((r) => r.id === relationshipId ? {
         ...r,
@@ -598,8 +686,9 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
   }, [activeRelationship, selectElement])
 
   const onEdgeClick = useCallback((_event: unknown, edge: Edge) => {
+    setActiveRelationship(null)
     selectRelationship(edge.id)
-  }, [selectRelationship])
+  }, [selectRelationship, setActiveRelationship])
 
   const clearRelationshipSelection = useCallback(() => {
     setSelectedRelationship(null)
@@ -843,6 +932,7 @@ export function useDiagramState({ projectId, diagramId }: UseDiagramStateProps) 
     relationshipMultiplicities,
     onEdgeClick,
     clearRelationshipSelection,
+    deleteRelationship,
     updateRelationshipName,
     updateMultiplicity,
     remoteCursors,

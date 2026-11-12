@@ -45,9 +45,10 @@ export function useWebSocket(diagramId: string, userId: string) {
     if (!diagramId || !userId) return
 
     const token = localStorage.getItem('accessToken')
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
 
     const client = new Client({
-      brokerURL: `ws://${window.location.host}/ws`,
+      brokerURL: `${protocol}://${window.location.host}/ws`,
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 3000,
       heartbeatIncoming: 4000,

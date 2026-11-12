@@ -1,49 +1,24 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Pencil, Trash2 } from 'lucide-react'
+
+const HANDLE_SIDES = [
+  { side: 'top', position: Position.Top },
+  { side: 'right', position: Position.Right },
+  { side: 'bottom', position: Position.Bottom },
+  { side: 'left', position: Position.Left },
+]
 
 export function NodeHandles() {
   return (
     <>
-      <Handle id="t-top" type="target" position={Position.Top} className="!w-3 !h-3 !bg-emerald-400" style={{ left: '38%' }} />
-      <Handle id="s-top" type="source" position={Position.Top} className="!w-3 !h-3 !bg-blue-400" style={{ left: '62%' }} />
-      <Handle id="t-bottom" type="target" position={Position.Bottom} className="!w-3 !h-3 !bg-emerald-400" style={{ left: '62%' }} />
-      <Handle id="s-bottom" type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-blue-400" style={{ left: '38%' }} />
-      <Handle id="t-left" type="target" position={Position.Left} className="!w-3 !h-3 !bg-emerald-400" style={{ top: '38%' }} />
-      <Handle id="s-left" type="source" position={Position.Left} className="!w-3 !h-3 !bg-blue-400" style={{ top: '62%' }} />
-      <Handle id="t-right" type="target" position={Position.Right} className="!w-3 !h-3 !bg-emerald-400" style={{ top: '62%' }} />
-      <Handle id="s-right" type="source" position={Position.Right} className="!w-3 !h-3 !bg-blue-400" style={{ top: '38%' }} />
+      {HANDLE_SIDES.map(({ side, position }) => (
+        <Fragment key={side}>
+          <Handle id={`t-${side}-center`} type="target" position={position} />
+          <Handle id={`s-${side}-center`} type="source" position={position} />
+        </Fragment>
+      ))}
     </>
-  )
-}
-
-interface NodeActionsProps {
-  onEdit?: () => void
-  onDelete?: () => void
-}
-
-export function NodeActions({ onEdit, onDelete }: NodeActionsProps) {
-  if (!onEdit && !onDelete) return null
-  return (
-    <div className="nodrag nopan absolute -top-3 -right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-      {onEdit && (
-        <button type="button" title="Editar nombre"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onEdit() }}
-          className="flex items-center justify-center w-5 h-5 rounded bg-gray-700 text-gray-200 shadow hover:bg-blue-600 hover:text-white cursor-pointer">
-          <Pencil className="w-3 h-3" />
-        </button>
-      )}
-      {onDelete && (
-        <button type="button" title="Eliminar"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="flex items-center justify-center w-5 h-5 rounded bg-gray-700 text-gray-200 shadow hover:bg-red-600 hover:text-white cursor-pointer">
-          <Trash2 className="w-3 h-3" />
-        </button>
-      )}
-    </div>
   )
 }
 
@@ -64,4 +39,4 @@ export function useInlineEdit(name: string, onRename?: (name: string) => void) {
 }
 
 export const inlineInputClass =
-  'nodrag nopan w-full bg-gray-800 text-center outline-none rounded px-1 text-gray-100'
+  'nodrag nopan w-full bg-white text-center outline-none rounded-none border border-black px-1 text-black'

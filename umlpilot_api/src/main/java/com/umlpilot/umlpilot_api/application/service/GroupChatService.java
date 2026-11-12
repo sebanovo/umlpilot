@@ -1,11 +1,13 @@
 package com.umlpilot.umlpilot_api.application.service;
 
 import com.umlpilot.umlpilot_api.application.dto.ChatConversationResult;
+import com.umlpilot.umlpilot_api.application.dto.ChatImageData;
 import com.umlpilot.umlpilot_api.application.dto.ChatMessageResult;
 import com.umlpilot.umlpilot_api.application.dto.ChatPageResult;
 import com.umlpilot.umlpilot_api.application.dto.ChatSendResult;
 import com.umlpilot.umlpilot_api.application.dto.SendChatMessageCommand;
 import com.umlpilot.umlpilot_api.application.port.out.ChatEventPublisher;
+import com.umlpilot.umlpilot_api.application.port.out.ChatImageStore;
 import com.umlpilot.umlpilot_api.application.port.out.GroupChatRepository;
 import com.umlpilot.umlpilot_api.domain.exception.DomainException;
 import com.umlpilot.umlpilot_api.domain.model.ChatAuthor;
@@ -18,6 +20,8 @@ import com.umlpilot.umlpilot_api.domain.model.User;
 import com.umlpilot.umlpilot_api.domain.model.UserId;
 import com.umlpilot.umlpilot_api.domain.repository.CollaboratorRepository;
 import com.umlpilot.umlpilot_api.domain.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -27,25 +31,30 @@ import java.util.UUID;
 @Service
 public class GroupChatService {
 
+    private static final Logger log = LoggerFactory.getLogger(GroupChatService.class);
+
     private final ProjectAccessService accessService;
     private final CollaboratorRepository collaboratorRepository;
     private final UserRepository userRepository;
     private final GroupChatRepository chatRepository;
     private final ChatReplyService replyService;
     private final ChatEventPublisher eventPublisher;
+    private final ChatImageStore imageStore;
 
     public GroupChatService(ProjectAccessService accessService,
                             CollaboratorRepository collaboratorRepository,
                             UserRepository userRepository,
                             GroupChatRepository chatRepository,
                             ChatReplyService replyService,
-                            ChatEventPublisher eventPublisher) {
+                            ChatEventPublisher eventPublisher,
+                            ChatImageStore imageStore) {
         this.accessService = accessService;
         this.collaboratorRepository = collaboratorRepository;
         this.userRepository = userRepository;
         this.chatRepository = chatRepository;
         this.replyService = replyService;
         this.eventPublisher = eventPublisher;
+        this.imageStore = imageStore;
     }
 
     /** Valida la membresía en PostgreSQL para canales auxiliares del chat (p. ej. voz). */
@@ -173,11 +182,28 @@ public class GroupChatService {
         ConversationMessage saved = chatRepository.saveMessage(message);
         chatRepository.incrementUnsummarized(conversation.id());
         chatRepository.save(conversation.withLastMessage(saved.createdAt()));
+        try {
+            imageStore.store(saved.id(), image, displayName, contentType);
+        } catch (RuntimeException e) {
+            // La IA puede construir desde la imagen aunque falle la miniatura.
+            log.warn("No se pudo guardar la imagen del mensaje {}: {}", saved.id(), e.getMessage());
+        }
 
         eventPublisher.messageCreated(projectId, saved);
         eventPublisher.aiStatus(projectId, saved.id(), ChatMessageStatus.GENERATING, null);
         replyService.generateFromImage(conversation, saved, image, contentType, prompt);
         return new ChatSendResult(ChatMessageResult.from(saved), false);
+    }
+
+    public ChatImageData getImage(String projectId, String messageId, String userId) {
+        accessService.requireMember(projectId, userId);
+        ConversationMessage message = chatRepository.findMessageById(messageId)
+                .orElseThrow(() -> new DomainException("Mensaje no encontrado"));
+        if (!projectId.equals(message.projectId())) {
+            throw new DomainException("El mensaje no pertenece al proyecto");
+        }
+        return imageStore.load(messageId)
+                .orElseThrow(() -> new DomainException("Imagen no encontrada"));
     }
 
     public ChatSendResult retryMessage(String projectId, String messageId, String userId) {

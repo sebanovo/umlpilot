@@ -2,6 +2,7 @@ import { Bot, ExternalLink, RotateCcw, UserRound } from 'lucide-react'
 import type { ChatMessage } from '../api/groupChatApi'
 import { AiStatusBadge } from './AiStatusBadge'
 import { CitationList } from './CitationList'
+import { ChatImagePreview } from './ChatImagePreview'
 import { MentionText } from './MentionText'
 
 interface MessageBubbleProps {
@@ -46,6 +47,10 @@ export function MessageBubble({
     )
   }
 
+  const isImage = message.content.startsWith('[Imagen:')
+  const caption = isImage
+    ? message.content.replace(/^\[Imagen:[^\]]*\]\s*/, '')
+    : message.content
   const assistant = message.authorType === 'assistant'
   const mutations = message.actions.filter((action) => action.action !== 'read')
   const canOpenDiagram = Boolean(message.diagramId && mutations.length > 0)
@@ -73,17 +78,25 @@ export function MessageBubble({
           )}
         </div>
 
-        {message.previewUrl && (
+        {message.previewUrl ? (
           <img
             src={message.previewUrl}
             alt="Diagrama adjunto"
             className="mb-2 max-h-56 w-full rounded-lg border border-white/10 object-contain"
           />
-        )}
+        ) : isImage ? (
+          <ChatImagePreview
+            projectId={message.projectId}
+            messageId={message.id}
+            alt="Diagrama adjunto"
+          />
+        ) : null}
 
-        <p className="whitespace-pre-wrap break-words">
-          <MentionText content={message.content} labels={mentionNames} />
-        </p>
+        {caption.trim() && (
+          <p className="whitespace-pre-wrap break-words">
+            <MentionText content={caption} labels={mentionNames} />
+          </p>
+        )}
 
         {message.citations.length > 0 && (
           <CitationList citations={message.citations} onCitationClick={onCitationClick} />
