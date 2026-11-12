@@ -192,7 +192,7 @@ export interface UmlElementApi {
 export interface UmlAttributeApi { id: string; elementId: string; name: string; dataType: string; visibility: string; alias?: string; stereotype?: string; defaultValue?: string; isStatic: boolean; isFinal: boolean; orderIndex: number }
 export interface UmlMethodApi { id: string; elementId: string; name: string; returnType: string; visibility: string; alias?: string; stereotype?: string; defaultValue?: string; isStatic: boolean; isAbstract: boolean; isFinal: boolean; isConstructor: boolean; orderIndex: number; parameters: UmlParameterApi[] }
 export interface UmlParameterApi { id: string; methodId: string; name: string; dataType: string; direction?: string; notes?: string; orderIndex: number }
-export interface UmlRelationshipApi { id: string; diagramId: string; sourceElementId: string; targetElementId: string; relationshipType: string; name?: string; direction: string; associationClassElementId?: string | null; sourceHandle?: string | null; targetHandle?: string | null }
+export interface UmlRelationshipApi { id: string; diagramId: string; sourceElementId: string; targetElementId: string; relationshipType: string; name?: string; direction: string; associationClassElementId?: string | null; sourceHandle?: string | null; targetHandle?: string | null; waypoints?: string | null }
 
 export interface MultiplicityApi {
   id: string
@@ -238,6 +238,8 @@ export const relationshipsApi = {
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships`, { method: 'POST', body: JSON.stringify(data) }) as Promise<UmlRelationshipApi>,
   update: (projectId: string, diagramId: string, relationshipId: string, data: { name?: string; type?: string; direction?: string; associationClassElementId?: string; sourceElementId?: string; targetElementId?: string; sourceHandle?: string; targetHandle?: string }) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'PUT', body: JSON.stringify(data) }) as Promise<UmlRelationshipApi>,
+  updateWaypoints: (projectId: string, diagramId: string, relationshipId: string, waypoints: string) =>
+    authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}/waypoints`, { method: 'PUT', body: JSON.stringify({ waypoints }) }) as Promise<UmlRelationshipApi>,
   delete: (projectId: string, diagramId: string, relationshipId: string) =>
     authFetch(`/api/v1/projects/${projectId}/diagrams/${diagramId}/relationships/${relationshipId}`, { method: 'DELETE' }),
   getMultiplicities: (projectId: string, diagramId: string, relationshipId: string) =>

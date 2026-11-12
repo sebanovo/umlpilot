@@ -1,5 +1,5 @@
 import type { UmlLiteral } from '../types/uml'
-import { NodeActions, NodeHandles, useInlineEdit, inlineInputClass } from './NodeControls'
+import { NodeHandles, useInlineEdit, inlineInputClass } from './NodeControls'
 
 interface EnumNodeData {
   name: string
@@ -10,15 +10,14 @@ interface EnumNodeData {
 }
 
 export function EnumNode({ id, data, selected }: { id: string; data: EnumNodeData; selected?: boolean }) {
-  const { name, literals, onDeleteNode, onRenameNode } = data as EnumNodeData
+  const { name, literals, onRenameNode } = data as EnumNodeData
   const edit = useInlineEdit(name, onRenameNode ? (value) => onRenameNode(id, value) : undefined)
 
   return (
-    <div className={`group relative bg-gray-900 border-2 rounded min-w-[160px] font-mono text-xs text-gray-100 transition-shadow ${selected ? 'border-blue-400 ring-2 ring-blue-400/60 shadow-lg shadow-blue-500/20' : 'border-gray-500'}`}>
-      <NodeActions onEdit={onRenameNode ? edit.start : undefined} onDelete={onDeleteNode ? () => onDeleteNode(id) : undefined} />
+    <div className={`group relative bg-white border-2 rounded-none min-w-[160px] font-mono text-xs text-black transition-shadow ${selected ? 'border-blue-600 ring-2 ring-blue-400/60 shadow-lg shadow-blue-500/20' : 'border-black'}`}>
       <NodeHandles />
-      <div className="text-center italic text-gray-400 px-2 py-0.5 border-b border-gray-700">{`<<enumeration>>`}</div>
-      <div className="text-center font-bold px-2 py-1.5 border-b border-gray-500">
+      <div className="text-center italic text-gray-600 px-2 py-0.5">{`<<enumeration>>`}</div>
+      <div className="text-center font-bold px-2 py-1.5 border-b border-black">
         {edit.editing ? (
           <input autoFocus value={edit.value} onChange={(e) => edit.setValue(e.target.value)}
             onBlur={edit.commit}

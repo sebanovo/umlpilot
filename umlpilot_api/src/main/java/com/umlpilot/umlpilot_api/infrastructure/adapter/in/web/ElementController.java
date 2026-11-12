@@ -62,11 +62,12 @@ public class ElementController {
         try {
             String name = (String) body.get("name");
             String visibility = (String) body.get("visibility");
+            String stereotype = (String) body.get("stereotype");
             Integer x = body.get("positionX") != null ? ((Number) body.get("positionX")).intValue() : null;
             Integer y = body.get("positionY") != null ? ((Number) body.get("positionY")).intValue() : null;
             Integer w = body.get("width") != null ? ((Number) body.get("width")).intValue() : null;
             Integer h = body.get("height") != null ? ((Number) body.get("height")).intValue() : null;
-            return ResponseEntity.ok(elementService.updateElement(diagramId, elementId, name, visibility, x, y, w, h));
+            return ResponseEntity.ok(elementService.updateElement(diagramId, elementId, name, visibility, stereotype, x, y, w, h));
         } catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 

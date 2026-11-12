@@ -16,6 +16,7 @@ public class RelationshipJpaEntity {
     @Column(name = "association_class_element_id") private String associationClassElementId;
     @Column(name = "source_handle") private String sourceHandle;
     @Column(name = "target_handle") private String targetHandle;
+    @Column(name = "waypoints", columnDefinition = "TEXT") private String waypoints;
     @Column(name = "creation_date", nullable = false, updatable = false) private LocalDateTime createdAt;
     @Column(name = "update_date", nullable = false) private LocalDateTime updatedAt;
 
@@ -43,6 +44,8 @@ public class RelationshipJpaEntity {
     public void setSourceHandle(String sourceHandle) { this.sourceHandle = sourceHandle; }
     public String getTargetHandle() { return targetHandle; }
     public void setTargetHandle(String targetHandle) { this.targetHandle = targetHandle; }
+    public String getWaypoints() { return waypoints; }
+    public void setWaypoints(String waypoints) { this.waypoints = waypoints; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

@@ -145,7 +145,7 @@ public class UmlTools {
             ToolContext ctx) {
         String diagramId = diagram(ctx);
         requireElement(diagramId, elementId);
-        ElementResult updated = elementService.updateElement(diagramId, elementId, name, visibility, positionX, positionY, width, height);
+        ElementResult updated = elementService.updateElement(diagramId, elementId, name, visibility, null, positionX, positionY, width, height);
         recorder(ctx).record("update", "element", elementId, "ok");
         eventPublisher.elementUpdated(diagramId, user(ctx), elementId);
         return ok("update", "element", elementId, "Elemento actualizado: " + updated.name());

@@ -93,7 +93,7 @@ public class XmiImportService {
             ElementResult created = elementService.createElement(new CreateElementCommand(
                     diagramId, userId, name, element.elementType(), x, y));
             if (element.width() != null && element.height() != null) {
-                elementService.updateElement(diagramId, created.id(), null, null, null, null,
+                elementService.updateElement(diagramId, created.id(), null, null, null, null, null,
                         element.width(), element.height());
             }
             keyToId.put(key, created.id());

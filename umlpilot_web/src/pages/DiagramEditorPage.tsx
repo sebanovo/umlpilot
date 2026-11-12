@@ -26,7 +26,7 @@ export function DiagramEditorPage() {
     selectedElement, selectedAttributes, selectedMethods, loading,
     activeRelationship, setActiveRelationship, createRelationship, reconnectRelationship, handleNodeClick,
     selectedRelationship, relationshipMultiplicities, onEdgeClick, clearRelationshipSelection,
-    updateRelationshipName, updateMultiplicity, remoteCursors, handleCursorMove,
+    updateRelationshipName, updateMultiplicity, deleteRelationship, remoteCursors, handleCursorMove,
     onNodesChange, onEdgesChange, onConnect, createElement, deleteElement,
     updateElement, addAttribute, deleteAttribute, addMethod, deleteMethod,
     addParameter, deleteParameter,
@@ -145,12 +145,12 @@ export function DiagramEditorPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `diagram_${diagramId}.xmi`
+    link.download = `diagram_${diagramId}.xml`
     document.body.appendChild(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
-    toast({ title: 'Diagrama exportado', description: 'Se descargó el archivo .xmi', variant: 'success' })
+    toast({ title: 'Diagrama exportado', description: 'Se descargó el archivo .xml', variant: 'success' })
   }
 
   const handleGenerateBackend = async () => {
@@ -314,7 +314,7 @@ export function DiagramEditorPage() {
                   <Upload className="w-3.5 h-3.5" />
                   {importingXmi ? 'Importando…' : 'Importar XMI'}
                 </button>
-                <input ref={xmiFileInputRef} type="file" accept=".xmi,.xml" className="hidden"
+                <input ref={xmiFileInputRef} type="file" accept=".xml,.xmi" className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     e.target.value = ''
@@ -383,6 +383,7 @@ export function DiagramEditorPage() {
                   multiplicities={relationshipMultiplicities}
                   onUpdateName={updateRelationshipName}
                   onUpdateMultiplicity={updateMultiplicity}
+                  onDelete={() => deleteRelationship(selectedRelationship.id)}
                   width={panelWidth}
                 />
               ) : (

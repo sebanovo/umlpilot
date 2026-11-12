@@ -56,6 +56,14 @@ public class RelationshipService {
     }
 
     @Transactional
+    public RelationshipResult updateWaypoints(String relationshipId, String waypoints) {
+        Relationship rel = relationshipRepository.findById(RelationshipId.from(relationshipId))
+                .orElseThrow(() -> new DomainException("Relationship not found"));
+        rel.updateWaypoints(waypoints);
+        return toResult(relationshipRepository.save(rel));
+    }
+
+    @Transactional
     public void deleteRelationship(String relationshipId) {
         RelationshipId id = RelationshipId.from(relationshipId);
         multiplicityRepository.findByRelationshipId(relationshipId).forEach(m -> multiplicityRepository.delete(m.getId()));
@@ -80,6 +88,6 @@ public class RelationshipService {
     }
 
     private RelationshipResult toResult(Relationship r) {
-        return new RelationshipResult(r.getId().value(), r.getDiagramId().value(), r.getSourceElementId().value(), r.getTargetElementId().value(), r.getRelationshipType(), r.getName(), r.getDirection(), r.getAssociationClassElementId(), r.getSourceHandle(), r.getTargetHandle());
+        return new RelationshipResult(r.getId().value(), r.getDiagramId().value(), r.getSourceElementId().value(), r.getTargetElementId().value(), r.getRelationshipType(), r.getName(), r.getDirection(), r.getAssociationClassElementId(), r.getSourceHandle(), r.getTargetHandle(), r.getWaypoints());
     }
 }

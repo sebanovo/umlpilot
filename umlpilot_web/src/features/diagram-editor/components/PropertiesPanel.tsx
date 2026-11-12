@@ -42,11 +42,13 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
 
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState('')
+  const [stereotypeDraft, setStereotypeDraft] = useState('')
 
   useEffect(() => {
     setIsEditing(false)
     setExpandedMethod(null)
-  }, [element?.id])
+    setStereotypeDraft(element?.stereotype ?? '')
+  }, [element?.id, element?.stereotype])
 
   if (!element) {
     return (
@@ -93,6 +95,32 @@ export function PropertiesPanel({ element, attributes, methods, onUpdate, onAddA
             <p className="text-sm text-gray-100">{element.name}</p>
           )}
         </div>
+
+        {element.elementType === 'class' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-1">Estereotipo</label>
+            <div className="flex gap-2">
+              <input value={stereotypeDraft} onChange={(e) => setStereotypeDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') onUpdate({ stereotype: stereotypeDraft.trim() }) }}
+                placeholder="ej. entity" className={inputClass} />
+              <button onClick={() => onUpdate({ stereotype: stereotypeDraft.trim() })}
+                title="Guardar estereotipo"
+                className="rounded-md bg-blue-600 px-2.5 text-white hover:bg-blue-500 cursor-pointer transition-colors">
+                <Check className="w-4 h-4" />
+              </button>
+              {element.stereotype && (
+                <button onClick={() => { setStereotypeDraft(''); onUpdate({ stereotype: '' }) }}
+                  title="Quitar estereotipo"
+                  className="rounded-md bg-gray-800 px-2.5 text-gray-300 hover:bg-red-600 hover:text-white cursor-pointer transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {element.stereotype && (
+              <p className="mt-1 text-[11px] text-gray-500">{`<<${element.stereotype}>>`}</p>
+            )}
+          </div>
+        )}
 
         {/* Attributes */}
         <div className="border-t border-gray-800 pt-3">

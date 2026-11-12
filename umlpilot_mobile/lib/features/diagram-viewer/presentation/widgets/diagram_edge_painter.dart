@@ -84,7 +84,7 @@ class DiagramEdgePainter extends CustomPainter {
           break;
       }
 
-      _label(canvas, relationship.name ?? '', _midpoint(start, end) - const Offset(0, 8), color);
+      _label(canvas, relationship.name ?? '', _relationshipLabelPosition(start, end), color);
       final list = multiplicities[relationship.id] ?? const [];
       final sourceMultiplicity = list.where((item) => item.end == 'source').firstOrNull;
       final targetMultiplicity = list.where((item) => item.end == 'target').firstOrNull;
@@ -160,6 +160,27 @@ class DiagramEdgePainter extends CustomPainter {
   }
 
   Offset _midpoint(Offset a, Offset b) => Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+
+  Offset _relationshipLabelPosition(Offset start, Offset end) {
+    final mid = _midpoint(start, end);
+    final delta = end - start;
+    final length = delta.distance;
+    if (length == 0) return mid - const Offset(0, 12);
+
+    var nx = -delta.dy / length;
+    var ny = delta.dx / length;
+    // Horizontal: arriba. Vertical: a la derecha. Diagonal: normal exterior.
+    if (delta.dx.abs() >= delta.dy.abs()) {
+      if (ny > 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+    } else if (nx < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    return mid + Offset(nx * 12, ny * 12);
+  }
 
   Offset _offsetAlong(Offset from, Offset to, double distance) {
     final delta = to - from;
@@ -250,7 +271,7 @@ class DiagramEdgePainter extends CustomPainter {
     }
 
     if (relationship.name != null && relationship.name!.isNotEmpty) {
-      _label(canvas, relationship.name!, Offset(rect.right + 74, rect.center.dy), color);
+      _label(canvas, relationship.name!, Offset(rect.right + 104, rect.center.dy), color);
     }
   }
 
@@ -262,7 +283,7 @@ class DiagramEdgePainter extends CustomPainter {
         style: TextStyle(
           fontSize: 10,
           color: color,
-          backgroundColor: AppColors.background.withValues(alpha: 0.8),
+          backgroundColor: Colors.transparent,
         ),
       ),
       textDirection: TextDirection.ltr,

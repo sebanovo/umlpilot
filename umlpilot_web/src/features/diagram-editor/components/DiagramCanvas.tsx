@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { ReactFlow, Background, Controls, ViewportPortal, useReactFlow, useInternalNode, type Node, type Edge, type Connection, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
+import { useCallback, useEffect, useState, type DragEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { ReactFlow, Background, Controls, ViewportPortal, useReactFlow, useInternalNode, ConnectionMode, type Node, type Edge, type Connection, type OnNodesChange, type OnEdgesChange, type NodeTypes, type EdgeTypes, BackgroundVariant } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ClassNode } from './ClassNode'
 import { InterfaceNode } from './InterfaceNode'
@@ -87,12 +87,6 @@ export function DiagramCanvas({
   const { screenToFlowPosition } = useReactFlow()
   const [pendingSource, setPendingSource] = useState<string | null>(null)
   const [previewCursor, setPreviewCursor] = useState<{ x: number; y: number } | null>(null)
-  const [showHandles, setShowHandles] = useState(false)
-
-  const displayNodes = useMemo(
-    () => nodes.map((n) => ({ ...n, className: showHandles ? 'show-handles' : undefined })),
-    [nodes, showHandles],
-  )
 
   const handleNodeClick = useCallback((_: unknown, node: Node) => { onNodeClick(node.id) }, [onNodeClick])
 
@@ -114,7 +108,6 @@ export function DiagramCanvas({
     if (!id) return
     event.preventDefault()
     setPendingSource(id)
-    setShowHandles(true)
     setPreviewCursor(screenToFlowPosition({ x: event.clientX, y: event.clientY }))
   }, [activeRelationship, onCreateRelationship, readOnly, screenToFlowPosition])
 
@@ -132,7 +125,6 @@ export function DiagramCanvas({
       }
       setPendingSource(null)
       setPreviewCursor(null)
-      setShowHandles(false)
     }
 
     window.addEventListener('pointermove', onMove)
@@ -164,14 +156,14 @@ export function DiagramCanvas({
 
   return (
     <div
-      className={`w-full h-full bg-gray-950 ${handTool ? 'cursor-grab' : activeRelationship ? 'cursor-crosshair' : ''}`}
+      className={`w-full h-full bg-white ${handTool ? 'cursor-grab' : activeRelationship ? 'cursor-crosshair' : ''}`}
       onMouseMove={handleMouseMove}
       onPointerDown={handlePointerDown}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
       <ReactFlow
-        nodes={displayNodes}
+        nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -179,16 +171,13 @@ export function DiagramCanvas({
         onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         onConnect={onConnect}
-        onConnectStart={() => setShowHandles(true)}
-        onConnectEnd={() => setShowHandles(false)}
         onReconnect={handleReconnect}
-        onReconnectStart={() => setShowHandles(true)}
-        onReconnectEnd={() => setShowHandles(false)}
-        edgesReconnectable={!readOnly}
+        edgesReconnectable={false}
         nodesConnectable={!readOnly}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        colorMode="dark"
+        connectionMode={ConnectionMode.Loose}
+        colorMode="light"
         fitView
         snapToGrid
         snapGrid={[15, 15]}
@@ -198,7 +187,7 @@ export function DiagramCanvas({
         panOnDrag={readOnly ? true : (handTool ? true : (activeRelationship ? [1, 2] : (selectMode ? [1, 2] : true)))}
         selectionOnDrag={!readOnly && !handTool && !!selectMode}
       >
-        <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#374151" />
+        <Background variant={BackgroundVariant.Dots} gap={15} size={1} color="#d1d5db" />
         <Controls />
         {/* <MiniMap /> */}
         <ViewportPortal>

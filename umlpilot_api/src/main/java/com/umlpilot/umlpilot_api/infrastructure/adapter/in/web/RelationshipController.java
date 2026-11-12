@@ -44,6 +44,14 @@ public class RelationshipController {
         catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
     }
 
+    @PutMapping("/{relationshipId}/waypoints")
+    public ResponseEntity<?> updateWaypoints(@PathVariable String projectId, @PathVariable String diagramId, @PathVariable String relationshipId, @RequestBody Map<String, String> body) {
+        ResponseEntity<?> denied = requireEditor(projectId, diagramId);
+        if (denied != null) return denied;
+        try { return ResponseEntity.ok(relationshipService.updateWaypoints(relationshipId, body.get("waypoints"))); }
+        catch (DomainException e) { return ResponseEntity.badRequest().body(Map.of("error", e.getMessage())); }
+    }
+
     @DeleteMapping("/{relationshipId}")
     public ResponseEntity<?> delete(@PathVariable String projectId, @PathVariable String diagramId, @PathVariable String relationshipId) {
         ResponseEntity<?> denied = requireEditor(projectId, diagramId);

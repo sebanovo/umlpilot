@@ -135,17 +135,13 @@ button:focus-visible,
   }
 }
 
-/* Ports (handles) stay hidden until connecting / reconnecting a relationship */
-.react-flow__handle {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.react-flow__node.show-handles .react-flow__handle,
+/* Ports (handles) are only measurement points; endpoints are dragged from the edge itself */
+.react-flow__handle,
+.react-flow__handle.connectionindicator,
 .react-flow__handle.connectingfrom,
 .react-flow__handle.connectingto,
 .react-flow__handle.valid {
-  opacity: 1;
-  pointer-events: all;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  cursor: default !important;
 }
