@@ -23,6 +23,7 @@ class ChatViewModel extends ChangeNotifier {
     required GetChatMessagesUseCase getMessages,
     required SendChatMessageUseCase sendMessage,
     required SendChatImageUseCase sendImage,
+    required GetChatMessageImageUseCase getMessageImage,
     required RetryChatMessageUseCase retryMessage,
     required TranscribeChatAudioUseCase transcribeAudio,
     required GetDiagramsUseCase getDiagrams,
@@ -34,6 +35,7 @@ class ChatViewModel extends ChangeNotifier {
         _getMessages = getMessages,
         _sendMessage = sendMessage,
         _sendImage = sendImage,
+        _getMessageImage = getMessageImage,
         _retryMessage = retryMessage,
         _transcribeAudio = transcribeAudio,
         _getDiagrams = getDiagrams,
@@ -49,6 +51,7 @@ class ChatViewModel extends ChangeNotifier {
   final GetChatMessagesUseCase _getMessages;
   final SendChatMessageUseCase _sendMessage;
   final SendChatImageUseCase _sendImage;
+  final GetChatMessageImageUseCase _getMessageImage;
   final RetryChatMessageUseCase _retryMessage;
   final TranscribeChatAudioUseCase _transcribeAudio;
   final GetDiagramsUseCase _getDiagrams;
@@ -74,6 +77,7 @@ class ChatViewModel extends ChangeNotifier {
   bool _loaded = false;
   bool _disposed = false;
   String? _error;
+  final Set<String> _loadingImages = {};
 
   final Map<String, String> _typingUsers = {};
   final Map<String, Timer> _typingTimers = {};
@@ -184,6 +188,7 @@ class ChatViewModel extends ChangeNotifier {
       _selectedDiagramId = _resolveInitialDiagram();
       _loaded = true;
       _realtime.join(projectId);
+      unawaited(_hydrateMessageImages(projectId));
     } catch (e) {
       _error = messageForError(e);
     } finally {
@@ -221,6 +226,7 @@ class ChatViewModel extends ChangeNotifier {
       _messages = _sorted([...page.messages, ..._messages]);
       _nextCursor = page.nextCursor;
       _hasMore = page.hasMore;
+      unawaited(_hydrateMessageImages(projectId));
     } catch (e) {
       _error = messageForError(e);
     } finally {
@@ -404,6 +410,8 @@ class ChatViewModel extends ChangeNotifier {
         final raw = event['message'];
         if (raw is Map) {
           _mergeMessage(ChatMessage.fromJson(raw.cast<String, dynamic>()));
+          final projectId = _projectId;
+          if (projectId != null) unawaited(_hydrateMessageImages(projectId));
           _notify();
         }
         break;
@@ -478,6 +486,7 @@ class ChatViewModel extends ChangeNotifier {
         _nextCursor = page.nextCursor;
         _hasMore = page.hasMore;
       }
+      unawaited(_hydrateMessageImages(projectId));
       _notify();
     } catch (_) {
       // La reconexión no debe borrar el historial ya visible.
@@ -488,13 +497,45 @@ class ChatViewModel extends ChangeNotifier {
     final index = _messages.indexWhere((message) =>
         message.id == incoming.id ||
         (incoming.clientMessageId != null && message.clientMessageId == incoming.clientMessageId));
-    final resolved = incoming.copyWith(pending: false, failed: false);
+    final existingPreview = index >= 0 ? _messages[index].previewBytes : null;
+    final resolved = incoming.copyWith(
+      pending: false,
+      failed: false,
+      previewBytes: incoming.previewBytes ?? existingPreview,
+    );
     if (index >= 0) {
       final next = [..._messages];
       next[index] = resolved;
       _messages = _sorted(next);
     } else {
       _messages = _sorted([..._messages, resolved]);
+    }
+  }
+
+  Future<void> _hydrateMessageImages(String projectId) async {
+    final pending = _messages.where((message) =>
+        message.previewBytes == null &&
+        !message.id.startsWith('pending-') &&
+        message.content.startsWith('[Imagen:')).toList();
+    for (final message in pending) {
+      if (_loadingImages.contains(message.id)) continue;
+      _loadingImages.add(message.id);
+      unawaited(_loadMessageImage(projectId, message.id));
+    }
+  }
+
+  Future<void> _loadMessageImage(String projectId, String messageId) async {
+    try {
+      final bytes = await _getMessageImage(projectId, messageId);
+      if (bytes.isEmpty || _disposed) return;
+      _messages = _messages
+          .map((message) => message.id == messageId ? message.copyWith(previewBytes: bytes) : message)
+          .toList();
+      _notify();
+    } catch (_) {
+      // La imagen puede no estar disponible; el mensaje sigue visible.
+    } finally {
+      _loadingImages.remove(messageId);
     }
   }
 

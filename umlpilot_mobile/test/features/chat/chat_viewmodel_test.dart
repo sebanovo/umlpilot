@@ -89,6 +89,7 @@ void main() {
       getMessages: GetChatMessagesUseCase(chatRepository),
       sendMessage: SendChatMessageUseCase(chatRepository),
       sendImage: SendChatImageUseCase(chatRepository),
+      getMessageImage: GetChatMessageImageUseCase(chatRepository),
       retryMessage: RetryChatMessageUseCase(chatRepository),
       transcribeAudio: TranscribeChatAudioUseCase(chatRepository),
       getDiagrams: GetDiagramsUseCase(diagramsRepository),

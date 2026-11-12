@@ -174,7 +174,7 @@ class DiagramViewerCanvasState extends State<DiagramViewerCanvas> {
             width: layout.size.width,
             height: layout.size.height,
             child: GridPaper(
-              color: AppColors.border.withValues(alpha: 0.55),
+              color: AppColors.diagramGrid,
               interval: 60,
               divisions: 4,
               subdivisions: 1,

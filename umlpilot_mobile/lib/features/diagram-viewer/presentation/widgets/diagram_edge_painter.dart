@@ -36,7 +36,7 @@ class DiagramEdgePainter extends CustomPainter {
       if (source == null || target == null) continue;
 
       final selected = relationship.id == selectedRelationshipId;
-      final color = selected ? AppColors.primaryLight : AppColors.textSecondary;
+      final color = selected ? AppColors.primaryLight : AppColors.diagramEdge;
       final paint = Paint()
         ..color = color
         ..strokeWidth = selected ? 2.2 : 1.4
@@ -214,7 +214,7 @@ class DiagramEdgePainter extends CustomPainter {
       ..lineTo(p1.dx, p1.dy)
       ..lineTo(p2.dx, p2.dy)
       ..close();
-    canvas.drawPath(path, Paint()..color = AppColors.background..style = PaintingStyle.fill);
+    canvas.drawPath(path, Paint()..color = AppColors.diagramBackground..style = PaintingStyle.fill);
     canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.4);
   }
 
@@ -238,7 +238,7 @@ class DiagramEdgePainter extends CustomPainter {
     if (filled) {
       canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.fill);
     } else {
-      canvas.drawPath(path, Paint()..color = AppColors.background..style = PaintingStyle.fill);
+      canvas.drawPath(path, Paint()..color = AppColors.diagramBackground..style = PaintingStyle.fill);
       canvas.drawPath(path, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.4);
     }
   }

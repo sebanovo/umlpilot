@@ -25,5 +25,7 @@ abstract interface class ChatRepository {
 
   Future<ChatSendResult> retryMessage(String projectId, String messageId);
 
+  Future<Uint8List> getMessageImage(String projectId, String messageId);
+
   Future<String> transcribe(String projectId, Uint8List audio);
 }
