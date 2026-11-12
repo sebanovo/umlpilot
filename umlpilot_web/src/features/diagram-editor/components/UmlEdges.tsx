@@ -1,5 +1,5 @@
 import { EdgeLabelRenderer, getStraightPath, useInternalNode, useReactFlow, useStore, type EdgeProps } from '@xyflow/react'
-import { useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { clampAnchorPercent, sideFromPosition, type AnchorEnd, type AnchorSide, type EdgeAnchor } from '../lib/anchors'
 import type { EdgeWaypoint } from '../lib/waypoints'
 
@@ -98,6 +98,158 @@ function projectAnchor(node: NodeGeometry, side: AnchorSide, point: { x: number;
     ? (width ? ((point.x - x) / width) * 100 : 50)
     : (height ? ((point.y - y) / height) * 100 : 50)
   return { side, percent: clampAnchorPercent(percent) }
+}
+
+function shiftAnchor(anchor: EdgeAnchor, node: NodeGeometry | undefined, dx: number, dy: number): EdgeAnchor {
+  const width = node?.measured?.width ?? 0
+  const height = node?.measured?.height ?? 0
+  const delta = anchor.side === 'top' || anchor.side === 'bottom' ? dx : dy
+  const length = anchor.side === 'top' || anchor.side === 'bottom' ? width : height
+  if (!length) return anchor
+  return { side: anchor.side, percent: clampAnchorPercent(anchor.percent + (delta / length) * 100) }
+}
+
+type NodeRect = { left: number; top: number; right: number; bottom: number; width: number; height: number }
+
+function relativeWaypoint(node: NodeGeometry, point: EdgeWaypoint): EdgeWaypoint {
+  const origin = node.internals.positionAbsolute
+  return { x: Math.round(point.x - origin.x), y: Math.round(point.y - origin.y), relative: true }
+}
+
+function nodeRect(node: NodeGeometry | undefined): NodeRect | null {
+  const width = node?.measured?.width ?? 0
+  const height = node?.measured?.height ?? 0
+  if (!node || !width || !height) return null
+  const left = node.internals.positionAbsolute.x
+  const top = node.internals.positionAbsolute.y
+  return { left, top, right: left + width, bottom: top + height, width, height }
+}
+
+function selfLoopTargetAnchor(
+  sourceSide: AnchorSide,
+  baseTarget: EdgeAnchor,
+  waypoint: EdgeWaypoint | undefined,
+  node: NodeGeometry | undefined,
+): EdgeAnchor {
+  const rect = nodeRect(node)
+  if (!waypoint || !rect) return baseTarget
+
+  const threshold = 24
+  let side: AnchorSide = sourceSide
+  let percent: number
+
+  if (sourceSide === 'right' || sourceSide === 'left') {
+    percent = clampAnchorPercent(((waypoint.x - rect.left) / rect.width) * 100)
+    if (waypoint.y <= rect.top + threshold) side = 'top'
+    else if (waypoint.y >= rect.bottom - threshold) side = 'bottom'
+  } else {
+    percent = clampAnchorPercent(((waypoint.y - rect.top) / rect.height) * 100)
+    if (waypoint.x <= rect.left + threshold) side = 'left'
+    else if (waypoint.x >= rect.right - threshold) side = 'right'
+  }
+
+  if (baseTarget.side !== sourceSide && baseTarget.side === side) return baseTarget
+  return { side, percent }
+}
+
+function projectSelfWaypoint(node: NodeGeometry, sourceSide: AnchorSide, point: { x: number; y: number }): EdgeWaypoint {
+  const rect = nodeRect(node)
+  if (!rect) return { x: Math.round(point.x), y: Math.round(point.y) }
+  const pad = 24
+
+  if (sourceSide === 'right') {
+    const x = Math.max(rect.right + pad, point.x)
+    if (point.y <= rect.top + pad) return { x: Math.round(x), y: Math.round(rect.top - pad) }
+    if (point.y >= rect.bottom - pad) return { x: Math.round(x), y: Math.round(rect.bottom + pad) }
+    return { x: Math.round(x), y: Math.round(Math.max(rect.top, Math.min(rect.bottom, point.y))) }
+  }
+  if (sourceSide === 'left') {
+    const x = Math.min(rect.left - pad, point.x)
+    if (point.y <= rect.top + pad) return { x: Math.round(x), y: Math.round(rect.top - pad) }
+    if (point.y >= rect.bottom - pad) return { x: Math.round(x), y: Math.round(rect.bottom + pad) }
+    return { x: Math.round(x), y: Math.round(Math.max(rect.top, Math.min(rect.bottom, point.y))) }
+  }
+  if (sourceSide === 'top') {
+    const y = Math.min(rect.top - pad, point.y)
+    if (point.x <= rect.left + pad) return { x: Math.round(rect.left - pad), y: Math.round(y) }
+    if (point.x >= rect.right - pad) return { x: Math.round(rect.right + pad), y: Math.round(y) }
+    return { x: Math.round(Math.max(rect.left, Math.min(rect.right, point.x))), y: Math.round(y) }
+  }
+
+  const y = Math.max(rect.bottom + pad, point.y)
+  if (point.x <= rect.left + pad) return { x: Math.round(rect.left - pad), y: Math.round(y) }
+  if (point.x >= rect.right - pad) return { x: Math.round(rect.right + pad), y: Math.round(y) }
+  return { x: Math.round(Math.max(rect.left, Math.min(rect.right, point.x))), y: Math.round(y) }
+}
+
+function projectSelfTargetAnchor(
+  node: NodeGeometry,
+  sourceSide: AnchorSide,
+  point: { x: number; y: number },
+): { anchor: EdgeAnchor; waypoint?: EdgeWaypoint } {
+  const rect = nodeRect(node)
+  if (!rect) return { anchor: projectAnchor(node, sourceSide, point) }
+
+  const threshold = 24
+  let side: AnchorSide = sourceSide
+  if (sourceSide === 'right' || sourceSide === 'left') {
+    if (point.y <= rect.top + threshold) side = 'top'
+    else if (point.y >= rect.bottom - threshold) side = 'bottom'
+  } else {
+    if (point.x <= rect.left + threshold) side = 'left'
+    else if (point.x >= rect.right - threshold) side = 'right'
+  }
+
+  const anchor = projectAnchor(node, side, point)
+  if (side === sourceSide) return { anchor }
+  return { anchor, waypoint: projectSelfWaypoint(node, sourceSide, point) }
+}
+
+function selfLoopGeometry(
+  sourcePoint: { x: number; y: number },
+  targetPoint: { x: number; y: number },
+  sourceSide: AnchorSide,
+  targetSide: AnchorSide,
+  waypoint: EdgeWaypoint,
+) {
+  let points: { x: number; y: number }[]
+
+  if (sourceSide === targetSide) {
+    if (sourceSide === 'right') {
+      const x = Math.max(sourcePoint.x, targetPoint.x, waypoint.x)
+      points = [sourcePoint, { x, y: sourcePoint.y }, { x, y: targetPoint.y }, targetPoint]
+    } else if (sourceSide === 'left') {
+      const x = Math.min(sourcePoint.x, targetPoint.x, waypoint.x)
+      points = [sourcePoint, { x, y: sourcePoint.y }, { x, y: targetPoint.y }, targetPoint]
+    } else if (sourceSide === 'top') {
+      const y = Math.min(sourcePoint.y, targetPoint.y, waypoint.y)
+      points = [sourcePoint, { x: sourcePoint.x, y }, { x: targetPoint.x, y }, targetPoint]
+    } else {
+      const y = Math.max(sourcePoint.y, targetPoint.y, waypoint.y)
+      points = [sourcePoint, { x: sourcePoint.x, y }, { x: targetPoint.x, y }, targetPoint]
+    }
+  } else if (sourceSide === 'right' || sourceSide === 'left') {
+    const x = sourceSide === 'right'
+      ? Math.max(sourcePoint.x, waypoint.x)
+      : Math.min(sourcePoint.x, waypoint.x)
+    const y = targetSide === 'top'
+      ? Math.min(targetPoint.y, waypoint.y)
+      : Math.max(targetPoint.y, waypoint.y)
+    points = [sourcePoint, { x, y: sourcePoint.y }, { x, y }, { x: targetPoint.x, y }, targetPoint]
+  } else {
+    const y = sourceSide === 'top'
+      ? Math.min(sourcePoint.y, waypoint.y)
+      : Math.max(sourcePoint.y, waypoint.y)
+    const x = targetSide === 'left'
+      ? Math.min(targetPoint.x, waypoint.x)
+      : Math.max(targetPoint.x, waypoint.x)
+    points = [sourcePoint, { x: sourcePoint.x, y }, { x, y }, { x, y: targetPoint.y }, targetPoint]
+  }
+
+  return {
+    path: pathFromPoints(points),
+    ...polylineLabel(points),
+  }
 }
 
 function hashString(value: string): number {
@@ -336,20 +488,19 @@ function EdgeEndpoint({ x, y, color, onPointerDown }: {
   )
 }
 
-function EdgeWaypointHandle({ x, y, color, onPointerDown, onContextMenu }: {
+function EdgeWaypointHandle({ x, y, color, onPointerDown }: {
   x: number
   y: number
   color: string
   onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void
-  onContextMenu: (event: ReactMouseEvent<HTMLDivElement>) => void
 }) {
   return (
     <EdgeLabelRenderer>
       <div
         className="nodrag nopan"
         onPointerDown={onPointerDown}
-        onContextMenu={onContextMenu}
         onClick={(event) => event.stopPropagation()}
+        onContextMenu={(event) => { event.preventDefault(); event.stopPropagation() }}
         style={{
           position: 'absolute', transform: `translate(-50%, -50%) translate(${x}px,${y}px)`,
           width: 10, height: 10, borderRadius: 2, background: '#ffffff',
@@ -400,6 +551,9 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   const canEdit = useStore((store) => store.nodesConnectable)
   const [dragAnchor, setDragAnchor] = useState<{ end: AnchorEnd; anchor: EdgeAnchor } | null>(null)
   const [dragWaypoint, setDragWaypoint] = useState<{ index: number; point: EdgeWaypoint } | null>(null)
+  const [dragSelfWaypoint, setDragSelfWaypoint] = useState<EdgeWaypoint | null>(null)
+  const [previewWaypoints, setPreviewWaypoints] = useState<EdgeWaypoint[] | null>(null)
+  const [previewAnchors, setPreviewAnchors] = useState<{ source?: EdgeAnchor; target?: EdgeAnchor } | null>(null)
   const {
     name, sourceMultiplicity, targetMultiplicity, associationClassElementId,
     sourceAnchor: sourceAnchorData, targetAnchor: targetAnchorData,
@@ -412,20 +566,41 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   const baseTargetAnchor: EdgeAnchor = dragAnchor?.end === 'target'
     ? dragAnchor.anchor
     : (targetAnchorData ?? { side: sideFromPosition(targetPosition, 'top'), percent: 50 })
+  const dataWaypoints = (waypointsData ?? []).map((point, index) => dragWaypoint?.index === index ? dragWaypoint.point : point)
+  const effectiveWaypoints = dragSelfWaypoint ? [dragSelfWaypoint] : (previewWaypoints ?? dataWaypoints)
+  const selfOrigin = sourceNode?.internals.positionAbsolute
+  const waypoints = source === target && selfOrigin
+    ? effectiveWaypoints.map((point) => point.relative
+      ? { x: point.x + selfOrigin.x, y: point.y + selfOrigin.y }
+      : point)
+    : effectiveWaypoints
   const auto = source === target ? null : autoSides(sourceNode, targetNode)
-  const sourceAnchor: EdgeAnchor = auto ? { ...baseSourceAnchor, side: auto.source } : baseSourceAnchor
-  const targetAnchor: EdgeAnchor = auto ? { ...baseTargetAnchor, side: auto.target } : baseTargetAnchor
 
-  const waypoints = (waypointsData ?? []).map((point, index) => dragWaypoint?.index === index ? dragWaypoint.point : point)
+  useEffect(() => {
+    if (source !== target || !sourceNode || !onWaypointsChange) return
+    const point = waypointsData?.[0]
+    if (!point || point.relative) return
+    onWaypointsChange(id, [relativeWaypoint(sourceNode, point)])
+  }, [source, target, id, waypointsData, sourceNode, onWaypointsChange])
+  const sourceAnchor: EdgeAnchor = previewAnchors?.source
+    ?? (auto ? { ...baseSourceAnchor, side: auto.source } : baseSourceAnchor)
+  const targetAnchor: EdgeAnchor = previewAnchors?.target
+    ?? (source === target
+      ? (dragAnchor?.end === 'target' ? baseTargetAnchor : selfLoopTargetAnchor(sourceAnchor.side, baseTargetAnchor, waypoints[0], sourceNode))
+      : (auto ? { ...baseTargetAnchor, side: auto.target } : baseTargetAnchor))
+
   const sourcePoint = anchorPoint(sourceNode, sourceAnchor, props.sourceX, props.sourceY)
   const targetPoint = anchorPoint(targetNode, targetAnchor, props.targetX, props.targetY)
-  const { path, midX, midY, labelX, labelY } = edgeGeometry({
-    ...props,
-    sourceX: sourcePoint.x,
-    sourceY: sourcePoint.y,
-    targetX: targetPoint.x,
-    targetY: targetPoint.y,
-  }, sourceAnchor.side, waypoints)
+  const geometry = source === target && waypoints.length
+    ? selfLoopGeometry(sourcePoint, targetPoint, sourceAnchor.side, targetAnchor.side, waypoints[0])
+    : edgeGeometry({
+      ...props,
+      sourceX: sourcePoint.x,
+      sourceY: sourcePoint.y,
+      targetX: targetPoint.x,
+      targetY: targetPoint.y,
+    }, sourceAnchor.side, waypoints)
+  const { path, midX, midY, labelX, labelY } = geometry
 
   const stroke = selected ? EDGE_SELECTED : EDGE_COLOR
   const dashed = kind === 'realization'
@@ -433,7 +608,7 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   const lineX = targetPoint.x - lastPoint.x
   const lineY = targetPoint.y - lastPoint.y
   const lineLength = Math.hypot(lineX, lineY) || 1
-  const targetIn: [number, number] = source === target && waypoints.length === 0
+  const targetIn: [number, number] = source === target
     ? (TARGET_DIR[targetAnchor.side] ?? [0, -1])
     : [lineX / lineLength, lineY / lineLength]
   const targetOut: [number, number] = [-targetIn[0], -targetIn[1]]
@@ -454,8 +629,31 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
 
     event.stopPropagation()
     event.preventDefault()
-    const side = end === 'source' ? sourceAnchor.side : targetAnchor.side
 
+    if (source === target && end === 'target' && onWaypointsChange) {
+      const onMove = (moveEvent: PointerEvent) => {
+        const point = screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY })
+        const projected = projectSelfTargetAnchor(node, sourceAnchor.side, point)
+        setDragAnchor({ end, anchor: projected.anchor })
+        setDragSelfWaypoint(projected.waypoint ?? null)
+      }
+      const onUp = (upEvent: PointerEvent) => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        const point = screenToFlowPosition({ x: upEvent.clientX, y: upEvent.clientY })
+        const projected = projectSelfTargetAnchor(node, sourceAnchor.side, point)
+        setDragAnchor(null)
+        setDragSelfWaypoint(null)
+        onAnchorChange(id, end, projected.anchor)
+        onWaypointsChange(id, projected.waypoint ? [relativeWaypoint(node, projected.waypoint)] : [])
+      }
+
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+      return
+    }
+
+    const side = end === 'source' ? sourceAnchor.side : targetAnchor.side
     const onMove = (moveEvent: PointerEvent) => {
       const point = screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY })
       setDragAnchor({ end, anchor: projectAnchor(node, side, point) })
@@ -478,17 +676,50 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
 
     event.stopPropagation()
     event.preventDefault()
+    if (event.ctrlKey || event.metaKey) {
+      setDragWaypoint(null)
+      onWaypointsChange(id, waypoints.filter((_, currentIndex) => currentIndex !== index))
+      if (source === target && onAnchorChange) {
+        onAnchorChange(id, 'target', { side: sourceAnchor.side, percent: baseTargetAnchor.percent })
+      }
+      return
+    }
+    const isSelf = source === target
+    const project = (point: { x: number; y: number }) => isSelf && sourceNode
+      ? projectSelfWaypoint(sourceNode, sourceAnchor.side, point)
+      : { x: Math.round(point.x), y: Math.round(point.y) }
+
     const onMove = (moveEvent: PointerEvent) => {
       const point = screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY })
-      setDragWaypoint({ index, point: { x: Math.round(point.x), y: Math.round(point.y) } })
+      const projected = project(point)
+      setDragWaypoint({ index, point: projected })
+      if (isSelf && sourceNode) {
+        setDragAnchor({
+          end: 'target',
+          anchor: selfLoopTargetAnchor(sourceAnchor.side, baseTargetAnchor, projected, sourceNode),
+        })
+      }
     }
     const onUp = (upEvent: PointerEvent) => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       const point = screenToFlowPosition({ x: upEvent.clientX, y: upEvent.clientY })
-      const next = waypoints.map((current, currentIndex) => currentIndex === index
-        ? { x: Math.round(point.x), y: Math.round(point.y) }
-        : current)
+      const projected = project(point)
+      if (isSelf) {
+        const effectiveTarget = selfLoopTargetAnchor(sourceAnchor.side, baseTargetAnchor, projected, sourceNode)
+        const sameSide = effectiveTarget.side === sourceAnchor.side
+        setDragWaypoint(null)
+        setDragAnchor(null)
+        onWaypointsChange(id, sameSide || !sourceNode ? [] : [relativeWaypoint(sourceNode, projected)])
+        if (onAnchorChange) {
+          onAnchorChange(id, 'target', sameSide
+            ? { side: sourceAnchor.side, percent: baseTargetAnchor.percent }
+            : effectiveTarget)
+        }
+        return
+      }
+
+      const next = waypoints.map((current, currentIndex) => currentIndex === index ? projected : current)
       setDragWaypoint(null)
       onWaypointsChange(id, next)
     }
@@ -498,11 +729,13 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
   }
 
   const addWaypoint = (event: ReactMouseEvent<SVGPathElement>) => {
+    if (!(event.ctrlKey || event.metaKey)) return
     event.preventDefault()
     event.stopPropagation()
-    if (!canEdit || !onWaypointsChange) return
+    if (!canEdit || !onWaypointsChange || kind === 'association_class' || source === target) return
 
     const point = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    if (waypoints.some((waypoint) => Math.hypot(waypoint.x - point.x, waypoint.y - point.y) < 14)) return
     const points = [
       { x: sourcePoint.x, y: sourcePoint.y },
       ...waypoints,
@@ -523,11 +756,88 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
     onWaypointsChange(id, next)
   }
 
-  const removeWaypoint = (index: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    event.stopPropagation()
-    if (!onWaypointsChange) return
-    onWaypointsChange(id, waypoints.filter((_, currentIndex) => currentIndex !== index))
+  const startEdgeDrag = (event: ReactPointerEvent<SVGPathElement>) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey) return
+    if (!canEdit || (!onWaypointsChange && !onAnchorChange)) return
+
+    const start = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    const baseWaypoints = waypointsData ?? []
+    const hasWaypoints = baseWaypoints.length > 0
+    const startSource = sourceAnchor
+    const startTarget = targetAnchor
+
+    let moved = false
+    let movedWaypoints: EdgeWaypoint[] | null = null
+    let movedSource: EdgeAnchor | null = null
+    let movedTarget: EdgeAnchor | null = null
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const point = screenToFlowPosition({ x: moveEvent.clientX, y: moveEvent.clientY })
+      const dx = point.x - start.x
+      const dy = point.y - start.y
+      if (!moved) {
+        if (Math.hypot(dx, dy) < 4) return
+        moved = true
+      }
+
+      if (source === target) {
+        if (!sourceNode || !onWaypointsChange) return
+        const waypoint = projectSelfWaypoint(sourceNode, sourceAnchor.side, point)
+        setDragSelfWaypoint(waypoint)
+        setDragAnchor({
+          end: 'target',
+          anchor: selfLoopTargetAnchor(sourceAnchor.side, baseTargetAnchor, waypoint, sourceNode),
+        })
+        return
+      }
+
+      if (hasWaypoints) {
+        movedWaypoints = baseWaypoints.map((waypoint) => ({
+          x: Math.round(waypoint.x + dx),
+          y: Math.round(waypoint.y + dy),
+        }))
+        setPreviewWaypoints(movedWaypoints)
+        return
+      }
+
+      movedSource = shiftAnchor(startSource, sourceNode, dx, dy)
+      movedTarget = shiftAnchor(startTarget, targetNode, dx, dy)
+      setPreviewAnchors({ source: movedSource, target: movedTarget })
+    }
+
+    const onUp = (upEvent: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      if (source === target) {
+        if (moved && sourceNode && onWaypointsChange) {
+          const point = screenToFlowPosition({ x: upEvent.clientX, y: upEvent.clientY })
+          const waypoint = projectSelfWaypoint(sourceNode, sourceAnchor.side, point)
+          const effectiveTarget = selfLoopTargetAnchor(sourceAnchor.side, baseTargetAnchor, waypoint, sourceNode)
+          const sameSide = effectiveTarget.side === sourceAnchor.side
+          onWaypointsChange(id, sameSide ? [] : [relativeWaypoint(sourceNode, waypoint)])
+          if (onAnchorChange) {
+            onAnchorChange(id, 'target', sameSide
+              ? { side: sourceAnchor.side, percent: baseTargetAnchor.percent }
+              : effectiveTarget)
+          }
+        }
+        setDragSelfWaypoint(null)
+        setDragAnchor(null)
+        return
+      }
+
+      if (moved && hasWaypoints && movedWaypoints && onWaypointsChange) {
+        onWaypointsChange(id, movedWaypoints)
+      } else if (moved && movedSource && movedTarget && onAnchorChange) {
+        onAnchorChange(id, 'source', movedSource)
+        onAnchorChange(id, 'target', movedTarget)
+      }
+      setPreviewWaypoints(null)
+      setPreviewAnchors(null)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
   }
 
   return (
@@ -548,7 +858,9 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
             fill={kind === 'composition' ? stroke : NODE_BG} stroke={stroke} strokeWidth={1.5} />
         )}
         <path d={path} fill="none" stroke="transparent" strokeWidth={20}
-          style={{ pointerEvents: 'stroke' }} onContextMenu={addWaypoint} />
+          style={{ pointerEvents: 'stroke', cursor: 'grab' }}
+          onPointerDown={startEdgeDrag} onClick={addWaypoint}
+          onContextMenu={(event) => { event.preventDefault(); event.stopPropagation() }} />
 
       </svg>
       <EndLabel x={sourceLabelX} y={sourceLabelY} text={sourceMultiplicity} />
@@ -560,7 +872,7 @@ function UmlEdge({ kind, props }: { kind: Kind; props: EdgeProps }) {
           <EdgeEndpoint x={targetPoint.x} y={targetPoint.y} color={stroke} onPointerDown={startAnchorDrag('target')} />
           {waypoints.map((point, index) => (
             <EdgeWaypointHandle key={`waypoint-${index}`} x={point.x} y={point.y} color={stroke}
-              onPointerDown={startWaypointDrag(index)} onContextMenu={removeWaypoint(index)} />
+              onPointerDown={startWaypointDrag(index)} />
           ))}
         </>
       )}

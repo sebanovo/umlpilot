@@ -59,12 +59,12 @@ async function buildEdges(projectId: string, diagramId: string, rels: UmlRelatio
     const source = list.find((m) => m.end === 'source')
     const target = list.find((m) => m.end === 'target')
     const isSelfLoop = rel.sourceElementId === rel.targetElementId
-    const sourceAnchor: EdgeAnchor = isSelfLoop
-      ? { side: 'right', percent: 10 }
-      : parseEdgeAnchor(rel.sourceHandle, 'bottom')
-    const targetAnchor: EdgeAnchor = isSelfLoop
-      ? { side: 'right', percent: 90 }
-      : parseEdgeAnchor(rel.targetHandle, 'top')
+    let sourceAnchor: EdgeAnchor = parseEdgeAnchor(rel.sourceHandle, isSelfLoop ? 'right' : 'bottom')
+    let targetAnchor: EdgeAnchor = parseEdgeAnchor(rel.targetHandle, isSelfLoop ? 'right' : 'top')
+    if (isSelfLoop && sourceAnchor.side === targetAnchor.side && sourceAnchor.percent === targetAnchor.percent) {
+      sourceAnchor = { side: 'right', percent: 10 }
+      targetAnchor = { side: 'right', percent: 90 }
+    }
     return {
       id: rel.id,
       source: rel.sourceElementId,

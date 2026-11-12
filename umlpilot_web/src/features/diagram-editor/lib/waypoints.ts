@@ -1,6 +1,7 @@
 export interface EdgeWaypoint {
   x: number
   y: number
+  relative?: boolean
 }
 
 export function parseWaypoints(value: string | null | undefined): EdgeWaypoint[] {
@@ -11,12 +12,20 @@ export function parseWaypoints(value: string | null | undefined): EdgeWaypoint[]
     return parsed
       .filter((point): point is { x: number; y: number } =>
         !!point && typeof point === 'object' && Number.isFinite((point as { x?: unknown }).x) && Number.isFinite((point as { y?: unknown }).y))
-      .map((point) => ({ x: Math.round(point.x), y: Math.round(point.y) }))
+      .map((point) => ({
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+        ...((point as { relative?: unknown }).relative === true ? { relative: true } : {}),
+      }))
   } catch {
     return []
   }
 }
 
 export function serializeWaypoints(points: EdgeWaypoint[]): string {
-  return JSON.stringify(points.map((point) => ({ x: Math.round(point.x), y: Math.round(point.y) })))
+  return JSON.stringify(points.map((point) => ({
+    x: Math.round(point.x),
+    y: Math.round(point.y),
+    ...(point.relative ? { relative: true } : {}),
+  })))
 }
