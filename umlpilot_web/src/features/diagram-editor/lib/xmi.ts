@@ -24,9 +24,53 @@ const STYLE_SWIMLANES = 'locked=false;orientation=0;width=0;inbar=false;names=fa
 const STYLE_MATRIX = 'locked=false;matrixactive=false;swimlanesactive=true;kanbanactive=false;width=1;clrLine=0;'
 const CONN_LABELS = '$LLB=CX=17:CY=14:OX=0:OY=0:HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:DIR=0:ROT=0;LLT=;LMT=CX=32:CY=14:OX=0:OY=0:HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:DIR=0:ROT=0;LMB=;LRT=;LRB=CX=17:CY=14:OX=0:OY=0:HDN=0:BLD=0:ITA=0:UND=0:CLR=-1:ALN=1:DIR=0:ROT=0;IRHS=;ILHS=;Path=;'
 
-// EA serialises its proprietary GUIDs as uppercase hex groups joined by "_".
+const CP1252_SPECIAL: Record<number, number> = {
+  0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85,
+  0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A,
+  0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92,
+  0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+  0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C,
+  0x017E: 0x9E, 0x0178: 0x9F,
+}
+
+export function encodeWindows1252(value: string): Uint8Array<ArrayBuffer> {
+  const bytes: number[] = []
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0x3F
+    if (code <= 0xFF) {
+      bytes.push(code)
+    } else if (CP1252_SPECIAL[code] !== undefined) {
+      bytes.push(CP1252_SPECIAL[code])
+    } else {
+      bytes.push(0x3F)
+    }
+  }
+  return new Uint8Array(bytes)
+}
+
+// EA serialises its proprietary GUIDs as uppercase hex groups joined by "_": 8_4_4_4_12.
+function hash32(value: string, seed: number): number {
+  let hash = seed >>> 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash >>> 0
+}
+
+function hex8(value: number): string {
+  return (value >>> 0).toString(16).toUpperCase().padStart(8, '0')
+}
+
 function guid(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '')
+  const a = hex8(hash32(raw, 0x811c9dc5))
+  const b = hex8(hash32(raw, 0x9e3779b9))
+  const c = hex8(hash32(raw, 0x85ebca6b))
+  const d = hex8(hash32(raw, 0xc2b2ae35))
+  const e = hex8(hash32(raw, 0x27d4eb2f))
+  const version4 = '4' + b.slice(5)
+  const variant = ((parseInt(c.charAt(0), 16) & 0x3) | 0x8).toString(16).toUpperCase() + c.slice(1, 4)
+  return `${a}_${b.slice(0, 4)}_${version4}_${variant}_${(c.slice(4) + d + e).slice(0, 12)}`
 }
 function esc(v: string | null | undefined): string {
   return (v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
@@ -121,7 +165,11 @@ export function buildXmi(input: XmiInput): string {
   const pos = (id: string): XmiPosition => positions[id] || { x: 0, y: 0 }
   const w = (id: string) => Math.round((pos(id).width && pos(id).width! > 0) ? pos(id).width! : 160)
   const h = (id: string) => Math.round((pos(id).height && pos(id).height! > 0) ? pos(id).height! : 80)
-  const shapeId = (id: string) => xid(id + '_shape')
+  const diagramGuid = guid(diagramId + '_diagram').split('_')
+  const shapeId = (id: string) => {
+    const elementGuid = guid(id).split('_')
+    return `EAID_${diagramGuid[0]}_${diagramGuid[1]}_${diagramGuid[2]}_${elementGuid[3]}_${elementGuid[4]}`
+  }
 
   // Only keep relationships whose both ends are real, emittable elements so no
   // xmi:idref ever dangles (a dangling ref makes EA drop the whole relationship).
@@ -155,8 +203,8 @@ export function buildXmi(input: XmiInput): string {
     }
   }
 
-  out.push('<?xml version="1.0" encoding="UTF-8"?>')
-  out.push(`<xmi:XMI xmi:version="2.5.1" xmlns:uml="${NS_UML}" xmlns:xmi="${NS_XMI}" xmlns:umldi="${NS_UMLDI}" xmlns:dc="${NS_DC}">`)
+  out.push('<?xml version="1.0" encoding="windows-1252"?>')
+  out.push(`<xmi:XMI xmlns:uml="${NS_UML}" xmlns:xmi="${NS_XMI}" xmlns:umldi="${NS_UMLDI}" xmlns:dc="${NS_DC}" xmlns:thecustomprofile="http://www.sparxsystems.com/profiles/thecustomprofile/1.0">`)
   out.push(`${p(1)}<xmi:Documentation exporter="Enterprise Architect" exporterVersion="6.5"/>`)
   out.push(`${p(1)}<uml:Model xmi:type="uml:Model" name="EA_Model">`)
   out.push(`${p(2)}<packagedElement xmi:type="uml:Package" xmi:id="${PKG_ID}" name="${esc(modelName)}">`)
@@ -234,7 +282,7 @@ export function buildXmi(input: XmiInput): string {
     if (!modeledRel(rel)) continue
     const s = pos(rel.sourceElementId)
     const t = pos(rel.targetElementId)
-    out.push(`${p(3)}<ownedElement xmi:type="umldi:UMLEdge" xmi:id="${xid(rel.id + '_edge')}" source="${shapeId(rel.sourceElementId)}" target="${shapeId(rel.targetElementId)}" modelElement="${xid(rel.id)}">`)
+    out.push(`${p(3)}<ownedElement xmi:type="umldi:UMLEdge" xmi:id="${shapeId(rel.id)}" source="${shapeId(rel.sourceElementId)}" target="${shapeId(rel.targetElementId)}" modelElement="${xid(rel.id)}">`)
     out.push(`${p(4)}<waypoint xmi:type="dc:waypoint" xmi:id="${xid(rel.id + '_wp0')}" x="${Math.round(s.x + w(rel.sourceElementId) / 2)}" y="${Math.round(s.y + h(rel.sourceElementId) / 2)}"/>`)
     out.push(`${p(4)}<waypoint xmi:type="dc:waypoint" xmi:id="${xid(rel.id + '_wp1')}" x="${Math.round(t.x + w(rel.targetElementId) / 2)}" y="${Math.round(t.y + h(rel.targetElementId) / 2)}"/>`)
     out.push(`${p(3)}</ownedElement>`)

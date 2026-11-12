@@ -8,7 +8,7 @@ import { PresenceBar, type PresenceUser } from '../features/diagram-editor/compo
 import { Toolbox } from '../features/diagram-editor/components/Toolbox'
 import { PropertiesPanel } from '../features/diagram-editor/components/PropertiesPanel'
 import { RelationshipPanel } from '../features/diagram-editor/components/RelationshipPanel'
-import { buildXmi } from '../features/diagram-editor/lib/xmi'
+import { buildXmi, encodeWindows1252 } from '../features/diagram-editor/lib/xmi'
 import { ShareDiagramDialog } from '../features/collaboration/components/ShareDiagramDialog'
 import { backendGenerationApi, projectsApi, xmiImportApi, type Collaborator } from '../shared/api/client'
 import { colorFor } from '../shared/lib/useWebSocket'
@@ -141,7 +141,7 @@ export function DiagramEditorPage() {
       positions,
       multiplicities,
     })
-    const blob = new Blob([xml], { type: 'application/xml' })
+    const blob = new Blob([encodeWindows1252(xml)], { type: 'application/xml;charset=windows-1252' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url

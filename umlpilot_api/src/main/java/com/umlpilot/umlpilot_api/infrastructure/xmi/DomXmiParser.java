@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -90,7 +91,15 @@ public class DomXmiParser implements XmiDocumentParser {
         List<String> warnings = new ArrayList<>();
         List<ImportedDiagram.ElementSpec> elements = new ArrayList<>();
         List<ImportedDiagram.RelationshipSpec> relationships = new ArrayList<>();
-        processNode(model, namesById, bounds, warnings, elements, relationships);
+        Set<String> unsupportedTypes = new LinkedHashSet<>();
+        processNode(model, namesById, bounds, warnings, elements, relationships, unsupportedTypes);
+        if (elements.isEmpty() && relationships.isEmpty()) {
+            if (!unsupportedTypes.isEmpty()) {
+                String type = unsupportedTypes.iterator().next();
+                throw new DomainException("Elemento no soportado: " + type + ". " + UNSUPPORTED_ELEMENTS_MESSAGE);
+            }
+            throw new DomainException("Tipo de diagrama no soportado. Solo se aceptan diagramas de clases.");
+        }
         return new ImportedDiagram(elements, relationships, warnings);
     }
 
@@ -165,7 +174,7 @@ public class DomXmiParser implements XmiDocumentParser {
 
     private void processNode(Element node, Map<String, String> namesById, Map<String, ImportedDiagram.Bounds> bounds,
                              List<String> warnings, List<ImportedDiagram.ElementSpec> elements,
-                             List<ImportedDiagram.RelationshipSpec> relationships) {
+                             List<ImportedDiagram.RelationshipSpec> relationships, Set<String> unsupportedTypes) {
         for (Element child : elementChildren(node)) {
             // Solo el contenido del diagrama vive en `packagedElement`. El resto son
             // envoltorios/construcciones de la herramienta de origen (primitivetypes,
@@ -175,7 +184,7 @@ public class DomXmiParser implements XmiDocumentParser {
             }
             String type = umlType(child);
             if (CONTAINER_TAGS.contains(type)) {
-                processNode(child, namesById, bounds, warnings, elements, relationships);
+                processNode(child, namesById, bounds, warnings, elements, relationships, unsupportedTypes);
             } else if (ELEMENT_TAGS.contains(type)) {
                 String id = xmiAttr(child, "id");
                 if (!isDrawn(id, bounds)) {
@@ -193,9 +202,10 @@ public class DomXmiParser implements XmiDocumentParser {
                 relationship(child, "realization", attr(child, "client"), supplierOf(child),
                         null, null, null, warnings, namesById, relationships);
             } else if (OTHER_DIAGRAM_TAGS.contains(type)) {
-                throw new DomainException("Tipo de diagrama no soportado. Solo se aceptan diagramas de clases.");
+                // Un archivo XMI de EA puede contener varios diagramas (actividad, estados,
+                // casos de uso...). Se ignoran sus elementos y se importa la parte de clases.
             } else if (UNSUPPORTED_ELEMENT_TAGS.contains(type)) {
-                throw new DomainException("Elemento no soportado: " + type + ". " + UNSUPPORTED_ELEMENTS_MESSAGE);
+                unsupportedTypes.add(type);
             }
             // Cualquier otro tipo (perfil, estereotipo, extensión, primitivo…) se ignora.
         }
