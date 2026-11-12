@@ -36,7 +36,7 @@ class DiagramNodeCard extends StatelessWidget {
     return element.stereotype ?? '';
   }
 
-  Widget _row(String text, {Color color = AppColors.textPrimary}) {
+  Widget _row(String text, {Color color = AppColors.diagramEdge}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       child: Text(
@@ -55,15 +55,15 @@ class DiagramNodeCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isNote ? AppColors.noteBackground : AppColors.surface,
-        borderRadius: BorderRadius.circular(6),
+        color: AppColors.diagramCard,
+        borderRadius: BorderRadius.zero,
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.borderLight,
-          width: selected ? 2 : 1,
+          color: selected ? AppColors.primary : AppColors.diagramBorder,
+          width: 2,
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -75,7 +75,7 @@ class DiagramNodeCard extends StatelessWidget {
                   element.name,
                   maxLines: 6,
                   overflow: TextOverflow.ellipsis,
-                  style: _mono.copyWith(color: AppColors.noteText),
+                  style: _mono.copyWith(color: AppColors.diagramEdge),
                 ),
               )
             else ...[
@@ -87,7 +87,7 @@ class DiagramNodeCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: _mono.copyWith(color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                    style: _mono.copyWith(color: AppColors.diagramMuted, fontStyle: FontStyle.italic),
                   ),
                 ),
               Padding(
@@ -97,11 +97,11 @@ class DiagramNodeCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _mono.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+                  style: _mono.copyWith(color: AppColors.diagramEdge, fontWeight: FontWeight.w700),
                 ),
               ),
               if (attributes.isNotEmpty || methods.isNotEmpty || literals.isNotEmpty)
-                const Divider(height: 1, color: AppColors.border),
+                const Divider(height: 1, color: AppColors.diagramBorder),
               if (isEnum)
                 ...literals.map((literal) => _row(literal.name))
               else ...[
@@ -111,7 +111,7 @@ class DiagramNodeCard extends StatelessWidget {
                   ),
                 ),
                 if (attributes.isNotEmpty && methods.isNotEmpty)
-                  const Divider(height: 1, color: AppColors.border),
+                  const Divider(height: 1, color: AppColors.diagramBorder),
                 ...methods.map(
                   (method) => _row(
                     '${_visibility(method.visibility)} ${method.name}(${method.parameters.map((p) => p.name).join(', ')}): ${method.returnType}',

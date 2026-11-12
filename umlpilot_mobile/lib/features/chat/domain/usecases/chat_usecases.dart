@@ -62,6 +62,15 @@ class SendChatImageUseCase {
       );
 }
 
+class GetChatMessageImageUseCase {
+  const GetChatMessageImageUseCase(this._repository);
+
+  final ChatRepository _repository;
+
+  Future<Uint8List> call(String projectId, String messageId) =>
+      _repository.getMessageImage(projectId, messageId);
+}
+
 class RetryChatMessageUseCase {
   const RetryChatMessageUseCase(this._repository);
 

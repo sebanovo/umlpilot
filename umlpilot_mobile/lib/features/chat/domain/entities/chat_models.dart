@@ -187,6 +187,7 @@ class ChatMessage {
     ChatAiStatus? aiStatus,
     bool? pending,
     bool? failed,
+    Uint8List? previewBytes,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -206,7 +207,7 @@ class ChatMessage {
       model: model,
       aiStatus: aiStatus ?? this.aiStatus,
       createdAt: createdAt,
-      previewBytes: previewBytes,
+      previewBytes: previewBytes ?? this.previewBytes,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
     );

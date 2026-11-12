@@ -23,4 +23,12 @@ class AppColors {
   static const Color warning = Color(0xFFEAB308);
   static const Color noteBackground = Color(0xFFFEF9C3);
   static const Color noteText = Color(0xFF374151);
+
+  // Diagrama: mismo lenguaje visual que el editor web.
+  static const Color diagramBackground = Color(0xFFFFFFFF);
+  static const Color diagramCard = Color(0xFFFFFFFF);
+  static const Color diagramBorder = Color(0xFF000000);
+  static const Color diagramEdge = Color(0xFF111827);
+  static const Color diagramGrid = Color(0xFFE5E7EB);
+  static const Color diagramMuted = Color(0xFF6B7280);
 }

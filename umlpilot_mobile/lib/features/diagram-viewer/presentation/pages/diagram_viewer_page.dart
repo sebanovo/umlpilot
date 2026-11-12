@@ -113,6 +113,7 @@ class _DiagramViewerPageState extends State<DiagramViewerPage> {
     final diagram = viewModel.diagram;
 
     return Scaffold(
+      backgroundColor: AppColors.diagramBackground,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
