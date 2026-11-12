@@ -380,6 +380,11 @@ export const backendGenerationApi = {
     authDownload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/generate/backend`),
 }
 
+export const xmiExportApi = {
+  download: (projectId: string, diagramId: string) =>
+    authDownload(`/api/v1/projects/${projectId}/diagrams/${diagramId}/export/xmi`),
+}
+
 export interface ImportXmiResult {
   elements: number
   attributes: number
